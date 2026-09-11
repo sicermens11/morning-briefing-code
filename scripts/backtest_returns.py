@@ -1,0 +1,818 @@
+#!/usr/bin/env python3
+# ⚠️ docstring은 r"""(raw). 윈도 경로의 `\u`가 유니코드 이스케이프로 해석돼 파일 전체가
+#    SyntaxError가 되는 함정이 있다(2026-08-26 track_unmapped.py에서 겪음).
+r"""
+backtest_returns.py — 브리핑 픽의 다지평 수익률 재계산 (2026-08-26 신설)
+
+왜 만들었나:
+  기존 백테스트 표는 **D+5(주간) 한 지평**만, 그것도 **종목마다 다른 벤치마크**
+  (섹터 ETF 또는 코스피)로 잰다. 그래서 규칙의 예측력을 검정하려 하면 표본이
+  34건뿐이고 벤치마크가 섞여 있어 비교가 흐려진다.
+
+  2026-08-26 실측에서 이 문제가 드러났다 — 같은 픽들을 지평만 바꿔 재계산하니
+  **D+1은 -1.84%p, D+5는 +4.84%p로 부호가 뒤집혔다.** 한 지평만 보면 정반대 결론이 난다.
+
+무엇이 다른가:
+  ① **다지평** D+1 · D+5 · D+20
+  ② **단일 벤치마크(코스피)** — 섹터 ETF는 변수가 하나 더 늘어 "규칙이 맞았나"를 흐린다
+  ③ **실전 기준** — 발굴가는 **전일 종가**라 그 가격엔 못 산다(브리핑이 개장 전이므로).
+     실제 최초 매수 가능 가격인 **발굴일 시가** 기준을 함께 낸다.
+     (2026-08-26 실측: 36건 중 32건이 발굴가 = 직전 거래일 종가로 확인됐다)
+
+⚠️ **판정하지 않는다.** 수익률만 계산한다. 적중/빗나감 판정은 `weekly-action-review`가
+   기존 규칙대로 한다 — 판정 기준을 두 곳에 두면 규칙 변경이 갈라진다.
+
+⚠️ **기존 `backtest-track-record.md`를 건드리지 않는다.** 별도 계열로 쌓는다.
+   그 표는 섹터 ETF 기준이라 계열이 다르고, 섞으면 둘 다 못 쓰게 된다.
+
+사용:
+    run-py.ps1 -Script backtest_returns.py -Args @('--update')    # 계산·누적(멱등)
+    run-py.ps1 -Script backtest_returns.py -Args @('--report')    # 집계
+    run-py.ps1 -Script backtest_returns.py -Args @('--update','--report')
+
+데이터: `data\backtest-returns.jsonl` (픽 1건 = 1줄, 같은 날짜+코드는 갱신)
+"""
+import concurrent.futures as cf
+import glob
+import io
+import json
+import math
+import os
+import re
+import statistics as st
+import sys
+import urllib.request
+
+_DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+MD_LOG = os.path.join(_DATA, "briefing-daily-log.md")
+OUT = os.path.join(_DATA, "backtest-returns.jsonl")
+SNAP = os.path.join(_DATA, "snapshots")
+
+HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+           "Referer": "https://m.stock.naver.com/"}
+HORIZONS = [1, 5, 20]
+BENCH = "KOSPI"
+GAPS = "①②③④"
+
+
+def sise(symbol: str, start: str = "20260101", end: str = "20301231"):
+    url = ("https://api.finance.naver.com/siseJson.naver"
+           f"?symbol={symbol}&requestType=1&startTime={start}&endTime={end}&timeframe=day")
+    raw = urllib.request.urlopen(
+        urllib.request.Request(url, headers=HEADERS), timeout=25
+    ).read().decode("utf-8", errors="replace")
+    return [r for r in json.loads(raw.replace("'", '"'))[1:] if isinstance(r, list)]
+
+
+def parse_picks():
+    """일일 로그 마크다운에서 발굴가가 있는 픽을 뽑는다.
+
+    ⚠️ 마크다운을 읽는다(JSONL 아님). JSONL은 2026-08-25부터라 표본이 2일뿐이고,
+       마크다운은 07-29부터 있다. **형식 A(후보1~6)와 형식 B(후보1·2·2군)를 둘 다** 읽는다.
+    """
+    picks, cur = [], None
+    for line in io.open(MD_LOG, encoding="utf-8"):
+        # ⚠️⚠️ **날짜 머리 형식이 두 가지다** (2026-08-31 사고). 08-26까지는
+        #    `## 2026-08-26 (수)`였는데 08-27부터 `## [2026-08-27(목)]`로 바뀌었다.
+        #    옛 정규식은 대괄호를 몰라서 **08-27 이후 날짜 머리를 전부 놓쳤고**,
+        #    나흘치 픽 18개가 통째로 `2026-08-26` 하루에 붙었다.
+        #    ⚠️ 조용히 틀렸다 — 파싱은 성공하고 픽 수도 늘어나니 **오류가 안 난다.**
+        #       기준일검증이 8건을 걸러 표본에서 빼줬을 뿐, 그것도 우연이다.
+        #       0.5% 안에 우연히 들어온 픽은 **엉뚱한 날 수익률로 집계됐다.**
+        m = re.match(r"^##\s*\[?\s*(\d{4}-\d{2}-\d{2})", line)
+        if m:
+            cur = m.group(1)
+            continue
+        m = re.match(r"^(후보[1-6]|2군):\s*(.+)$", line)
+        if not (m and cur):
+            continue
+        body = m.group(2)
+        code = re.search(r"\((\d{6})\)", body)
+        price = re.search(r"발굴시점가[:：]\s*([\d,]+)", body)
+        if not (code and price):
+            continue          # 발굴가 없으면 수익률 계산 자체가 불가능
+        name = re.match(r"\s*([^|(]+)", body)
+        grade = re.search(r"(🔴|🟢|🟡|🟠)", body)
+        gaps = re.search(r"갭\s*([①②③④]+)", body)
+        score = re.search(r"원점수[:：]\s*(-?\d+)", body)
+        picks.append({
+            "날짜": cur, "슬롯": m.group(1),
+            "종목": (name.group(1).strip() if name else ""), "코드": code.group(1),
+            "발굴가": float(price.group(1).replace(",", "")),
+            "등급": grade.group(1) if grade else "",
+            "갭": gaps.group(1) if gaps else "",
+            "갭수": len(gaps.group(1)) if gaps else 0,
+            "원점수": int(score.group(1)) if score else None,
+        })
+    # ⚠️ **하루에 픽이 6개를 넘으면 파싱이 깨진 것이다.** 후보는 최대 6(보통 4)이라
+    #    그 이상이 한 날짜에 모이는 일은 없다. 날짜 머리를 놓치면 바로 여기 걸린다.
+    #    ⚠️ 조용히 넘기지 않는다 — 08-27 사고가 **닷새 동안 아무 오류 없이** 진행됐다.
+    from collections import Counter
+    많음 = {d: n for d, n in Counter(p["날짜"] for p in picks).items() if n > 6}
+    if 많음:
+        raise ValueError(f"한 날짜에 픽이 너무 많다 {많음} — 날짜 머리(`## 날짜`)를 "
+                         f"못 읽고 여러 날이 뭉쳤다는 뜻이다. 로그 형식을 확인한다.")
+    # ⚠️⚠️ **발굴슬롯·재료출처는 마크다운에 없다.** JSONL에만 있으므로 여기서 합친다
+    #    (2026-08-31 신설). 마크다운을 읽는 이유는 07-29까지 거슬러 갈 수 있어서지만,
+    #    새 필드는 JSONL에만 쌓인다 — **둘을 합치지 않으면 새 필드가 영영 집계에 안 잡힌다.**
+    jl = os.path.join(_DATA, "briefing-daily-log.jsonl")
+    if os.path.exists(jl):
+        표 = {}
+        for line in io.open(jl, encoding="utf-8"):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                o = json.loads(line)
+            except Exception:  # noqa: BLE001
+                continue
+            for q in (o.get("picks") or []):
+                표[(o.get("date"), q.get("code"))] = (
+                    q.get("발굴슬롯"), q.get("재료출처"), q.get("stop_loss"))
+        for x in picks:
+            v = 표.get((x["날짜"], x["코드"]))
+            if v:
+                x["발굴슬롯"], x["재료출처"], x["stop_loss"] = v
+    return picks
+
+
+def _f(v):
+    """⚠️ `%`·`+`·콤마를 전부 벗긴다. 안 벗기면 float()이 터져 **조용히 결측**이 된다."""
+    try:
+        return float(str(v).replace(",", "").replace("%", "").replace("+", "").strip())
+    except Exception:
+        return None
+
+
+def _snap_files(date: str, prefix: str):
+    d = os.path.join(SNAP, date)
+    if not os.path.isdir(d):
+        return []
+    return [os.path.join(d, f) for f in sorted(os.listdir(d))
+            if f.startswith(prefix) and f.endswith(".json")]
+
+
+def _load(path):
+    try:
+        with io.open(path, encoding="utf-8-sig") as fp:
+            return json.load(fp)
+    except Exception:
+        return None
+
+
+def _krx_지표(date: str, code: str) -> dict:
+    r"""**직전 거래일** KRX 시세에서 시총·거래대금을 붙인다. 추가 호출 0회(캐시).
+
+    ⚠️ 발굴가가 직전 거래일 종가이므로 **그 날짜의 캐시**를 본다. 캐시에 있는 날짜 중
+       픽 날짜보다 앞선 가장 가까운 날을 쓴다 — 휴장·수집 실패로 하루씩 비는 날이 있다.
+    """
+    d = date.replace("-", "")
+    보관 = sorted(os.path.basename(x)[:-5]
+                for x in glob.glob(os.path.join(_DATA, "krx-daily", "*.json")))
+    앞선 = [x for x in 보관 if x < d]
+    if not 앞선:
+        return {}
+    try:
+        with io.open(os.path.join(_DATA, "krx-daily", f"{앞선[-1]}.json"),
+                     encoding="utf-8") as fp:
+            k = (json.load(fp).get("종목") or {}).get(code) or {}
+    except Exception:  # noqa: BLE001
+        return {}
+    out = {}
+    for src, dst in (("시총", "시가총액"), ("거래대금", "거래대금")):
+        if k.get(src) is not None:
+            out[dst] = k[src]
+    return out
+
+
+def snap_metrics(date: str, code: str) -> dict:
+    r"""스냅샷에서 **서술 전용 지표**를 뽑아 (날짜, 코드)에 붙인다. (2026-08-26 신설)
+
+    ⚠️ **왜 만들었나 — "점수 미반영"의 명분이 무너져 있었다.**
+       기술지표·상대강도·시장국면·외국인지분율추이 같은 것을 점수에 안 넣은 이유는
+       "아직 검증이 안 됐으니 표본 쌓이면 재검토"였다. 그런데 `daily-log`가 남기는
+       판단 재료는 `gaps`·`score`·`grade`·`signals`뿐이고, `signals`는 **어떤 단계가
+       돌았나**지 **값이 뭐였나**가 아니다. 값이 브리핑 HTML에 글자로만 남으니
+       **표본이 영원히 안 쌓이고, 따라서 영원히 재검토될 수 없었다.**
+
+    ⚠️ **모델이 아니라 스크립트가 읽는다.** `run-py.ps1`이 이미 수집 응답을
+       `data\snapshots\<날짜>\`에 통째로 저장하고 있다. 모델이 숫자를 옮겨 적게 하면
+       그게 곧 출력 토큰이고 실행 시간이다(약 70토큰/초). 여기선 한 글자도 안 늘어난다.
+
+    ⚠️ 2026-08-26 이전 날짜는 스냅샷이 없어 `{}`가 나온다. 정상이다 —
+       그 이전 픽은 이 분석에서 자동으로 빠진다.
+    """
+    m = {}
+
+    def put(key, val):
+        r"""⚠️ **값이 None이면 넣지 않는다. 이미 담긴 값을 덮어쓰지도 않는다.**
+
+        같은 날 스냅샷이 **여러 개** 생긴다 — 인자가 다르면 파일이 따로 저장되기 때문이다
+        (`fetch_stock__--codes_003160.json`, `fetch_stock__--codes_003160,009540.json` …).
+        아래 루프가 그 파일들을 순서대로 훑는데, **옛 실행분에는 새 필드가 없다.**
+        그냥 대입하면 **먼저 담긴 정상값이 뒤 파일의 None으로 지워진다.**
+
+        2026-08-27 실측: 공매도를 추가하고 확인해보니 `공매도추세`만 남고 숫자가 사라졌다
+        (`추세`만 우연히 `if` 가드가 있었기 때문). 다른 필드도 전부 같은 위험에 노출돼 있었다.
+        """
+        if val is not None and key not in m:
+            m[key] = val
+
+    for p in _snap_files(date, "compute_ta"):
+        j = _load(p) or {}
+        t = j.get(code)
+        if isinstance(t, dict) and not t.get("error"):
+            put("RSI14", _f(t.get("rsi14")))
+            put("20일선상회", t.get("above_sma20"))
+            put("골든크로스", t.get("golden_cross_sma"))
+            put("거래량비율", _f(t.get("volume_ratio")))
+            put("52주고점대비pct", _f(t.get("week52_high_drawdown_pct")))
+            put("신고가돌파", bool(t.get("신고가돌파")))
+            put("오늘움직임_ATR배", _f(t.get("today_move_vs_atr")))
+        rs = ((j.get("_상대강도") or {}).get("종목별") or {}).get(code)
+        if isinstance(rs, dict):
+            for w in ("20일", "60일", "120일"):
+                put(f"상대강도{w}", _f((rs.get(w) or {}).get("상대강도")))
+        reg = j.get("_시장국면")
+        if isinstance(reg, dict):
+            put("시장국면", reg.get("국면"))
+            put("코스피20일선대비pct", _f(reg.get("20일선대비pct")))
+    for p in _snap_files(date, "fetch_stock"):
+        s = ((_load(p) or {}).get("stocks") or {}).get(code)
+        if not isinstance(s, dict):
+            continue
+        put("외국인지분율변화pp", _f((s.get("외국인지분율추이") or {}).get("변화pct_p")))
+        # ⚠️ 공매도 (2026-08-27 신설). 점수에는 안 들어가지만 **여기 안 넣으면 영원히
+        #    검증되지 않는다** — "표본 쌓이면 재검토"가 명분이려면 표본이 쌓여야 한다.
+        ss = s.get("공매도") or {}
+        if not ss.get("error"):
+            put("공매도비중5일pct", _f(ss.get("최근5일평균pct")))
+            put("공매도직전평균pct", _f(ss.get("직전평균pct")))
+            put("공매도추세", ss.get("추세"))
+        y, q = s.get("재무3개년") or {}, s.get("분기6개") or {}
+
+        def last(d, key):
+            """연간·분기 리스트의 **마지막 유효값**. 결측이 섞여 있어 뒤에서부터 찾는다."""
+            for v in reversed(d.get(key) or []):
+                x = _f(v)
+                if x is not None:
+                    return x
+            return None
+
+        opm = [x for x in (_f(v) for v in (y.get("영업이익률") or [])) if x is not None]
+        if len(opm) >= 2:
+            put("영업이익률개선pp", round(opm[-1] - opm[0], 2))
+        qo = [x for x in (_f(v) for v in (q.get("영업이익") or [])) if x is not None]
+        # 전년 동기(4분기 전) 대비. 분모가 0이거나 적자면 비율이 무의미하므로 건너뛴다.
+        if len(qo) >= 4 and qo[-4] > 0:
+            put("분기영업이익_전년동기pct", round((qo[-1] / qo[-4] - 1) * 100, 1))
+
+        # ── 아래는 전부 **점수 미반영, 기록 전용** (2026-08-27 확장) ──────────────
+        # ⚠️ 왜 넣나 — 사용자 설계: **점수는 검증된 것만, 기록은 가능한 전부.**
+        #    주간 리뷰가 "어떤 조건일 때 올랐나"를 여기서 찾고, 그 결과가 다음 점수 항목이 된다.
+        #    기록이 없으면 그 질문 자체를 할 수 없다.
+        put("당좌비율pct", last(y, "당좌비율"))
+        put("부채비율연간pct", last(y, "부채비율"))
+        put("부채비율분기pct", last(q, "부채비율"))
+        # ⚠️ 연간과 분기의 **차이**가 핵심이다. 연간은 결산 기준이라 8월엔 8개월 늦다.
+        #    2026-08-27 효성중공업: 연간 190.31%(재무취약 미해당) vs 분기 213.51%(해당).
+        yd, qd = last(y, "부채비율"), last(q, "부채비율")
+        if yd is not None and qd is not None:
+            put("부채비율_분기연간차pp", round(qd - yd, 2))
+        put("PER", last(y, "PER"))
+        put("PBR", last(y, "PBR"))
+        put("ROE연간pct", last(y, "ROE"))
+        put("ROE분기pct", last(q, "ROE"))
+        con = s.get("컨센서스") or {}
+        put("컨센서스의견점수", _f(con.get("의견점수")))
+        put("컨센서스목표주가", _f(con.get("목표주가")))
+        put("리서치건수30일", len(s.get("리서치") or []) or None)
+        sg = s.get("수급10일") or []
+        if isinstance(sg, list) and sg:
+            put("전일등락률pct", _f(sg[0].get("등락률pct")))
+            # 외국인·기관이 최근 10일 중 며칠 순매수였나. 갭③은 하루치만 본다.
+            fo = sum(1 for r in sg if _f(r.get("외국인순매수수량")) > 0)
+            og = sum(1 for r in sg if _f(r.get("기관순매수수량")) > 0)
+            put("외국인순매수일수10", fo)
+            put("기관순매수일수10", og)
+    return m
+
+
+def 잘린후보(days=(1, 5)):
+    r"""**우리가 뺀 후보가 실제로 안 갔나** (2026-09-01 신설).
+
+    ⚠️⚠️ **왜 필요한가.** `dropped`(검증 상한에 걸려 못 올린 후보)를 **기록만 하고
+       주가를 한 번도 추적하지 않았다.** 그래서 "구체성 기준이 좋은 대리지표인가"를
+       물어도 답할 데이터가 없었다. 뺀 것이 실제로 안 갔으면 기준이 맞는 것이고,
+       뺀 것이 더 갔으면 **기준이 좋은 후보를 버리고 있다는 뜻**이다.
+
+    ⚠️ **초과수익률로 잰다.** 절대 수익률로 재면 시장이 오른 날이 많은 기간에
+       무엇이든 좋아 보인다(2026-09-01 전 종목 실측에서 결론이 뒤집힌 그 함정).
+
+    ⚠️ **후보를 늘려 표본을 쌓는 것보다 이쪽이 낫다.** 상한을 올리면 질 낮은 후보가
+       섞이지만, 이미 본 종목을 추적하는 것은 **공짜로 표본이 는다.**
+    """
+    import statistics as _st
+    rows = []
+    try:
+        f = io.open(os.path.join(_DATA, "briefing-daily-log.jsonl"), encoding="utf-8-sig")
+    except OSError:
+        return {"ok": False, "이유": "JSONL 없음"}
+    로그 = []
+    for ln in f:
+        ln = ln.strip()
+        if not ln:
+            continue
+        try:
+            로그.append(json.loads(ln))
+        except ValueError:
+            continue
+    for d in 로그:
+        날 = d.get("date")
+        for x in (d.get("dropped") or []):
+            code = x.get("code")
+            if not code:
+                continue
+            r = {"날짜": 날, "종목": x.get("name"), "코드": code,
+                 "갭수": len(x.get("gaps") or []), "사유": (x.get("why") or "")[:40],
+                 "구분": "뺀 후보"}
+            r.update(_수익(code, 날, days))
+            rows.append(r)
+        for p_ in (d.get("picks") or []):
+            r = {"날짜": 날, "종목": p_.get("name"), "코드": p_.get("code"),
+                 "갭수": len(p_.get("gaps") or []), "사유": "", "구분": "올린 후보"}
+            r.update(_수익(p_.get("code"), 날, days))
+            rows.append(r)
+    있 = [r for r in rows if r.get("D1초과") is not None]
+    def 평(구분, 키):
+        v = [r[키] for r in 있 if r["구분"] == 구분 and r.get(키) is not None]
+        return (len(v), round(_st.mean(v), 3)) if v else (0, None)
+    요약 = {}
+    for h in days:
+        키 = f"D{h}초과"
+        a, b = 평("올린 후보", 키), 평("뺀 후보", 키)
+        요약[키] = {"올린 후보": {"n": a[0], "평균": a[1]},
+                    "뺀 후보": {"n": b[0], "평균": b[1]},
+                    "차이": (round(a[1] - b[1], 3) if a[1] is not None and b[1] is not None else None)}
+    return {"ok": True, "행": rows, "요약": 요약,
+            "_읽는법": "차이가 **양수**면 올린 쪽이 더 갔다(기준이 맞다). "
+                       "**음수**면 뺀 쪽이 더 갔다 — 기준이 좋은 후보를 버리고 있다는 뜻이다. "
+                       "⚠️ 표본이 10건 미만이면 방향만 본다. 규칙을 바꾸지 않는다."}
+
+
+def _수익(code, 날, days):
+    """`krx-daily` 캐시로 D+N 초과수익률(시장 평균 대비)을 낸다. 없으면 None."""
+    import statistics as _st
+    fs = sorted(os.path.basename(x)[:8]
+                for x in glob.glob(os.path.join(_DATA, "krx-daily", "*.json")))
+    기준 = (날 or "").replace("-", "")
+    뒤 = [x for x in fs if x >= 기준]
+    if not 뒤:
+        return {}
+    def 읽(d8):
+        try:
+            with io.open(os.path.join(_DATA, "krx-daily", f"{d8}.json"),
+                         encoding="utf-8-sig") as fp:
+                return json.load(fp).get("종목") or {}
+        except OSError:
+            return {}
+    base = 읽(뒤[0])
+    v0 = base.get(code)
+    if not v0:
+        return {}
+    try:
+        c0 = float(v0["종가"])
+    except (TypeError, ValueError, KeyError):
+        return {}
+    out = {}
+    for h in days:
+        if len(뒤) <= h:
+            continue
+        s2 = 읽(뒤[h])
+        v2 = s2.get(code)
+        if not v2 or c0 <= 0:
+            continue
+        try:
+            c2 = float(v2["종가"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        시장 = [float(x["종가"]) / float(base[k]["종가"]) - 1
+                for k, x in s2.items()
+                if k in base and float(base[k].get("시총") or 0) >= 5e10
+                and float(base[k].get("종가") or 0) > 0]
+        if not 시장:
+            continue
+        out[f"D{h}초과"] = round(((c2 / c0 - 1) - _st.mean(시장)) * 100, 2)
+    return out
+
+
+def compute(picks):
+    codes = sorted({p["코드"] for p in picks})
+    series, failed = {}, []
+    with cf.ThreadPoolExecutor(max_workers=10) as ex:
+        futs = {ex.submit(sise, c): c for c in codes}
+        for f in cf.as_completed(futs):
+            try:
+                series[futs[f]] = f.result()
+            except Exception as e:
+                series[futs[f]] = []
+                failed.append({"코드": futs[f], "사유": f"{type(e).__name__}: {e}"})
+    bench = sise(BENCH)
+    bd = [str(r[0]) for r in bench]
+
+    rows = []
+    for p in picks:
+        rr = series.get(p["코드"]) or []
+        if not rr:
+            continue
+        d = [str(r[0]) for r in rr]
+        key = p["날짜"].replace("-", "")
+        if key not in d or key not in bd:
+            continue
+        i, j = d.index(key), bd.index(key)
+        if i == 0 or j == 0:
+            continue                       # 직전 거래일이 있어야 기준가를 잡는다
+        base, kbase, op = rr[i - 1][4], bench[j - 1][4], rr[i][1]
+        if not (base and kbase and op):
+            continue
+        rec = {**p, "기준종가": base, "시초가": op,
+               "시초갭pct": round((op - base) / base * 100, 2),
+               # ⚠️ 발굴가가 직전 거래일 종가와 다르면 기준일 가정이 깨진 것이다.
+               #    계산은 하되 플래그를 남겨 나중에 걸러낼 수 있게 한다.
+               "기준일검증": abs(p["발굴가"] - base) / base < 0.005,
+               "지표": snap_metrics(p["날짜"], p["코드"]),
+               # ⚠️⚠️ **시총·거래대금은 KRX 캐시에서 직접 붙인다** (2026-08-31 신설).
+               #    `features`(enrich_log)는 스냅샷이 있는 날(08-26+)만 붙는데,
+               #    **D5 수익률이 나온 픽은 전부 그 이전(07-29~08-25)**이라 겹치는 게
+               #    0건이었다. KRX는 과거 날짜를 받을 수 있어서(실측 확인) 소급이 된다.
+               #    ⇒ 이 한 줄로 **"작은 회사라 오른 것인가"를 오늘 물을 수 있게 된다.**
+               **_krx_지표(p["날짜"], p["코드"])}
+        # ⚠️ **손절선에 닿았나.** `stop_loss`가 있는 픽만 판정한다(없으면 `None`).
+        #    닿았으면 그 뒤 수익률은 **실제로는 못 먹은 것**이다.
+        sl = p.get("stop_loss")
+        if sl:
+            for h in HORIZONS:
+                구간 = rr[i:i + h]
+                저 = [x[3] for x in 구간 if x[3]]
+                if 저:
+                    rec.setdefault("손절터치", {})[f"D{h}"] = min(저) <= float(sl)
+        for h in HORIZONS:
+            if i + h - 1 < len(rr) and j + h - 1 < len(bench):
+                px, kx = rr[i + h - 1][4], bench[j + h - 1][4]
+                theo = (px / base - 1) * 100
+                real = (px / op - 1) * 100
+                km = (kx / kbase - 1) * 100
+                rec[f"D{h}"] = {"이론": round(theo, 2), "실전": round(real, 2),
+                                "코스피": round(km, 2),
+                                "초과이론": round(theo - km, 2),
+                                "초과실전": round(real - km, 2)}
+                # ⚠️⚠️ **장중 고가·저가를 함께 본다** (2026-08-31 신설).
+                #    지금까지 수익률은 **종가만** 봤다. 그래서 "D+1 종가 +3% → 적중"인데
+                #    **장중에 −8%까지 빠졌으면 손절선에 걸려 이미 팔렸다는 사실**이
+                #    기록 어디에도 없었다. 즉 백테스트가 **"사면 끝까지 들고 있었다"**를
+                #    말없이 가정하고 있었다 — 실전에는 손절선이 있는데.
+                #    · `최저` — 발굴가 대비 **가장 깊이 빠진 지점**. 손절 터치 판정의 근거.
+                #    · `최고` — **가장 많이 올랐던 지점**. 종가보다 훨씬 높으면
+                #              "신호는 맞았는데 파는 시점이 문제"였다는 뜻이다.
+                #    ⚠️ 시초가(`op`) 기준으로 잰다 — 실제로 살 수 있는 가격이 그것이다.
+                구간 = rr[i:i + h]
+                고 = [x[2] for x in 구간 if x[2]]
+                저 = [x[3] for x in 구간 if x[3]]
+                if 고 and 저 and op:
+                    rec[f"D{h}"]["최고"] = round((max(고) / op - 1) * 100, 2)
+                    rec[f"D{h}"]["최저"] = round((min(저) / op - 1) * 100, 2)
+        rows.append(rec)
+    return rows, failed
+
+
+def save(rows):
+    """같은 (날짜, 코드, 슬롯)은 갱신한다 — D+20은 나중에 채워지므로 재실행이 전제다."""
+    keep = {}
+    if os.path.exists(OUT):
+        with io.open(OUT, encoding="utf-8-sig") as fp:
+            for line in fp:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    o = json.loads(line)
+                    keep[(o.get("날짜"), o.get("코드"), o.get("슬롯"))] = o
+                except Exception:
+                    pass
+    for r in rows:
+        keep[(r["날짜"], r["코드"], r["슬롯"])] = r
+    with io.open(OUT, "w", encoding="utf-8") as fp:
+        for k in sorted(keep):
+            fp.write(json.dumps(keep[k], ensure_ascii=False, sort_keys=True) + "\n")
+    return len(keep)
+
+
+def _sign_p(vals):
+    """부호검정 양측 p값. ⚠️ 표본이 작으면 어떤 차이도 유의하지 않게 나온다 — 그게 정상이다."""
+    pos = sum(1 for x in vals if x > 0)
+    n = len(vals)
+    if n == 0:
+        return None, 0, 0
+    k = min(pos, n - pos)
+    p = min(1.0, sum(math.comb(n, i) for i in range(k + 1)) * 2 / 2 ** n)
+    return round(p, 3), pos, n
+
+
+def _agg(vals):
+    p, pos, n = _sign_p(vals)
+    return {"n": n, "평균": round(st.mean(vals), 2), "중앙": round(st.median(vals), 2),
+            "플러스": f"{pos}/{n}", "p": p, "유의": bool(p is not None and p < 0.05)}
+
+
+def _by_metric(use, val, min_n: int = 8, min_grp: int = 4):
+    r"""서술 전용 지표별로 성과가 실제로 갈리는지 본다. (2026-08-26 신설)
+
+    ⚠️ **이건 가설 생성이지 검정이 아니다.** 지표 15개를 훑으면 p<0.05는 그중
+       0.75개가 **우연히** 나온다. 하나가 유의하게 나왔다고 점수표를 고치면
+       2026-08-26에 네 번(갭③·모멘텀·공백순위·끊어진참조) 물린 그 실수를 반복하는 것이다.
+
+    ⚠️ **점수표를 고치는 근거로 쓰려면 최소한 이 셋을 다 넘겨야 한다:**
+       ① 각 그룹 표본 20건+ ② `기간별`을 먼저 보고 기간 효과가 아님을 확인
+       ③ 지평(D+1·D+5·D+20) 중 최소 둘에서 같은 방향
+
+    숫자형은 중앙값에서 둘로 가른다. 참/거짓·문자열은 값별로 가른다.
+    """
+    seen = {}
+    for r in use:
+        for k in (r.get("지표") or {}):
+            seen[k] = seen.get(k, 0) + 1
+    out = {}
+    for k in sorted(seen):
+        pairs = [(r["지표"][k], val(r)) for r in use if k in (r.get("지표") or {})]
+        if len(pairs) < min_n:
+            continue
+        xs = [x for x, _ in pairs]
+        if all(isinstance(x, (bool, str)) for x in xs):
+            grp = {}
+            for x, y in pairs:
+                grp.setdefault(str(x), []).append(y)
+            g = {kk: _agg(v) for kk, v in sorted(grp.items()) if len(v) >= min_grp}
+        else:
+            nums = [(x, y) for x, y in pairs if isinstance(x, (int, float))]
+            if len(nums) < min_n:
+                continue
+            med = st.median([x for x, _ in nums])
+            hi = [y for x, y in nums if x >= med]
+            lo = [y for x, y in nums if x < med]
+            if len(hi) < min_grp or len(lo) < min_grp:
+                continue      # 값이 한쪽에 몰려 있으면 가를 수 없다(예: 전부 같은 값)
+            g = {f"≥{round(med, 2)}": _agg(hi), f"<{round(med, 2)}": _agg(lo)}
+        if len(g) >= 2:
+            out[k] = g
+    return out
+
+
+def report(horizon: int = 5):
+    if not os.path.exists(OUT):
+        return {"error": "누적 파일 없음 — 먼저 --update"}
+    rows = []
+    with io.open(OUT, encoding="utf-8-sig") as fp:
+        for line in fp:
+            line = line.strip()
+            if line:
+                try:
+                    rows.append(json.loads(line))
+                except Exception:
+                    pass
+    key = f"D{horizon}"
+    use = [r for r in rows if key in r and r.get("기준일검증")]
+    if len(use) < 3:
+        return {"error": f"{key} 표본 {len(use)}건 — 집계 불가"}
+    val = lambda r: r[key]["초과실전"]      # noqa: E731
+
+    res = {"지평": key, "벤치마크": "코스피", "기준": "발굴일 시가(실제 매수 가능가)",
+           "표본": len(use), "기간": f"{min(r['날짜'] for r in use)}~{max(r['날짜'] for r in use)}",
+           "전체": _agg([val(r) for r in use])}
+    res["갭별"] = {f"갭{g}": _agg([val(r) for r in use if g in r["갭"]])
+                    for g in GAPS if sum(1 for r in use if g in r["갭"]) >= 2}
+    res["갭없음대조"] = {f"갭{g}없음": _agg([val(r) for r in use if g not in r["갭"]])
+                          for g in GAPS if sum(1 for r in use if g not in r["갭"]) >= 2}
+    res["갭수별"] = {f"{k}개": _agg([val(r) for r in use if r["갭수"] == k])
+                      for k in (1, 2, 3, 4) if sum(1 for r in use if r["갭수"] == k) >= 2}
+    res["등급별"] = {g: _agg([val(r) for r in use if r["등급"] == g])
+                      for g in ("🔴", "🟢", "🟡") if sum(1 for r in use if r["등급"] == g) >= 2}
+    # ⚠️⚠️ **발굴슬롯·재료출처별 성과** (2026-08-31 신설). 사용자가 "미장에서 출발하는
+    #    지금 구조가 맞나, 공시·컨센서스에서 따로 출발하는 게 낫나"를 물었는데,
+    #    **답할 데이터가 없었다.** 어느 경로가 나은지는 감이 아니라 여기서 나온다.
+    #    ⚠️ 표본 2건 미만인 칸은 만들지 않는다 — 1건짜리 평균은 숫자가 아니라 잡음이다.
+    for 축, 라벨 in (("발굴슬롯", "발굴슬롯별"), ("재료출처", "재료출처별")):
+        값들 = {r.get(축) for r in use if r.get(축)}
+        칸 = {v: _agg([val(r) for r in use if r.get(축) == v])
+              for v in sorted(값들) if sum(1 for r in use if r.get(축) == v) >= 2}
+        if 칸:
+            res[라벨] = 칸
+        미기록 = sum(1 for r in use if not r.get(축))
+        if 미기록:
+            res.setdefault("_출처미기록", {})[축] = 미기록
+
+    # ⚠️ 기간 효과는 반드시 함께 본다. 2026-08-26 분석에서 "갭③이 나쁘다"와
+    #    "8월 후반이 나빴다"가 분리되지 않아 결론을 못 냈다.
+    ds = sorted({r["날짜"] for r in use})
+    mid = ds[len(ds) // 2]
+    res["기간별"] = {f"~{mid}": _agg([val(r) for r in use if r["날짜"] <= mid]),
+                      f"{mid} 이후": _agg([val(r) for r in use if r["날짜"] > mid])}
+    # ⚠️ 서술 전용 지표 — **점수표에 없는 것들이 실제로 성과를 갈랐나.**
+    #    2026-08-26 이전 픽은 스냅샷이 없어 자동으로 빠진다.
+    with_m = [r for r in use if r.get("지표")]
+    res["서술항목_표본"] = {
+        "지표있는픽": len(with_m), "전체": len(use),
+        "_뜻": ("스냅샷은 2026-08-26부터 쌓인다. 이 숫자가 20을 넘기 전에는 "
+                "아래 표를 근거로 쓰지 않는다."),
+    }
+    if len(with_m) >= 8:
+        res["서술항목별"] = _by_metric(with_m, val)
+        res["서술항목별_경고"] = ("⚠️ **가설 생성용이다. 검정이 아니다.** 지표를 여럿 훑으면 "
+                                  "그중 하나는 우연히 유의하게 나온다. 점수표 변경 근거로 쓰려면 "
+                                  "① 그룹별 20건+ ② 기간별 먼저 확인 ③ 지평 둘 이상에서 같은 방향.")
+    res["_주의"] = ("① 표본이 작으면 p가 0.05를 못 넘는 게 정상이다 — '유의하지 않음'은 "
+                    "'차이가 없다'가 아니라 '아직 모른다'는 뜻이다. "
+                    "② 갭별 차이를 보기 전에 **기간별**을 먼저 봐라 — 기간 효과가 더 크면 "
+                    "갭 차이는 그 그림자일 수 있다. "
+                    "③ 평균은 소수 종목에 끌려다닌다. **중앙값과 플러스 비율**을 함께 본다.")
+    return res
+
+
+def weekly(codes, start: str, end: str):
+    """지정 구간(월~금)의 종목별 등락률 + 코스피. (2026-08-26 신설)
+
+    ⚠️ `weekly-action-review` STEP3의 `koreaStock-stock_get_price_history`를 대체한다.
+       그 도구는 **종목당 1회 MCP**라 "전체 최대 20회" 캡이 걸려 있었는데,
+       후보 상한이 2→6개가 되면서 **주당 최대 30픽이 가능해져 캡이 모자란다.**
+       여기서는 전 종목을 한 번에, MCP 0회로 처리한다(36종목 0.6초 실측).
+
+    ⚠️ 구간 정의는 STEP3 규칙 그대로다 — **시작일·종료일에 정확히 일치하는 행**의 종가를 쓴다.
+       한쪽이라도 없으면 `데이터미확인`으로 표시한다(추정·보간하지 않는다).
+    """
+    s, e = start.replace("-", ""), end.replace("-", "")
+    res, series = {}, {}
+    with cf.ThreadPoolExecutor(max_workers=10) as ex:
+        futs = {ex.submit(sise, c, s, e): c for c in codes}
+        for f in cf.as_completed(futs):
+            try:
+                series[futs[f]] = f.result()
+            except Exception:
+                series[futs[f]] = []
+    def span(rows):
+        """구간 첫·마지막 **실제 거래일**의 종가를 쓴다.
+
+        ⚠️ 요청 날짜와 정확히 일치하는 행만 쓰면 **휴장일 하루에 전부 깨진다** —
+           2026-08-17(광복절 대체휴일)을 시작일로 넣었더니 8종목 전원 실패했다.
+           그래서 구간 안의 실제 거래일로 보정하되, **`실제사용일`을 함께 돌려줘
+           보정된 사실을 감추지 않는다.** 보간·추정은 하지 않는다.
+        """
+        rr = [r for r in rows if s <= str(r[0]) <= e]
+        if len(rr) < 2:
+            return None
+        a, b2 = rr[0], rr[-1]
+        if not a[4]:
+            return None
+        return {"실제사용일": [str(a[0]), str(b2[0])], "시작종가": a[4], "종료종가": b2[4],
+                "등락률": round((b2[4] / a[4] - 1) * 100, 2),
+                "요청일": [start, end],
+                "보정됨": [str(a[0]), str(b2[0])] != [s, e]}
+
+    try:
+        bs = span(sise(BENCH, s, e))
+        res["코스피"] = bs or {"error": "구간 거래일 2일 미만"}
+    except Exception as ex2:
+        res["코스피"] = {"error": f"{type(ex2).__name__}: {ex2}"}
+
+    kpct = (res.get("코스피") or {}).get("등락률")
+    out = {}
+    for c in codes:
+        got = span(series.get(c) or [])
+        if got:
+            if kpct is not None:
+                got["초과수익률"] = round(got["등락률"] - kpct, 2)
+            out[c] = got
+        else:
+            out[c] = {"error": "데이터미확인", "보유행수": len(series.get(c) or [])}
+    res["종목"] = out
+    res["_주의"] = ("등락률은 구간 안의 **실제 거래일** 첫·마지막 종가로 계산했다. "
+                    "`보정됨: true`면 요청 날짜가 휴장일이라 인접 거래일을 쓴 것이다 — "
+                    "`실제사용일`을 확인할 것. 값을 보간하거나 추정하지 않는다.")
+    return res
+
+
+def entry_check_review(horizon: int = 5):
+    """09:05 진입체크 판정이 실제로 맞았는지 검증한다. (2026-08-26 신설)
+
+    ⚠️ **이걸 아무도 안 보고 있었다.** `entry-check-log.jsonl`에 매일 판정이 쌓이는데
+       `weekly-action-review`가 그 파일을 참조하지 않았다(2026-08-26 확인: 참조 0건).
+       "조건충족"이라고 알린 픽이 실제로 잘 갔는지, "보류"가 옳았는지를 **한 번도 검증한 적이 없다.**
+
+    검증하는 것: 판정별 후속 초과수익률.
+      - `조건충족`이 `보류`보다 잘 갔으면 → 진입 조건이 작동한 것
+      - 둘이 비슷하거나 뒤집혔으면 → 조건이 무의미하거나 방향이 반대인 것
+
+    ⚠️ 판정을 바꾸지 않는다. 숫자만 낸다.
+    """
+    log = os.path.join(_DATA, "entry-check-log.jsonl")
+    if not (os.path.exists(log) and os.path.exists(OUT)):
+        return {"error": "entry-check-log.jsonl 또는 backtest-returns.jsonl 없음"}
+
+    verdicts = {}
+    with io.open(log, encoding="utf-8-sig") as fp:
+        for line in fp:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                o = json.loads(line)
+            except Exception:
+                continue
+            for r in o.get("results") or []:
+                # 같은 날 여러 슬롯(0905·1220)이면 09:05을 우선한다 — 그게 출근길 판단이다.
+                k = (o.get("date"), r.get("code"))
+                if k not in verdicts or o.get("slot") == "0905":
+                    # ⚠️ 2026-08-27에 "진입가능" → "조건충족"으로 이름을 바꿨다.
+                    #    08-25~08-27 로그 8건에는 옛 이름이 남아 있으므로 **같은 값으로 묶는다.**
+                    #    안 묶으면 판정별 집계가 두 갈래로 쪼개져 표본이 절반씩 난다.
+                    vd = r.get("verdict")
+                    if vd == "진입가능":
+                        vd = "조건충족"
+                    verdicts[k] = {"verdict": vd, "grade": r.get("grade"),
+                                   "gap_pct": r.get("gap_pct"), "name": r.get("name"),
+                                   "slot": o.get("slot")}
+    rets = {}
+    with io.open(OUT, encoding="utf-8-sig") as fp:
+        for line in fp:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                o = json.loads(line)
+            except Exception:
+                continue
+            if f"D{horizon}" in o and o.get("기준일검증"):
+                rets[(o["날짜"], o["코드"])] = o
+
+    joined = []
+    for k, v in verdicts.items():
+        r = rets.get(k)
+        if r:
+            joined.append({**v, "날짜": k[0], "코드": k[1],
+                           "초과실전": r[f"D{horizon}"]["초과실전"],
+                           "갭": r.get("갭", ""), "등급": r.get("등급", "")})
+    if not joined:
+        return {"지평": f"D{horizon}", "매칭": 0,
+                "_안내": ("진입체크 판정과 수익률이 아직 안 만났다. 진입체크는 2026-08-25부터, "
+                           "D+5는 5거래일 뒤에 채워지므로 시간이 지나면 자동으로 쌓인다.")}
+
+    res = {"지평": f"D{horizon}", "매칭": len(joined),
+           "기간": f"{min(j['날짜'] for j in joined)}~{max(j['날짜'] for j in joined)}"}
+    by = {}
+    for j in joined:
+        by.setdefault(j["verdict"] or "미상", []).append(j["초과실전"])
+    res["판정별"] = {k: _agg(v) for k, v in sorted(by.items()) if len(v) >= 1}
+    ok = by.get("조건충족", [])
+    hold = by.get("보류", [])
+    if ok and hold:
+        res["핵심질문"] = {
+            "질문": "'조건충족'이 '보류'보다 실제로 잘 갔나",
+            "조건충족": round(st.mean(ok), 2), "보류": round(st.mean(hold), 2),
+            "차이": round(st.mean(ok) - st.mean(hold), 2),
+            "해석": ("차이가 플러스면 진입 조건이 작동한 것, 0 근처거나 마이너스면 "
+                      "조건이 무의미하거나 방향이 반대인 것. **표본이 적으면 판단하지 않는다.**"),
+        }
+    res["_주의"] = ("판정은 09:05 시점 정보로만 내려진 것이다. 사후 수익률로 그 판정을 "
+                    "'틀렸다'고 하려면 **당시 알 수 있었던 정보로 다르게 판단 가능했는지**를 "
+                    "함께 봐야 한다. 숫자만으로 규칙을 바꾸지 않는다.")
+    return res
+
+
+def main():
+    argv = sys.argv[1:]
+    out = {}
+    if "--entry-check" in argv:
+        h = int(argv[argv.index("--horizon") + 1]) if "--horizon" in argv else 5
+        print(json.dumps(entry_check_review(h), ensure_ascii=False))
+        return
+    if "--weekly" in argv:
+        codes = [c.strip() for c in argv[argv.index("--codes") + 1].split(",") if c.strip()] \
+            if "--codes" in argv else []
+        st_ = argv[argv.index("--start") + 1]
+        en_ = argv[argv.index("--end") + 1]
+        print(json.dumps(weekly(codes, st_, en_), ensure_ascii=False))
+        return
+    if "--update" in argv or not argv:
+        picks = parse_picks()
+        rows, failed = compute(picks)
+        total = save(rows)
+        out["update"] = {"파싱된픽": len(picks), "계산됨": len(rows),
+                         "누적총계": total, "조회실패": failed,
+                         "기준일검증실패": sum(1 for r in rows if not r["기준일검증"])}
+    if "--report" in argv or not argv:
+        h = int(argv[argv.index("--horizon") + 1]) if "--horizon" in argv else 5
+        out["report"] = report(h)
+    print(json.dumps(out, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()
+

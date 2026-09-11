@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><title>표 vs flex</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+ body{margin:0;background:#e8e4dc;font-family:'Pretendard Variable','Pretendard','Malgun Gothic',sans-serif;color:#17181a}
+ .wrap{max-width:1200px;margin:0 auto;padding:40px 24px 80px}
+ h1{font-size:30px;margin:0 0 8px;letter-spacing:-.02em}
+ .lead{font-size:18px;color:#6b665c;margin:0 0 34px;line-height:1.65}
+ .two{display:flex;gap:44px;flex-wrap:wrap;align-items:flex-start}
+ .tag{font-size:17px;font-weight:700;letter-spacing:.08em;color:#6b665c;margin-bottom:14px}
+ .lbl{font-size:15px;color:#6b665c;margin-bottom:8px}
+ .note{margin-top:44px;background:#f2efe8;border-radius:14px;padding:24px 26px;
+   font-size:17px;line-height:1.75;color:#4b4740}
+ b{color:#17181a}
+</style>
+<div class="wrap">
+ <h1>표(table)와 flex — 뭐가 다른가</h1>
+ <p class="lead">같은 내용을 두 방식으로 그렸습니다. <b>넓은 화면에서는 똑같아 보입니다.</b><br>
+ 차이는 화면이 좁아질 때 드러납니다.</p>
+ <div class="two"><div><div class="tag">넓은 화면 · 폭 680px</div><div style="width:680px;max-width:100%"><div class="lbl">표(table) — 지금 세로가 쓰는 방식</div><table role="presentation" width="100%" cellpadding="0" cellspacing="6" border="0" style="table-layout:fixed"><tr><td width="33%" valign="top" style="background:#17181a0a;border-radius:14px;padding:16px 14px"><div style="font-size:15px;color:#6f6a60">외국인</div><div style="font-size:22px;font-weight:700;color:#2050c8;margin-top:6px">−1조7,585억</div></td><td width="33%" valign="top" style="background:#17181a0a;border-radius:14px;padding:16px 14px"><div style="font-size:15px;color:#6f6a60">기관</div><div style="font-size:22px;font-weight:700;color:#2050c8;margin-top:6px">−2,841억</div></td><td width="33%" valign="top" style="background:#17181a0a;border-radius:14px;padding:16px 14px"><div style="font-size:15px;color:#6f6a60">개인</div><div style="font-size:22px;font-weight:700;color:#c8352b;margin-top:6px">+4,240억</div></td></tr></table><div class="lbl" style="margin-top:22px">flex — 가로가 쓰는 방식</div><div style="display:flex;flex-wrap:wrap;gap:6px"><div style="flex:1 1 150px;background:#17181a0a;border-radius:14px;padding:16px 14px"><div style="font-size:15px;color:#6f6a60">외국인</div><div style="font-size:22px;font-weight:700;color:#2050c8;margin-top:6px">−1조7,585억</div></div><div style="flex:1 1 150px;background:#17181a0a;border-radius:14px;padding:16px 14px"><div style="font-size:15px;color:#6f6a60">기관</div><div style="font-size:22px;font-weight:700;color:#2050c8;margin-top:6px">−2,841억</div></div><div style="flex:1 1 150px;background:#17181a0a;border-radius:14px;padding:16px 14px"><div style="font-size:15px;color:#6f6a60">개인</div><div style="font-size:22px;font-weight:700;color:#c8352b;margin-top:6px">+4,240억</div></div></div></div></div><div><div class="tag">좁은 화면 (폰) · 폭 300px</div><div style="width:300px;max-width:100%"><div class="lbl">표(table) — 지금 세로가 쓰는 방식</div><table role="presentation" width="100%" cellpadding="0" cellspacing="6" border="0" style="table-layout:fixed"><tr><td width="33%" valign="top" style="background:#17181a0a;border-radius:14px;padding:16px 14px"><div style="font-size:15px;color:#6f6a60">외국인</div><div style="font-size:22px;font-weight:700;color:#2050c8;margin-top:6px">−1조7,585억</div></td><td width="33%" valign="top" style="background:#17181a0a;border-radius:14px;padding:16px 14px"><div style="font-size:15px;color:#6f6a60">기관</div><div style="font-size:22px;font-weight:700;color:#2050c8;margin-top:6px">−2,841억</div></td><td width="33%" valign="top" style="background:#17181a0a;border-radius:14px;padding:16px 14px"><div style="font-size:15px;color:#6f6a60">개인</div><div style="font-size:22px;font-weight:700;color:#c8352b;margin-top:6px">+4,240억</div></td></tr></table><div class="lbl" style="margin-top:22px">flex — 가로가 쓰는 방식</div><div style="display:flex;flex-wrap:wrap;gap:6px"><div style="flex:1 1 150px;background:#17181a0a;border-radius:14px;padding:16px 14px"><div style="font-size:15px;color:#6f6a60">외국인</div><div style="font-size:22px;font-weight:700;color:#2050c8;margin-top:6px">−1조7,585억</div></div><div style="flex:1 1 150px;background:#17181a0a;border-radius:14px;padding:16px 14px"><div style="font-size:15px;color:#6f6a60">기관</div><div style="font-size:22px;font-weight:700;color:#2050c8;margin-top:6px">−2,841억</div></div><div style="flex:1 1 150px;background:#17181a0a;border-radius:14px;padding:16px 14px"><div style="font-size:15px;color:#6f6a60">개인</div><div style="font-size:22px;font-weight:700;color:#c8352b;margin-top:6px">+4,240억</div></div></div></div></div></div>
+ <div class="note">
+  <b>넓을 때</b>는 구분이 안 됩니다. 둘 다 세 칸이 나란히 놓입니다.<br><br>
+  <b>좁아지면</b> 갈립니다. <b>표는 칸 수가 고정</b>이라 세 칸을 억지로 우겨넣어 글자가 찌그러지고,
+  <b>flex는 자리가 모자라면 아래로 접습니다.</b><br><br>
+  세로 상세가 표를 쓰는 이유는 <b>지메일이 flex를 못 알아들어서</b>였습니다.
+  그런데 지금 지메일은 따로 만듭니다 — <b>안 쓰는 이유 때문에 옛날 방식을 쓰고 있는 셈</b>입니다.
+ </div>
+</div>

@@ -1,0 +1,259 @@
+══════════════════════════════════════════════════════════════════════════════
+  1) 우리가 가진 자료
+══════════════════════════════════════════════════════════════════════════════
+    card-copy              7파일  필드  68개  _보정, _보정2, _보정3, _설명, _수급설명, _쓰는법, _종목설명, date …
+    consensus             81파일  필드  10개  건수, 날짜, 달, 리포트, 목표주가, 의견, 작성자, 제목 …
+    contract              33파일  필드   8개  건, 건수, 공시명, 금액, 날짜, 달, 매출대비pct, 코드
+    dart-capital        3000파일  필드 103개  adt_a_atn, aq_dd, aq_mth, aq_pp, aq_wtn_div_estk, aq_wtn_div_estk_rt, aq_wtn_div_ostk, aq_wtn_div_ostk_rt …
+    dart-corpcode          1파일  필드   2개  corp_code, corp_name
+    dart-daily          4105파일  필드   9개  공시명, 그밖의공시, 기준일, 전체건수, 접수번호, 정보성건수, 종목명, 종목코드 …
+    dart-exec           2650파일  필드  11개  건수, 등기, 변동후, 사유, 성명, 이력, 접수일, 종목 …
+    dart-fin              11파일  필드  29개  기타포괄손익-공정가치측정금융자산, 당기손익-공정가치측정금융자산, 당기순이익(손실), 매출액, 법인세차감전 순이익, 보험계약부채, 보험계약자산, 부채총계 …
+    dart-major          2650파일  필드  11개  건수, 보고구분, 보고자, 보유목적, 이력, 접수일, 종목, 주식수 …
+    dart-snap           7953파일  필드  28개  acqs_mth1, acqs_mth2, acqs_mth3, bsis_qy, change_qy_acqs, change_qy_dsps, change_qy_incnr, corp_cls …
+    etf-daily             69파일  필드  37개  0004G0, 0017Y0, 0026S0, 0052S0, 0052T0, 0069M0, 0079X0, 0083S0 …
+    etf-daily             69파일  필드  37개  0004G0, 0017Y0, 0026S0, 0052S0, 0052T0, 0069M0, 0079X0, 0083S0 …
+    etf-krx             4103파일  필드  57개  0004G0, 0008E0, 0010E0, 0017Y0, 0021D0, 0021E0, 0026S0, 0046Y0 …
+    flow-daily          4106파일  필드   9개  0126Z0, 개인, 기관, 기준일, 외국인, 외국인지분율, 종가, 종목 …
+    fred                   2파일  필드   5개  값, 시리즈, 이름, 주기, 출처
+    index-daily         4104파일  필드  78개  IT 서비스, 건설, 금속, 금융, 기계·장비, 기준일, 기타제조, 등락률 …
+    industry               1파일  필드  15개  0001A0, 0004V0, 0004Y0, 0007C0, 0007J0, 0008Z0, 0009K0, 0010F0 …
+    kind-time           4104파일  필드   3개  건수, 기준일, 시각
+    krx-daily           4104파일  필드  18개  00104K, 37550K, 37550L, 거래대금, 거래량, 고가, 기준일, 등락률 …
+    krx-extra           1947파일  필드  31개  ACC_OPNINT_QTY, ACC_TRDVAL, ACC_TRDVOL, BAS_DD, BND_EXP_TP_NM, CLSPRC_YD, CMPPREVDD_PRC, FLUC_RT …
+    naver-quarter       2766파일  필드  15개  값, 당기순이익, 당좌비율, 매출액, 부채비율, 분기, 비지배주주순이익, 순이익률 …
+    news                 124파일  필드   8개  건수, 날짜, 뉴스, 받은날, 시각, 언론사, 제목, 종목
+    orderbook-today        1파일  필드  19개  as_of, asks, bids, cached, data, expected_price, expected_volume, meta …
+    overseas-sector        1파일  필드   4개  _고치는법, _설명, _판단, 섹터
+    portfolio              1파일  필드  13개  _설명, _수동설명, _주의, code, holdings, name, updated, 계좌수 …
+    rule-cases             1파일  필드  25개  20일낙폭, 가장나쁨, 결과, 규칙, 기간, 끝났나, 날짜, 도달 …
+    sec-tickers            1파일  필드   2개  cik, name
+    secrets                1파일  필드   9개  ALPHAVANTAGE_API_KEY, DART_API_KEY, FMP_API_KEY, GITHUB_TOKEN, KRX_API_KEY, NHPLUG_APP_KEY, NHPLUG_APP_SECRET, _설명 …
+    snapshots             83파일  필드 256개  10년, 120일, 1개월전, 20일, 20일선대비pct, 2년, 2차전지소부장, 30년 …
+    stock-base             1파일  필드  13개  00104K, 37550K, 37550L, 받은날, 상장일, 상장주식수, 시장, 업종 …
+    us-daily               1파일  필드   4개  거래량, 받은날, 심볼, 종가
+    us-index               1파일  필드   6개  S&P500, 나스닥, 다우, 등락률, 종가, 필라반도체
+    us-symbols             7파일  필드  11개  assetType, delistingDate, exchange, ipoDate, name, status, symbol, 건수 …
+    yahoo                 96파일  필드  10개  갈래, 거래량, 나라, 받은날, 시차, 심볼, 위치, 이름 …
+
+    ⇒ **전체 필드 927개** (폴더 33개)
+
+══════════════════════════════════════════════════════════════════════════════
+  2) 시험 코드에 실제로 나온 필드
+══════════════════════════════════════════════════════════════════════════════
+    **311개 / 927개**  (34%)
+    ⚠️ 「나왔다」는 것이지 「제대로 검증했다」는 뜻은 아니다
+
+══════════════════════════════════════════════════════════════════════════════
+  3) ⚠️ **한 번도 안 써본 필드 616개**
+══════════════════════════════════════════════════════════════════════════════
+
+    ── snapshots (189개) ──
+       10년 · 120일 · 1개월전 · 20일선대비pct · 2년 · 2차전지소부장
+       30년 · AI소프트웨어 · Form4건수 · N일전 · S&P500 선물 · WTI 원유
+       _매수비율_변화 · _상대강도 · _서술지침 · _시장국면 · _주의 · _판정힌트
+       _해석 · _후보간중복 · above_sma20 · atr14 · atr14_pct · bollinger
+       candle · cik · company · corp_code · dead_cross_macd · dead_cross_sma
+       dist_pct · doji · engulfing · error · fetched_at · golden_cross_macd
+       golden_cross_sma · histogram · insufficient_data · last_touch · level · levels
+       lookback_days · lower · macd · marubozu · mid · range_20d_high
+       range_20d_low · researchId · resistance · resistance_20d · resistance_far · resistance_strong
+       rows_used · rsi14 · signal · sma120 · sma20 · sma200
+       sma60 · stocks · support · support_20d · support_far · support_strong
+       ticker · today_move_vs_atr · tolerance_pct · touches · upper · volume_ratio
+       week52_high_drawdown_pct · 개인순매수수량 · 거래가능 · 거래상태 · 거래일 · 공매도
+       관측일수 · 구리 · 기관순매수수량 · 기업명 · 나스닥100 선물 · 달러인덱스
+       당일시세 · 대량보유 · 동종업계 · 등급변경 · 등기여부 · 등락률pct
+       라인메탈 · 리서치 · 링크 · 매도_요약 · 무신호섹터 · 미국섹터
+       미국채금리 · 미리보기 · 바이오CDMO · 반도체HBM소부장 · 방산 · 변동후수량
+       변화pct_p · 보고 · 보고자 · 보유목적 · 보유비율 · 보유수량
+       보유자 · 부동산 · 분기6개 · 비율증감 · 사유 · 사이버보안
+       서프라이즈율 · 선물원자재 · 성명 · 섹터당최대 · 섹터별뉴스 · 수급10일
+       수량증감 · 시작일 · 시장상태 · 시점 · 신고가돌파 · 신호포착섹터
+       실적캘린더 · 실제 · 실제시장매수_요약 · 실제시장매수_있음 · 쌍 · 어닝서프라이즈
+       언론사 · 에너지 · 예상 · 예상EPS · 예정이벤트 · 외국인순매수수량
+       외국인지분율추이 · 우주 · 원/달러(시장환율) · 원문 · 원문URL형식 · 원전기자재
+       유틸리티 · 유효거래일 · 의견점수 · 의견추이 · 의료기기디지털헬스 · 이전
+       이후 · 일별 · 일시 · 임원소유 · 임의소비재 · 작성일
+       잘림 · 재무3개년 · 적극매도 · 적극매수 · 전력인프라 · 전일
+       전일대비 · 전체섹터수 · 정보성건수 · 조선기자재 · 조선본선 · 조회건수
+       조회기간 · 조회조건 · 주요주주여부 · 주총 · 중국선박(CSSC) · 증가일비율
+       직전평균pct · 최고상관 · 최근5일평균pct · 최근비중pct · 최근일수 · 추세
+       커뮤니케이션 · 컨센서스 · 티커 · 표본거래일 · 필수소비재 · 해외벤치마크
+       현재 · 회사 · 휴머노이드로봇
+
+    ── dart-capital (93개) ──
+       adt_a_atn · aq_mth · aq_pp · aq_wtn_div_estk · aq_wtn_div_estk_rt · aq_wtn_div_ostk
+       aq_wtn_div_ostk_rt · aqexpd_bgd · aqexpd_edd · aqpln_prc_estk · aqpln_prc_ostk · aqpln_stk_estk
+       aqpln_stk_ostk · atcr_cpt · atcr_tisstk_estk · atcr_tisstk_ostk · bfcr_cpt · bfcr_tisstk_estk
+       bfcr_tisstk_ostk · bfic_tisstk_estk · bfic_tisstk_ostk · cdobprpd_bgd · cdobprpd_edd · corp
+       corp_cls · corp_code · corp_name · cr_mth · cr_rs · cr_rt_estk
+       cr_rt_ostk · cr_std · crsc_gmtsck_prd · crsc_nstkdlprd · crsc_nstklstprd · crsc_osprpd
+       crsc_osprpd_bgd · crsc_osprpd_edd · crsc_trnmsppd · crsc_trspprpd · crsc_trspprpd_bgd · crsc_trspprpd_edd
+       crstk_estk_cnt · crstk_ostk_cnt · cs_iv_bk · d1_prodlm_estk · d1_prodlm_ostk · d1_slodlm_estk
+       d1_slodlm_ostk · dp_dd · dp_m_etc · dp_m_mkt · dp_m_otc · dp_m_ovtm
+       dp_pp · dppln_prc_estk · dppln_prc_ostk · dppln_stk_estk · dppln_stk_ostk · dpprpd_bgd
+       dpprpd_edd · dpstk_prc_estk · dpstk_prc_ostk · eaq_estk · eaq_estk_rt · eaq_ostk
+       eaq_ostk_rt · fdpp_bsninh · fdpp_dtrp · fdpp_etc · fdpp_fclt · fdpp_ocsa
+       fdpp_op · ftc_stt_atn · fv_ps · hdexpd_bgd · hdexpd_edd · ic_mthn
+       nstk_ascnt_ps_estk · nstk_ascnt_ps_ostk · nstk_asstd · nstk_dividrk · nstk_dlprd · nstk_estk_cnt
+       nstk_lstprd · nstk_ostk_cnt · od_a_at_b · od_a_at_t · ospr_nstkdl_pl · ssl_at
+       ssl_bgd · ssl_edd · 받은날
+
+    ── card-copy (57개) ──
+       _보정 · _보정2 · _보정3 · _설명 · _수급설명 · _쓰는법
+       _종목설명 · date · note · url · what · when
+       강한신호 · 갭분석 · 갭해당 · 결론 · 고려할점 · 국내
+       국장뉴스 · 뜻 · 말 · 머리 · 몸 · 묶음점수
+       미국기회 · 미반영 · 미장뉴스 · 미장요약 · 부제 · 부호
+       뺀후보 · 사 · 상관관계 · 수급온도 · 수급해설 · 시장국면
+       언제파나 · 연관 · 예탁금해설 · 의견해설 · 이미반영 · 읽는법
+       장기 · 장초확인 · 전일픽 · 정책캘린더 · 주의사항 · 주체
+       진입조건 · 캘린더 · 캘린더해설 · 컨센서스 · 티커 · 품질참고
+       해외연관 · 핵심 · 핵심근거
+
+    ── index-daily (49개) ──
+       IT 서비스 · 금속 · 기타제조 · 보험 · 부동산 · 분류
+       비금속 · 섬유·의류 · 오락·문화 · 운송·창고 · 음식료·담배 · 전기·가스
+       제조 · 종이·목재 · 증권 · 지수수 · 출판·매체복제 · 코스닥 (외국주포함)
+       코스닥 150 · 코스닥 150 산업재 · 코스닥 150 소재 · 코스닥 150 자유소비재 · 코스닥 150 정보기술 · 코스닥 150 커뮤니케이션서비스
+       코스닥 150 필수소비재 · 코스닥 150 헬스케어 · 코스닥 글로벌 · 코스닥 기술성장기업부 · 코스닥 대형주 · 코스닥 벤처기업부
+       코스닥 소형주 · 코스닥 우량기업부 · 코스닥 중견기업부 · 코스닥 중형주 · 코스피 (외국주포함) · 코스피 100
+       코스피 200 TOP 10 · 코스피 200 경기방어소비재지수 · 코스피 200 비중상한 20% · 코스피 200 비중상한 25% · 코스피 200 비중상한 30% · 코스피 200 산업재
+       코스피 200 중소형주 · 코스피 200 초대형제외 지수 · 코스피 200 커뮤니케이션서비스 · 코스피 200 헬스케어 · 코스피 50 · 코스피200제외 코스피지수
+       통신
+
+    ── etf-krx (44개) ──
+       0004G0 · 0008E0 · 0010E0 · 0017Y0 · 0021D0 · 0021E0
+       0026S0 · 0046Y0 · 0049K0 · 0049M0 · 0052S0 · 0052T0
+       0069M0 · 0079X0 · 0083S0 · 0085N0 · 0085P0 · 0094X0
+       0103T0 · 0111P0 · 0118Z0 · 0127M0 · 0127P0 · 0131V0
+       0131W0 · 0139P0 · 0153P0 · 0155M0 · 0172V0 · 0172Y0
+       0177X0 · 0182R0 · 0182S0 · 0184E0 · 0186S0 · 0194T0
+       0198B0 · 0198D0 · 0199C0 · 0206G0 · 0210A0 · 0216Z0
+       0221Z0 · 0224X0
+
+    ── etf-daily (34개) ──
+       0004G0 · 0017Y0 · 0026S0 · 0052S0 · 0052T0 · 0069M0
+       0079X0 · 0083S0 · 0085N0 · 0085P0 · 0094X0 · 0103T0
+       0111P0 · 0118Z0 · 0131V0 · 0131W0 · 0139P0 · 0153P0
+       0172V0 · 0172Y0 · 0177X0 · 0182R0 · 0182S0 · 0184E0
+       0186S0 · 0194T0 · 0198B0 · 0198D0 · 0199C0 · 0206G0
+       0210A0 · 0216Z0 · 0221Z0 · 0224X0
+
+    ── dart-snap (24개) ──
+       acqs_mth1 · acqs_mth2 · acqs_mth3 · bsis_qy · change_qy_acqs · change_qy_dsps
+       change_qy_incnr · corp_cls · corp_code · corp_name · frmtrm · hold_stock_co
+       hold_stock_rate · lwfr · rm · se · shrholdr_co · shrholdr_rate
+       shrholdr_tot_co · stlm_dt · stock_knd · stock_tot_co · thstrm · trmend_qy
+
+    ── dart-fin (18개) ──
+       기타포괄손익-공정가치측정금융자산 · 당기손익-공정가치측정금융자산 · 법인세차감전 순이익 · 보험계약부채 · 보험계약자산 · 비유동부채
+       비유동자산 · 상각후원가측정금융자산 · 순수수료손익 · 순이자손익 · 영업이익(손실) · 예수부채
+       이자비용 · 이자수익 · 차입부채 · 총포괄손익 · 파생상품부채 · 파생상품자산
+
+    ── orderbook-today (16개) ──
+       as_of · asks · bids · cached · expected_price · expected_volume
+       meta · price · quantity · request_id · source · source_api
+       timestamp · total_ask_qty · total_bid_qty · warnings
+
+    ── industry (14개) ──
+       0001A0 · 0004V0 · 0004Y0 · 0007C0 · 0007J0 · 0008Z0
+       0009K0 · 0010F0 · 0010V0 · 0011A0 · 0011T0 · 설립일
+       업종코드 · 회사명
+
+    ── krx-extra (11개) ──
+       ACC_OPNINT_QTY · ACC_TRDVOL · BAS_DD · FLUC_RT · HGPRC_YD · LWPRC_YD
+       OPNPRC_YD · SETL_PRC · TDD_HGPRC · TDD_LWPRC · TDD_OPNPRC
+
+    ── portfolio (10개) ──
+       _설명 · _수동설명 · _주의 · holdings · name · updated
+       계좌수 · 수동 · 수량 · 평가금액
+
+    ── us-symbols (9개) ──
+       assetType · delistingDate · exchange · ipoDate · name · status
+       symbol · 받은날 · 시점
+
+    ── secrets (8개) ──
+       ALPHAVANTAGE_API_KEY · DART_API_KEY · FMP_API_KEY · GITHUB_TOKEN · NHPLUG_APP_KEY · NHPLUG_APP_SECRET
+       _설명 · _주의
+
+    ── dart-exec (5개) ──
+       등기 · 변동후 · 사유 · 성명 · 주요주주
+
+    ── dart-major (5개) ──
+       보고구분 · 보고자 · 보유목적 · 주식수 · 직전주식수
+
+    ── krx-daily (5개) ──
+       00104K · 37550K · 37550L · 못받은시장 · 받은시각
+
+    ── stock-base (5개) ──
+       00104K · 37550K · 37550L · 받은날 · 상장주식수
+
+    ── naver-quarter (3개) ──
+       비지배주주순이익 · 지배주주순이익 · 항목수
+
+    ── overseas-sector (3개) ──
+       _고치는법 · _설명 · _판단
+
+    ── dart-corpcode (2개) ──
+       corp_code · corp_name
+
+    ── fred (2개) ──
+       시리즈 · 출처
+
+    ── news (2개) ──
+       받은날 · 언론사
+
+    ── sec-tickers (2개) ──
+       cik · name
+
+    ── yahoo (2개) ──
+       받은날 · 통화
+
+    ── consensus (1개) ──
+       작성자
+
+    ── dart-daily (1개) ──
+       정보성건수
+
+    ── flow-daily (1개) ──
+       0126Z0
+
+    ── us-daily (1개) ──
+       받은날
+
+══════════════════════════════════════════════════════════════════════════════
+  4) 써본 필드 311개 (어느 시험에서)
+══════════════════════════════════════════════════════════════════════════════
+    snapshots          67개  20일, 60일, S&P500, ⚠️, 거래, 거래량, 겹침, 고가, 공시, 공시명 …
+    index-daily        29개  건설, 금융, 기계·장비, 기준일, 등락률, 시장, 운송장비·부품, 유통, 의료·정밀기기, 일반서비스 …
+    rule-cases         25개  20일낙폭, 가장나쁨, 결과, 규칙, 기간, 끝났나, 날짜, 도달, 도달률, 만든날 …
+    krx-extra          20개  ACC_TRDVAL, BND_EXP_TP_NM, CLSPRC_YD, CMPPREVDD_PRC, GOVBND_ISU_TP_NM, ISU_CD, ISU_NM, MKT_NM, OIL_NM, PROD_NM …
+    etf-krx            13개  거래대금, 거래량, 고가, 기준일, 등락률, 시가, 시가총액, 이름, 저가, 종가 …
+    krx-daily          13개  거래대금, 거래량, 고가, 기준일, 등락률, 시가, 시장, 시총, 이름, 저가 …
+    naver-quarter      12개  값, 당기순이익, 당좌비율, 매출액, 부채비율, 분기, 순이익률, 영업이익, 영업이익률, 유보율 …
+    card-copy          11개  값, 결과, 공시, 날짜, 등락, 섹터, 수급, 신호, 의견, 종목 …
+    dart-fin           11개  당기순이익(손실), 매출액, 부채총계, 영업비용, 영업이익, 유동부채, 유동자산, 이익잉여금, 자본금, 자본총계 …
+    dart-capital       10개  aq_dd, bddd, rcept_no, 감자, 무상증자, 유무상증자, 유상증자, 자사주처분, 자사주취득, 종목
+    consensus           9개  건수, 날짜, 달, 리포트, 목표주가, 의견, 제목, 증권사, 코드
+    contract            8개  건, 건수, 공시명, 금액, 날짜, 달, 매출대비pct, 코드
+    dart-daily          8개  공시명, 그밖의공시, 기준일, 전체건수, 접수번호, 종목명, 종목코드, 챙길공시
+    flow-daily          8개  개인, 기관, 기준일, 외국인, 외국인지분율, 종가, 종목, 종목수
+    stock-base          8개  상장일, 시장, 업종, 이름, 종류, 종목, 종목수, 증권구분
+    yahoo               8개  갈래, 거래량, 나라, 시차, 심볼, 위치, 이름, 종가
+    dart-exec           6개  건수, 이력, 접수일, 종목, 증감, 직위
+    dart-major          6개  건수, 이력, 접수일, 종목, 지분율, 직전지분율
+    news                6개  건수, 날짜, 뉴스, 시각, 제목, 종목
+    us-index            6개  S&P500, 나스닥, 다우, 등락률, 종가, 필라반도체
+    dart-snap           4개  rcept_no, 종목, 항목, 해별
+    etf-daily           3개  거래대금, 이름, 종가
+    fred                3개  값, 이름, 주기
+    kind-time           3개  건수, 기준일, 시각
+    orderbook-today     3개  data, ok, stock_code
+    portfolio           3개  code, 섹터, 시장
+    us-daily            3개  거래량, 심볼, 종가
+    us-symbols          2개  건수, 목록
+    industry            1개  업종명
+    overseas-sector     1개  섹터
+    secrets             1개  KRX_API_KEY

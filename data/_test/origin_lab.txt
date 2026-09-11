@@ -1,0 +1,29 @@
+  자료 읽는 중...
+  준비 완료 · F-Score 2,526종목
+    0/4108일
+    100/4108일
+    200/4108일
+    300/4108일
+    400/4108일
+    500/4108일
+    600/4108일
+    700/4108일
+    800/4108일
+    900/4108일
+    1000/4108일
+    1100/4108일
+    1200/4108일
+    1300/4108일
+    1400/4108일
+    1500/4108일
+    1600/4108일
+
+--- stderr ---
+Traceback (most recent call last):
+  File "C:\Users\mrblue\Claude\morning breifing_code\scripts\origin_lab.py", line 221, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\mrblue\Claude\morning breifing_code\scripts\origin_lab.py", line 99, in main
+    p, q = 지수[d1], 지수[날[i - 20]]
+           ~~~~^^^^
+KeyError: '20161010'

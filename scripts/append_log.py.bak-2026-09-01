@@ -1,0 +1,271 @@
+#!/usr/bin/env python3
+"""
+append_log.py — 브리핑 STEP8 일일 기록을 JSONL로 병행 저장 (2026-08-25 신설)
+
+왜 필요한가:
+  `briefing-daily-log.md`는 사람이 읽는 마크다운이고, 다른 스킬이 그걸 **텍스트로 파싱**해 쓴다.
+  이 방식이 실제로 반복해서 깨졌다 — `weekly-action-review` STEP2가 daily-log 필드를 읽는데,
+  브리핑 쪽에서 필드를 추가할 때마다 조용히 어긋났다(DECISIONS.md 96차에서 발견, 122차에서 재발).
+
+  그래서 마크다운은 사람용으로 그대로 두고, **같은 내용을 기계용 JSONL로 한 줄 더** 쓴다.
+  이후 소비자(주간 리뷰·09:05 체크·백테스트 집계)는 JSONL만 읽으면 파싱이 깨질 일이 없다.
+
+  덤: 학습 목적에 직결된다. 픽별로 갭 조합·등급·발굴가·진입조건을 구조화해 쌓으면
+  "어떤 근거 조합이 실제로 맞았나"를 D+1/D+5/D+20 어느 지평으로든 나중에 계산할 수 있다.
+  (매일 기록해두면 지평은 나중에 고를 수 있지만, 안 쌓으면 영원히 복원 못 한다.)
+
+입력(stdin JSON 또는 --file):
+  {
+    "date": "2026-08-26",           // 필수. KST 기준 YYYY-MM-DD
+    "weekday": "수",
+    "kospi": {"등락률": "+0.68", "지수": "6742.74"},   // 없으면 생략 가능
+    "picks": [
+      {
+        "rank": 1,                   // 원점수 내림차순 순위(1,2,3…). ⚠️ 2026-08-26에 의미가
+                                     //   바뀌었다 — 예전엔 1=후보1·2=후보2·0=2군이었다.
+        "name": "성광벤드", "code": "014620",
+        "grade": "🟡",               // 🔴/🟢/🟡  (⚠️ 🟠 간이검증은 2026-08-26 폐지)
+        "gaps": [1, 2],              // 충족된 갭 번호만
+        "score": 2,                  // 등급조정 전 원점수
+        "buckets": {"기회": 2, "수급": 0, "재무": 0, "시장평가": 0},   // 4분류(2026-08-26)
+                                     //   ⚠️ 합 = score / 기회 = 갭①②④ 개수 + 미장급등
+        "found_price": 22950,        // 발굴시점가
+        "entry_conditions": [        // 09:05 체크가 그대로 대조할 값 (핵심)
+          {"type": "sma20", "value": 26235, "op": ">="},
+          {"type": "support", "value": 22550, "op": ">="}
+        ],
+        "signals": ["강화-F2", "강화-TA"],
+        "note": "한 줄 근거"
+      }
+    ],
+    "us_opportunity": null,          // 없으면 null
+    "sectors": ["조선기자재"],
+    "unmapped": [                    // 가치사슬맵에 없는 섹터·종목 후보 (2026-08-26 신설, 없으면 [])
+      {"name": "해운", "kind": "섹터", "codes": ["028670"],
+       "why": "업종랭킹 2위·테마 1위, 외국인 순매수 상위"}
+    ],
+    "mcp_calls": 41,
+    "errors": ["MCP-15 ..."]         // 재시도/오류 요약, 없으면 []
+  }
+
+동작:
+  `data\briefing-daily-log.jsonl`에 한 줄 append.
+  같은 `date`가 이미 있으면 **덮어쓰지 않고 거부**한다(하루 1건 원칙, 중복 실행 방지).
+  `--force`를 주면 같은 날짜의 기존 줄을 교체한다.
+
+출력(stdout, JSON): {"ok": true, "date": "...", "action": "appended"|"replaced"} 또는 {"ok": false, "error": "..."}
+"""
+import json
+import os
+import sys
+
+_DATA = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+LOG_PATH = os.path.join(_DATA, "briefing-daily-log.jsonl")
+UNMAPPED_PATH = os.path.join(_DATA, "unmapped-log.jsonl")
+
+
+def write_unmapped(date: str, items) -> int:
+    """가치사슬맵에 없는 섹터·종목 후보를 별도 파일에 누적한다. (2026-08-26 신설)
+
+    ⚠️ 왜 필요한가 — 지금까지 이 정보는 **일일 로그에 산문으로만** 남았다. 그래서
+    "해운이 08-19부터 7거래일 연속 미매핑"이라는 사실이 매일 문장 안에서 다시 쓰이기만 하고
+    **아무도 집계하지 않았다.** 그 연속 횟수야말로 "맵에 추가하라"는 신호인데 문장에 묻혀 있었다.
+    구조화해 쌓으면 `track_unmapped.py --report`가 등장 횟수·연속 일수를 계산해준다.
+
+    같은 날짜 기록은 통째로 교체한다(브리핑 재실행 시 중복 방지).
+    """
+    rows = []
+    if os.path.exists(UNMAPPED_PATH):
+        # utf-8-sig: PowerShell로 파일을 손대면 BOM이 붙고, utf-8로 읽으면 첫 줄이
+        # 조용히 파싱 실패해 같은 날짜 항목이 지워지지 않고 남는다(2026-08-26 실측).
+        with open(UNMAPPED_PATH, "r", encoding="utf-8-sig") as fp:
+            for line in fp:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    if json.loads(line).get("date") != date:
+                        rows.append(line)
+                except Exception:
+                    rows.append(line)  # 깨진 줄도 버리지 않는다
+    added = 0
+    for it in items or []:
+        if isinstance(it, str):
+            it = {"name": it}
+        if not isinstance(it, dict) or not it.get("name"):
+            continue
+        rows.append(json.dumps({**it, "date": date}, ensure_ascii=False, sort_keys=True))
+        added += 1
+    with open(UNMAPPED_PATH, "w", encoding="utf-8") as fp:
+        for l in rows:
+            fp.write(l + "\n")
+    return added
+
+
+def read_payload():
+    argv = sys.argv[1:]
+    if "--file" in argv:
+        path = argv[argv.index("--file") + 1]
+        with open(path, "r", encoding="utf-8-sig") as fp:
+            return json.load(fp)
+    return json.loads(sys.stdin.read())
+
+
+def load_existing():
+    """기존 줄을 (date -> line) 순서 보존 리스트로 읽는다. 깨진 줄은 그대로 보존한다."""
+    rows = []
+    if not os.path.exists(LOG_PATH):
+        return rows
+    with open(LOG_PATH, "r", encoding="utf-8") as fp:
+        for line in fp:
+            line = line.rstrip("\n")
+            if not line.strip():
+                continue
+            try:
+                rows.append((json.loads(line).get("date"), line))
+            except Exception:
+                # 파싱 안 되는 줄도 버리지 않는다 — 사람이 나중에 확인할 수 있어야 한다.
+                rows.append((None, line))
+    return rows
+
+
+def validate(payload: dict) -> list:
+    """저장 전 점검. 막지는 않고 **경고만** 돌려준다.
+
+    ⚠️ 왜 막지 않나: 이 기록이 실패해도 브리핑 본문(Gmail·카카오)은 이미 나갔다.
+       여기서 저장을 거부하면 그날 기록이 통째로 사라져 더 손해다. 기록은 하되
+       무엇이 빠졌는지 **08:00 실행 로그에 남겨** 그날 아침에 알 수 있게 한다.
+
+    ⚠️ 특히 `entry_conditions`: 이게 없으면 09:05 진입체크가 판정을 못 한다.
+       예전엔 09:05에 가서야 드러났는데(한 시간 늦음), 여기서 잡으면 바로 보인다.
+       브리핑 본문에 "20일선 26,235원 회복 후 진입"이라 써놓고 숫자만 빠뜨리는 것이
+       가장 흔한 형태라, **모든 후보**는 조건이 있는 게 정상이다(2026-08-26 1군/2군 폐지 —
+       계층이 없어져 "1군만"이라는 예외가 사라졌다).
+    """
+    warns = []
+    picks = payload.get("picks") or []
+    if not picks:
+        warns.append("picks가 비어 있다 — 관망한 날이면 정상, 아니면 기록 누락")
+
+    for p in picks:
+        nm = p.get("name") or "(이름없음)"
+        if "entry_conditions" not in p:
+            warns.append(f"{nm}: entry_conditions 필드 자체가 없음 "
+                         f"→ 09:05 진입체크가 '확인필요'로 처리한다")
+        elif not p.get("entry_conditions"):
+            # ⚠️ 2026-08-26: 예전엔 `rank in (1,2)`(=1군)일 때만 경고했다. 1군/2군이 폐지되고
+            #    **모든 후보가 동일 검증·정식 등급**을 받으므로 전원에게 적용한다.
+            #    옛 조건을 두면 rank 3·4 후보의 조건 누락이 조용히 넘어간다.
+            warns.append(f"{nm}: 진입 조건이 빈 배열 — 조건이 정말 없는지 확인 "
+                         f"(브리핑 본문에 '진입 조건'을 썼다면 숫자를 여기 넣어야 한다)")
+        for key in ("name", "code", "grade"):
+            if not p.get(key):
+                warns.append(f"{nm}: 필수 필드 '{key}' 누락")
+        if p.get("found_price") in (None, "", 0):
+            warns.append(f"{nm}: found_price 없음 → 다음날 전일픽 반응 추적 불가")
+
+        # ⚠️ 4분류 점수 검산 (2026-08-26 신설) — **네 묶음의 합 = 원점수**여야 한다.
+        #    지금까지 점수 산술 오류를 잡을 방법이 아예 없었다. 이 합계가 유일한 검산이다.
+        #    ⚠️ 항목도 배점도 바뀌지 않았다 — 같은 점수를 묶어서 보여줄 뿐이라 합은 반드시 맞는다.
+        #       안 맞으면 어느 항목이 빠졌거나 두 번 세어진 것이다.
+        b = p.get("buckets")
+        if not isinstance(b, dict):
+            warns.append(f"{nm}: buckets 없음 → 4분류 표시를 검산할 수 없다 "
+                         f"(기회·내부자·재무·시장평가 4개 정수)")
+        else:
+            keys = ("기회", "수급", "재무", "시장평가")
+            missing = [k for k in keys if k not in b]
+            if missing:
+                warns.append(f"{nm}: buckets에 {'·'.join(missing)} 누락")
+            else:
+                try:
+                    total = sum(int(b[k]) for k in keys)
+                except (TypeError, ValueError):
+                    warns.append(f"{nm}: buckets 값이 정수가 아니다 → {b}")
+                else:
+                    if p.get("score") is not None and total != p["score"]:
+                        warns.append(f"{nm}: ⚠️ 4분류 합({total}) ≠ 원점수({p['score']}) "
+                                     f"— 항목이 빠졌거나 두 번 세어졌다. 점수를 다시 계산할 것")
+                    # ⚠️ 기회 묶음 = 갭①②④ + 미장급등 (2026-08-26 확정).
+                    #    갭③은 '수급'에 있다 — 갭①②④는 "아직 안 붙었다"인데 갭③은
+                    #    "이미 사고 있다"로 성격이 반대다. 미장급등은 "재료가 진짜라는 증거"라 기회다.
+                    #    ⚠️ 미장급등은 `signals`에 그 이름이 있어야 검산이 정확해진다.
+                    #       없으면 0으로 보므로, 점수를 줬는데 태그를 빠뜨리면 여기서 걸린다.
+                    gaps = p.get("gaps")
+                    if isinstance(gaps, list):
+                        sig = p.get("signals") or []
+                        us = 1 if any("미장급등" in str(s) for s in sig) else 0
+                        expect = len([g for g in gaps if g != 3]) + us
+                        if int(b["기회"]) != expect:
+                            warns.append(
+                                f"{nm}: ⚠️ 기회({b['기회']}) ≠ 갭①②④ "
+                                f"{len([g for g in gaps if g != 3])}개 + 미장급등 {us} = {expect} — "
+                                f"갭③은 수급 묶음이다. 미장급등에 점수를 줬다면 signals에도 넣을 것")
+
+    # 검증 상한에 걸려 못 본 후보. **종목코드가 없으면 나중에 되짚을 수 없다** —
+    # 이 기록의 목적이 "잘린 후보가 채택 후보보다 잘 갔나"를 계산하는 것이기 때문이다.
+    for d in payload.get("dropped") or []:
+        if not d.get("code"):
+            warns.append(f"dropped '{d.get('name','(이름없음)')}': 종목코드 없음 "
+                         f"→ 나중에 주가를 되짚을 수 없어 상한 타당성 검증이 불가능하다")
+    return warns
+
+
+def main():
+    try:
+        payload = read_payload()
+    except Exception as e:
+        print(json.dumps({"ok": False, "error": f"입력 파싱 실패: {e}"}, ensure_ascii=False))
+        return
+
+    date = payload.get("date")
+    if not date:
+        print(json.dumps({"ok": False, "error": "date 필드 필수"}, ensure_ascii=False))
+        return
+
+    warns = validate(payload)
+
+    force = "--force" in sys.argv[1:]
+    rows = load_existing()
+    dup = [i for i, (d, _) in enumerate(rows) if d == date]
+
+    if dup and not force:
+        print(json.dumps({
+            "ok": False,
+            "error": f"{date} 항목이 이미 있음({len(dup)}건). 하루 1건 원칙 — 교체하려면 --force",
+        }, ensure_ascii=False))
+        return
+
+    new_line = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    action = "appended"
+    if dup:
+        # 같은 날짜 줄을 전부 지우고 새 줄 하나로 교체
+        rows = [(d, l) for (d, l) in rows if d != date]
+        action = "replaced"
+    rows.append((date, new_line))
+
+    os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
+    with open(LOG_PATH, "w", encoding="utf-8") as fp:
+        for _, l in rows:
+            fp.write(l + "\n")
+
+    result = {"ok": True, "date": date, "action": action,
+              "total_rows": len(rows), "path": LOG_PATH}
+
+    # 미매핑 후보 누적. 실패해도 본 로그는 이미 저장됐으므로 경고만 남기고 넘어간다.
+    try:
+        result["unmapped_saved"] = write_unmapped(date, payload.get("unmapped"))
+    except Exception as e:
+        result["unmapped_saved"] = 0
+        warns = warns + [f"미매핑 후보 저장 실패: {type(e).__name__}: {e}"]
+    if warns:
+        result["_경고"] = warns
+        result["_조치"] = ("위 항목을 STEP8 마크다운 '재시도/오류' 필드와 실행 요약에 "
+                            "그대로 기록할 것. 특히 entry_conditions 누락은 09:05 진입체크를 "
+                            "무력화하므로, 브리핑 본문에 진입 조건을 썼다면 숫자를 채워 --force로 다시 저장한다.")
+    print(json.dumps(result, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()

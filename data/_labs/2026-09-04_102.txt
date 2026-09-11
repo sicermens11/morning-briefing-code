@@ -1,0 +1,14 @@
+  지수 자료 0일
+
+  ══ A **시총가중갭(지수 대용) vs 중앙갭** ══
+     0일
+Traceback (most recent call last):
+  File "C:\Users\mrblue\Claude\morning breifing_code\scripts\gap_lab.py", line 339, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\mrblue\Claude\morning breifing_code\scripts\gap_lab.py", line 147, in main
+    print(f"     차이(가중 − 중앙)  평균 {st.mean(차):+.3f}%p · "
+                                          ~~~~~~~^^^^
+  File "C:\Users\mrblue\AppData\Local\Programs\Python\Python313\Lib\statistics.py", line 490, in mean
+    raise StatisticsError('mean requires at least one data point')
+statistics.StatisticsError: mean requires at least one data point

@@ -1,0 +1,8 @@
+﻿[2026-08-25 16:44:49] === 런처 경로 이전 시도 (관리자권한=True) ===
+[2026-08-25 16:44:51] MorningSectorBriefing 변경 전: -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File "C:\Users\mrblue\Claude\Templates\run-briefing.ps1"
+[2026-08-25 16:44:52] MorningSectorBriefing 변경 후: -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File "C:\Users\mrblue\Claude\morning breifing_code\run-briefing.ps1"
+[2026-08-25 16:44:52] WeeklyActionReview 변경 전: -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File "C:\Users\mrblue\Claude\Templates\run-skill.ps1" -Skill weekly-action-review
+[2026-08-25 16:44:53] WeeklyActionReview 변경 후: -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File "C:\Users\mrblue\Claude\morning breifing_code\run-skill.ps1" -Skill weekly-action-review
+[2026-08-25 16:44:54] ValueChainMapUpdater 변경 전: -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File "C:\Users\mrblue\Claude\Templates\run-skill.ps1" -Skill value-chain-map-updater
+[2026-08-25 16:44:55] ValueChainMapUpdater 변경 후: -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File "C:\Users\mrblue\Claude\morning breifing_code\run-skill.ps1" -Skill value-chain-map-updater
+[2026-08-25 16:44:55] === 끝 ===

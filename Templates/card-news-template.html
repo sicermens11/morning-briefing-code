@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>모닝 브리핑 카드뉴스 템플릿 (세로형)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+  :root{
+    --bg-page:#efece3;
+    --bg-card:#fffdf8;
+    --border:#e5e0d3;
+    --text-primary:#1a1815;
+    --text-secondary:#6b6559;
+    --text-muted:#a39d8e;
+
+    /* 포인트 색 — 기존 골드 대신 좀 더 요즘 느낌의 테라코타 톤 */
+    --accent:#c85a35;
+    --accent-soft:#f5ded2;
+    --accent-ink:#8a3d20;
+
+    --green-bg:#e8f2e0;
+    --green-border:#b9d9a2;
+    --green-title:#2f5b1f;
+    --green-body:#4a7536;
+
+    --amber-bg:#fbeed9;
+    --amber-border:#eeca8f;
+    --amber-title:#7a4a08;
+    --amber-body:#8f5c14;
+
+    --red-text:#b23c2e;
+    --green-text:#2f7d3a;
+  }
+  *{box-sizing:border-box;}
+  html{background:var(--bg-page);}
+  body{
+    margin:0;
+    background:var(--bg-page);
+    font-family:'Pretendard Variable','Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;
+    color:var(--text-primary);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ===================== 페이지 골격 (수정 불필요) =====================
+     세로 스크롤로 하나씩 읽는 구조. 각 <section>이 카드뉴스 한 장에 대응하고,
+     나중에 인스타 업로드용으로 섹션 단위로 잘라 이미지화할 수 있도록
+     section 하나 = 슬라이드 한 장 경계를 유지한다(구조를 바꾸지 말 것).
+  ======================================================================= */
+  .feed{max-width:480px; margin:0 auto; padding:24px 0 60px;}
+  .section{
+    background:var(--bg-card); border:1px solid var(--border); border-radius:26px;
+    padding:44px 30px 36px; margin:0 16px 18px;
+    box-shadow:0 1px 2px rgba(26,24,21,0.04);
+  }
+
+  /* ===================== 공통 타이포 규칙 =====================
+     이 프로젝트의 폰트는 Pretendard Variable 하나만 쓴다. 굵기(weight)로
+     위계를 만든다 — 새 서체를 추가하지 않는다.
+
+     태그(섹션 배지)  : 12px, weight 700, 알약모양 배지
+     인덱스           : 11px, weight 600, 자간 넓게, 흐린 색
+     섹션 제목        : 28px, weight 800, 자간 -0.02em, line-height 1.25
+     본문             : 15.5px, weight 440(중간), line-height 1.75
+     통계 숫자        : 26px, weight 800, tabular-nums
+  ================================================================ */
+  .tag-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:22px;}
+  .tag{
+    display:inline-flex; align-items:center; font-size:12px; font-weight:700;
+    background:var(--accent-soft); color:var(--accent-ink); padding:5px 12px; border-radius:20px;
+  }
+  .idx{font-size:11px; font-weight:600; letter-spacing:0.06em; color:var(--text-muted); font-variant-numeric:tabular-nums;}
+
+  .section-title{font-size:28px; font-weight:800; letter-spacing:-0.02em; line-height:1.25; margin:0 0 20px;}
+  .mark{background:linear-gradient(to top, var(--accent-soft) 42%, transparent 42%); padding:0 2px;}
+
+  .body-text{font-size:15.5px; font-weight:440; line-height:1.75; color:var(--text-primary);}
+  .stat-num{font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-0.01em;}
+  .up{color:var(--green-text);}
+  .down{color:var(--red-text);}
+
+  /* 리스트 아이템 하나하나를 박스로 분리 (뉴스, 캘린더, 기관의견 공용) */
+  .item-box{
+    background:#f6f2e9; border:1px solid var(--border); border-radius:14px;
+    padding:16px 18px; margin-bottom:12px;
+  }
+  .item-box:last-child{margin-bottom:0;}
+  .item-num{font-size:12px; font-weight:800; color:var(--accent); margin-right:6px;}
+  .item-title{font-size:16px; font-weight:700; margin:0 0 6px; letter-spacing:-0.01em;}
+  .item-body{font-size:14px; font-weight:440; line-height:1.7; color:var(--text-secondary);}
+
+  /* 의미가 다른 두 그룹을 색으로 구분 (이미반영/미반영, 강한신호/고려할점 공용) */
+  .split-2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .split-box{border-radius:14px; padding:14px 15px;}
+  .split-box.positive{background:var(--green-bg); border:1px solid var(--green-border);}
+  .split-box.caution{background:var(--amber-bg); border:1px solid var(--amber-border);}
+  .split-box .split-title{font-size:12.5px; font-weight:800; margin:0 0 9px;}
+  .split-box.positive .split-title{color:var(--green-title);}
+  .split-box.caution .split-title{color:var(--amber-title);}
+  .split-box ul{margin:0; padding-left:16px;}
+  .split-box.positive li{font-size:12.5px; font-weight:440; line-height:1.6; color:var(--green-body); margin-bottom:7px;}
+  .split-box.caution li{font-size:12.5px; font-weight:440; line-height:1.6; color:var(--amber-body); margin-bottom:7px;}
+  .split-box li:last-child{margin-bottom:0;}
+
+  .stat-row{display:flex; gap:10px; margin-bottom:18px;}
+  .stat-box{flex:1; background:#f6f2e9; border-radius:14px; padding:14px 14px;}
+  .stat-box .stat-label{font-size:11.5px; font-weight:600; color:var(--text-muted); margin-bottom:5px;}
+
+  /* 표지 전용 */
+  .cover-eyebrow{font-size:14px; font-weight:600; color:var(--text-secondary); margin-bottom:8px;}
+  .cover-title{font-size:38px; font-weight:800; letter-spacing:-0.03em; line-height:1.2; margin-bottom:12px;}
+  .cover-sub{font-size:15px; font-weight:440; color:var(--text-muted);}
+  .cover-toc{margin-top:34px; padding-top:22px; border-top:1px solid var(--border); font-size:13px; color:var(--text-muted); line-height:2;}
+</style>
+</head>
+<body>
+
+<!--
+  ============================================================
+  사용법 (클로드 코드가 매일 아침 데이터 채울 때 읽을 것)
+  ============================================================
+  1. 각 section 안에서 <!-- 교체 시작 --> 부터 <!-- 교체 끝 --> 까지만 그날 데이터로 바꾼다.
+     그 바깥의 class·구조·style 속성은 절대 건드리지 않는다.
+  2. 글자 수 제한이 적힌 자리는 반드시 그 안에서 줄인다 — 넘치면 레이아웃이 깨진다.
+  3. section 하나 = 카드뉴스 한 장. 나중에 인스타 업로드용으로 잘라 쓸 걸 대비해
+     section의 개수·순서·경계는 유지하고, 내용만 교체한다.
+  4. 후보(액션플랜) section은 마지막 section 하나를 통째로 복사해서 후보 수만큼(1~4장) 늘리거나 줄인다.
+  5. 뉴스·캘린더·기관의견처럼 항목이 반복되는 section은 .item-box 블록을 통째로 복사해서
+     개수를 늘리거나 줄인다(최소 1개, 최대 4개 권장).
+  6. up/down 클래스는 값이 양수면 up, 음수면 down 그대로 유지 — 색을 직접 바꾸지 않는다.
+  7. <span class="mark">문구</span>는 헤드라인 안에서 강조하고 싶은 한 구절에만 형광펜처럼
+     쓴다. 문장 전체에 걸지 않는다(한 section당 0~1회 권장).
+-->
+
+<div class="feed">
+
+  <!-- ============================================================ -->
+  <!-- section 1 — 표지 (매일 1장 고정) -->
+  <!-- ============================================================ -->
+  <section class="section">
+    <!-- 교체 시작: 날짜/요일/후보수 -->
+    <div class="tag-row">
+      <span class="tag">2026.08.27 (목)</span>
+      <span class="idx">후보 4</span>
+    </div>
+    <!-- 교체 끝 -->
+    <div class="cover-eyebrow">모닝 브리핑</div>
+    <!-- 교체 시작: 브리핑 제목 (최대 2줄, 줄당 8자 권장). 강조하고 싶은 한 단어에만 mark 사용 가능 -->
+    <div class="cover-title">현호의<br><span class="mark">주식 브리핑</span></div>
+    <!-- 교체 끝 -->
+    <div class="cover-sub">3분 만에 읽는 어제와 오늘의 시장</div>
+    <div class="cover-toc">
+      01 뉴스 · 02 시장 국면 · 03 근거·수급<br>04 캘린더 · 05 기관 의견 · 06 액션플랜
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- section 2 — 뉴스 (미국·한국 뉴스, 항목 1~4개, .item-box 복제) -->
+  <!-- ============================================================ -->
+  <section class="section">
+    <div class="tag-row"><span class="tag">뉴스 · 미장/국장</span><span class="idx">02 / 07</span></div>
+    <!-- 교체 시작: 섹션 제목 (최대 14자) -->
+    <div class="section-title">밤사이 무슨 일이<br>있었나</div>
+    <!-- 교체 끝 -->
+
+    <!-- 교체 시작: 핵심 지표 3개. 나스닥 선물 대신 VIX(공포지수)처럼 그날 더 중요한 지표로 바꿔도 됨 -->
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-label">S&amp;P 500</div>
+        <div class="stat-num">7,675.7</div>
+        <div class="body-text down" style="font-size:12px;">-0.02%</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">나스닥 100</div>
+        <div class="stat-num">29,224.52</div>
+        <div class="body-text up" style="font-size:12px;">+0.05%</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">VIX(공포지수)</div>
+        <div class="stat-num">15.85</div>
+        <div class="body-text up" style="font-size:12px;">+4.76%</div>
+      </div>
+    </div>
+    <!-- 교체 끝 -->
+
+    <!-- 교체 시작: 뉴스 항목, 1개당 제목 최대 20자 · 본문 최대 90자. 이 박스 통째로 복사해서 1~4개까지 늘리거나 줄이기 -->
+    <div class="item-box">
+      <div class="item-title"><span class="item-num">01</span>엔비디아 실적이 한국장 마감 뒤에 나왔습니다</div>
+      <div class="item-body">메모리 가격이 급등해 엔비디아 스스로는 이익을 낮게 전망했습니다. 그런데 같은 이유가 삼성전자·SK하이닉스에는 호재입니다.</div>
+    </div>
+    <div class="item-box">
+      <div class="item-title"><span class="item-num">02</span>지수는 제자리, VIX는 위로</div>
+      <div class="item-body">S&amp;P500은 -0.02%로 사실상 보합인데 VIX는 +4.76%로 뛰었습니다. 지수보다 변동성 경계가 먼저 켜진 하루입니다.</div>
+    </div>
+    <!-- 교체 끝 -->
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- section 3 — 시장 국면 (이미 반영 / 아직 미반영, 색으로 구분) -->
+  <!-- ============================================================ -->
+  <section class="section">
+    <div class="tag-row"><span class="tag">시장 국면</span><span class="idx">03 / 07</span></div>
+    <!-- 교체 시작: 섹션 제목 (최대 14자) -->
+    <div class="section-title">지금 시장은<br>어디쯤인가</div>
+    <!-- 교체 끝 -->
+
+    <!-- 교체 시작: 핵심 게이지 수치 -->
+    <div style="margin-bottom:22px;">
+      <div class="body-text" style="color:var(--text-secondary); font-size:12.5px; margin-bottom:5px;">코스피 · 20일 평균선 대비</div>
+      <div style="display:flex; align-items:baseline; gap:10px;">
+        <span style="font-size:34px; font-weight:800; letter-spacing:-0.02em;">+4.75%</span>
+        <span style="font-size:12px; font-weight:700; background:var(--amber-bg); color:var(--amber-title); padding:4px 11px; border-radius:20px;">과열(+3%↑)</span>
+      </div>
+    </div>
+    <!-- 교체 끝 -->
+
+    <!-- 교체 시작: 이미 반영(positive) / 아직 미반영(caution) 각 최대 2개, 항목당 최대 25자 -->
+    <div class="split-2">
+      <div class="split-box positive">
+        <div class="split-title">이미 반영</div>
+        <ul>
+          <li>원전·건설주 — 이틀 연속 급등해 재료가 가격에 붙었습니다</li>
+          <li>두산에너빌리티 — 8/26 하루에만 +6.32%</li>
+        </ul>
+      </div>
+      <div class="split-box caution">
+        <div class="split-title">아직 미반영</div>
+        <ul>
+          <li>반도체 검사장비 — 엔비디아발 증설 기대가 아직 주가에 안 붙었습니다</li>
+          <li>조선 본선 — 수주 소식이 장 마감 후에 나왔습니다</li>
+        </ul>
+      </div>
+    </div>
+    <!-- 교체 끝 -->
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- section 4 — 근거·수급 -->
+  <!-- ============================================================ -->
+  <section class="section">
+    <div class="tag-row"><span class="tag">데이터 · 근거 · 수급</span><span class="idx">04 / 07</span></div>
+    <!-- 교체 시작: 섹션 제목은 코스피 지수로 고정, 값만 교체 -->
+    <div style="font-size:12.5px; font-weight:600; color:var(--text-secondary); margin-bottom:5px;">코스피</div>
+    <div style="display:flex; align-items:baseline; gap:9px; margin-bottom:22px;">
+      <span style="font-size:34px; font-weight:800; letter-spacing:-0.02em;">6,808.21</span>
+      <span class="up" style="font-size:15px; font-weight:700;">+0.97%</span>
+    </div>
+    <!-- 교체 끝 -->
+
+    <!-- 교체 시작: 외국인/기관/개인 수급 3개 -->
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-label">외국인</div>
+        <div class="stat-num down" style="font-size:19px;">-1,148억</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">기관</div>
+        <div class="stat-num up" style="font-size:19px;">+7,615억</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">개인</div>
+        <div class="stat-num down" style="font-size:19px;">-2.2조</div>
+      </div>
+    </div>
+    <!-- 교체 끝 -->
+
+    <!-- 교체 시작: 수급 해설 본문, 최대 100자 -->
+    <div class="item-box">
+      <div class="item-body">외국인이 4거래일 연속 팔고 있습니다. 오늘도 팔면 5거래일이 되어 내일부터 등급 자동 하향 조건에 걸립니다.</div>
+    </div>
+    <!-- 교체 끝 -->
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- section 5 — 캘린더 (항목 1~4개, .item-box 복제) -->
+  <!-- ============================================================ -->
+  <section class="section">
+    <div class="tag-row"><span class="tag">캘린더 · 앞으로 7일</span><span class="idx">05 / 07</span></div>
+    <!-- 교체 시작: 섹션 제목 (최대 14자) -->
+    <div class="section-title">무엇이 시장을<br>흔들 수 있나</div>
+    <!-- 교체 끝 -->
+
+    <!-- 교체 시작: 일정 항목, 1개당 제목 최대 18자 · 본문 최대 30자. 이 박스 통째로 복사해서 늘리거나 줄이기 -->
+    <div class="item-box">
+      <div style="font-size:12px; font-weight:800; color:var(--accent); margin-bottom:5px;">08/27 (오늘)</div>
+      <div class="item-title" style="font-size:15px;">한국 기준금리 결정</div>
+      <div class="item-body">직전 2.75%</div>
+    </div>
+    <div class="item-box">
+      <div style="font-size:12px; font-weight:800; color:var(--accent); margin-bottom:5px;">09/01 (D-5)</div>
+      <div class="item-title" style="font-size:15px;">델 테크놀로지스 실적</div>
+      <div class="item-body">AI 서버 수요를 가늠하는 잣대</div>
+    </div>
+    <!-- 교체 끝 -->
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- section 6 — 기관 의견 -->
+  <!-- ============================================================ -->
+  <section class="section">
+    <div class="tag-row"><span class="tag">애널리스트 · 기관 의견</span><span class="idx">06 / 07</span></div>
+    <!-- 교체 시작: 섹션 제목 (최대 30자) -->
+    <div class="section-title" style="font-size:19px;">증권사 리포트는 목표주가를<br>올렸는지 내렸는지가 핵심입니다</div>
+    <!-- 교체 끝 -->
+
+    <!-- 교체 시작: 리포트 항목, 1개당 제목 최대 20자 · 본문 최대 60자. 복제 가능 -->
+    <div class="item-box">
+      <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:5px;">08/25 유안타증권</div>
+      <div class="item-title" style="font-size:15px;">HD한국조선해양</div>
+      <div class="item-body">매수 의견 유지, 목표주가는 532,000원으로 소폭 하향</div>
+    </div>
+    <!-- 교체 끝 -->
+
+    <!-- 교체 시작: 컨센서스 요약, 최대 60자 -->
+    <div style="background:#f0eeff; border:1px solid #d6d2f5; border-radius:14px; padding:14px 16px; margin-top:14px;">
+      <div style="font-size:11.5px; font-weight:800; color:#4a3f8f; margin-bottom:5px;">컨센서스</div>
+      <div class="body-text" style="font-size:14px;">엔비디아는 애널리스트 61명 중 매수 이상이 95.1%입니다.</div>
+    </div>
+    <!-- 교체 끝 -->
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- section 7 — 액션플랜 후보 (후보 1명당 section 1장. 이 section 전체를 통째로 복사해서 후보 수(1~4명)만큼 반복) -->
+  <!-- ============================================================ -->
+  <section class="section">
+    <!-- 교체 시작: 순번/전체 후보수, 종목명, 코드, 등급배지 -->
+    <div class="tag-row"><span class="tag">액션플랜 · 후보 1/4</span><span class="idx">07 / 07</span></div>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+      <div class="section-title" style="margin:0; font-size:24px;">디아이 <span style="font-size:13px; color:var(--text-muted); font-weight:500;">003160</span></div>
+      <span style="font-size:12px; font-weight:800; background:var(--amber-bg); color:var(--amber-title); padding:5px 13px; border-radius:20px;">점검</span>
+    </div>
+    <!-- 교체 끝 -->
+
+    <!-- 교체 시작: 강한 신호(positive) 최대 2개 / 고려할 점(caution) 최대 2개, 항목당 최대 30자 -->
+    <div class="split-2" style="margin-bottom:16px;">
+      <div class="split-box positive">
+        <div class="split-title">강한 신호</div>
+        <ul>
+          <li>엔비디아 실적발 메모리 훈풍 기대 — 장 마감 뒤 나왔고 주가는 아직 무반응</li>
+        </ul>
+      </div>
+      <div class="split-box caution">
+        <div class="split-title">고려할 점</div>
+        <ul>
+          <li>PER 51.9배로 높고 거래량은 20일 평균의 0.33배 — 관심이 식은 상태</li>
+        </ul>
+      </div>
+    </div>
+    <!-- 교체 끝 -->
+
+    <!-- 교체 시작: 진입가/지지선, 최대 20자 -->
+    <div class="item-box">
+      <div class="item-body">진입 · 20일선 23,329원</div>
+    </div>
+    <!-- 교체 끝 -->
+
+    <!-- 교체 시작: 마지막 section에서만, 장 시작 직후 체크리스트 + 고지문. 최대 2줄 -->
+    <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--border); font-size:11.5px; color:var(--text-muted); line-height:1.7;">
+      09:00 반도체 장비주 반응 — 시가부터 크게 뜨면 이미 반영된 것이니 추격하지 않습니다<br>
+      투자 참고용이며 매수 권유가 아닙니다.
+    </div>
+    <!-- 교체 끝 -->
+  </section>
+
+</div>
+
+</body>
+</html>

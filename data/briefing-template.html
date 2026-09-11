@@ -1,0 +1,219 @@
+<!-- 모닝 섹터 브리핑 HTML 템플릿 (6섹션 구조, 2026-07-02 개편) -->
+<!-- Claude가 Read 후 이 CSS·구조를 사용하여 HTML 직접 작성 -->
+<!-- ⚠️ 최종 HTML은 아래 섹션 전체를 <div style="width:100%;">...</div> 하나로 감싼다.
+     max-width:720px 같은 고정폭 컨테이너 금지 — Gmail 읽기 창 분할보기와 팝아웃 보기의
+     폭이 서로 달라서, 고정폭을 쓰면 뷰 모드에 따라 브리핑이 좁게 나오는 문제가 있었음. -->
+<!-- ⚠️ 12섹션 → 6섹션으로 통합됨(2026-07-02, 사용자 승인). 매핑:
+     ①시장한눈에=구SECTION1+구SECTION2헤드라인 / ②근거데이터=구SECTION3+구SECTION7 /
+     ③국장수급=구SECTION8 / ④D-7이벤트=구SECTION4 / ⑤기관의견=구SECTION5 /
+     ⑥액션플랜=구SECTION9+구SECTION6+구SECTION11+구SECTION10(🔭장기 행으로 흡수).
+     실행로그(구SECTION12)는 섹션이 아니라 맨 아래 메타데이터 한 줄. -->
+<style>
+@media screen and (max-width: 600px) {
+  .mov-related-col { display: none !important; }
+  .mov-related-row { display: table-row !important; }
+}
+</style>
+
+<!-- ===================== ① 시장 한눈에 ===================== -->
+<div style="background-color:#f0f6ff;border-left:5px solid #2980b9;padding:12px 16px;margin-bottom:20px;border-radius:3px;">
+  <div style="font-weight:bold;font-size:15px;color:#1a252f;margin-bottom:10px;">🔥 YYYY-MM-DD(요일) 시장 한눈에</div>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <tr style="border-bottom:1px solid #d0e4f7;">
+      <td style="width:72px;padding:7px 8px;color:#2980b9;font-weight:bold;white-space:nowrap;">🌐 미장 전반</td>
+      <td style="padding:7px 8px;color:#222;line-height:1.8;">[S&P500·나스닥 전일 흐름 요약 + 핵심 헤드라인 1~2건, 각 줄 출처 링크]</td>
+    </tr>
+    <tr style="border-bottom:1px solid #d0e4f7;">
+      <td style="padding:7px 8px;color:#2980b9;font-weight:bold;white-space:nowrap;">🇰🇷 전날 국장</td>
+      <td style="padding:7px 8px;color:#222;line-height:1.8;">[전날 국장 흐름 및 영향]</td>
+    </tr>
+    <tr style="border-bottom:1px solid #d0e4f7;">
+      <td style="padding:7px 8px;color:#27ae60;font-weight:bold;white-space:nowrap;">✅ 이미반영</td>
+      <td style="padding:7px 8px;color:#555;line-height:1.8;">[국장에 이미 반영된 재료]</td>
+    </tr>
+    <tr style="border-bottom:1px solid #d0e4f7;">
+      <td style="padding:7px 8px;color:#c0392b;font-weight:bold;white-space:nowrap;">🎯 미반영</td>
+      <td style="padding:7px 8px;color:#222;line-height:1.8;">[아직 미반영된 핵심 재료]</td>
+    </tr>
+    <tr>
+      <td style="padding:7px 8px;color:#8e44ad;font-weight:bold;white-space:nowrap;">📌 핵심</td>
+      <td style="padding:7px 8px;color:#222;line-height:1.8;">[오늘의 핵심 포인트 — VIX·금리·환율 신호는 여기 한 줄로만 요약, 별도 수치 카드 없음]</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ===================== ② 근거 데이터 (해외 연관 + 국내 공시) ===================== -->
+<div style="border-left:4px solid #e67e22;padding-left:10px;margin:20px 0 8px 0;">
+  <span style="font-size:15px;font-weight:bold;color:#1a252f;">📊 근거 데이터</span>
+</div>
+<div style="font-size:11px;color:#888;margin-bottom:8px;">※ 매수 추천 아님. 액션플랜 근거 참고용.</div>
+
+<div style="font-size:13px;font-weight:bold;color:#e67e22;margin:10px 0 6px 0;">해외 연관 (MM/DD 미장 → 오늘 국장)</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px;">
+  <tr style="background-color:#fdf6ec;border-bottom:1px solid #fdebd0;">
+    <td style="width:160px;padding:6px 8px;font-weight:bold;color:#555;">종목</td>
+    <td style="width:80px;padding:6px 8px;font-weight:bold;color:#555;">등락</td>
+    <td style="width:100px;padding:6px 8px;font-weight:bold;color:#555;">섹터</td>
+    <td style="padding:6px 8px;font-weight:bold;color:#555;" class="mov-related-col">→ 오늘 국장 연관주</td>
+  </tr>
+  <!-- 종목별로 아래 두 행(데이터 행 + 모바일 연관주 행)을 반복:
+  <tr style="border-bottom:1px solid #fdebd0;">
+    <td style="padding:6px 8px;font-weight:bold;color:#1a252f;">[종목명] ([티커])</td>
+    <td style="padding:6px 8px;font-weight:bold;color:#27ae60;">[+X.X%] ([가격])</td>
+    <td style="padding:6px 8px;color:#555;">[섹터]</td>
+    <td style="padding:6px 8px;color:#222;line-height:1.8;" class="mov-related-col">[국내 연관주 설명, 이미반영 여부 포함]</td>
+  </tr>
+  <tr class="mov-related-row" style="display:none;border-bottom:1px solid #fdebd0;background-color:#fffaf5;">
+    <td colspan="3" style="padding:6px 8px;color:#555;font-size:12px;line-height:1.7;">🔗 연관주: [국내 연관주 리스트]</td>
+  </tr>
+  -->
+</table>
+
+<div style="font-size:13px;font-weight:bold;color:#27ae60;margin:10px 0 6px 0;">국내 공시</div>
+<div style="padding:10px 14px;background-color:#f8f9fa;border:1px solid #e0e7f0;border-radius:4px;font-size:13px;color:#888;margin-bottom:6px;">
+  [오늘 강 신호 공시 요약, 없으면 "오늘 강 신호 공시 없음 — [정보성 공시 요약]"]
+</div>
+<!-- 공시가 여러 건이면 표로: 반복
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+  <tr style="border-bottom:1px solid #d5f5e3;">
+    <td style="width:120px;padding:7px 8px;font-weight:bold;">[종목명]</td>
+    <td style="padding:7px 8px;color:#222;line-height:1.9;">[공시 내용 · 분석]</td>
+  </tr>
+</table>
+-->
+
+<!-- ===================== ③ 국장 수급 ===================== -->
+<div style="border-left:4px solid #2c3e50;padding-left:10px;margin:20px 0 8px 0;">
+  <span style="font-size:15px;font-weight:bold;color:#1a252f;">📊 국장 수급 (MM/DD 마감 기준)</span>
+</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+  <tr style="border-bottom:1px solid #e0e7f0;">
+    <td style="width:90px;padding:7px 8px;font-weight:bold;white-space:nowrap;">코스피</td>
+    <td style="padding:7px 8px;color:#222;line-height:1.9;"><strong>[등락률]</strong> [지수] | 외국인 <strong>[금액]([연속매매 설명])</strong> / 기관 [금액] / 개인 [금액]. 주도섹터: [섹터]. 환율 [환율] 마감.</td>
+  </tr>
+  <tr>
+    <td style="padding:7px 8px;font-weight:bold;white-space:nowrap;">수급 온도</td>
+    <td style="padding:7px 8px;color:#222;line-height:1.9;">[✅/⚠️/⚖️] <strong>[수급 환경 평가]</strong> — [근거]. [등급조정 적용 여부].</td>
+  </tr>
+</table>
+
+<!-- ===================== ④ D-7 이벤트 ===================== -->
+<div style="border-left:4px solid #27ae60;padding-left:10px;margin:20px 0 8px 0;">
+  <span style="font-size:15px;font-weight:bold;color:#1a252f;">📅 D-7 이벤트</span>
+</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+  <tr style="background-color:#f4fef6;border-bottom:1px solid #d5f5e3;">
+    <td style="width:100px;padding:6px 8px;font-weight:bold;color:#555;white-space:nowrap;">날짜</td>
+    <td style="padding:6px 8px;font-weight:bold;color:#555;">이벤트 · 예상치</td>
+  </tr>
+  <!-- 행 형식 (반복):
+  <tr style="border-bottom:1px solid #d5f5e3;">
+    <td style="padding:7px 8px;white-space:nowrap;">MM/DD(요일) D-N</td>
+    <td style="padding:7px 8px;">[이벤트명] | 예상 [수치]</td>
+  </tr>
+  -->
+</table>
+
+<!-- ===================== ⑤ 기관 의견 & 애널리스트 ===================== -->
+<div style="border-left:4px solid #8e44ad;padding-left:10px;margin:20px 0 8px 0;">
+  <span style="font-size:15px;font-weight:bold;color:#1a252f;">🏦 기관 의견 &amp; 애널리스트</span>
+</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px;">
+  <!-- 행 형식 (반복):
+  <tr style="border-bottom:1px solid #e8daef;">
+    <td style="width:100px;padding:7px 8px;color:#888;font-size:11px;white-space:nowrap;">[날짜] [기관명]</td>
+    <td style="padding:7px 8px;color:#222;line-height:1.9;">[의견 내용]</td>
+  </tr>
+  -->
+</table>
+<!-- 핵심 후보 종목의 애널리스트 컨센서스가 있으면 아래 박스로:
+<div style="padding:10px 14px;background-color:#f8f5ff;border:1px solid #d7bde2;border-radius:4px;font-size:13px;">
+  <span style="color:#6c3483;font-weight:bold;">🔍 애널리스트 컨센서스 — [종목명] ([티커])</span>
+  <div style="margin-top:6px;color:#222;line-height:1.9;">
+    Strong Buy [N]명 / Buy [N]명 / Hold [N]명 / Sell [N]명 (총 [N]명 커버리지)<br/>
+    매수 비율 <strong>[XX]%</strong> — [상향/하향/유지 추세]. [매도 의견 유무].<br/>
+    인사이더: [날짜] [직급] [수량]주 [매수/매도](@[가격]) 등 — [평가].
+  </div>
+</div>
+-->
+
+<!-- ===================== ⑥ 액션플랜 ===================== -->
+<div style="border-left:4px solid #c0392b;padding-left:10px;margin:20px 0 8px 0;">
+  <span style="font-size:15px;font-weight:bold;color:#1a252f;">🎯 액션플랜</span>
+</div>
+
+<!-- 후보별 박스 반복 (🔴/🟢/🟡 공통 구조, 테두리·헤더 색만 등급별로 c0392b/27ae60/e67e22 교체).
+     ⚠️ 미국 직접 후보든 국내 연관 후보든 이 박스 하나로 통일 — 별도 "미국 직접 기회" 섹션 없음.
+     후보가 없으면(전부 관망) 아래 박스 대신: "💧 관망 — [1~2줄 근거]. 재검토 조건: [한 줄]" 짧은 안내문으로 대체.
+<div style="border:1px solid #c0392b;border-radius:5px;margin-bottom:14px;overflow:hidden;">
+  <div style="background-color:#fef9f9;padding:8px 12px;border-bottom:1px solid #f5b7b1;">
+    <span style="color:#c0392b;font-weight:bold;font-size:14px;">[🔴/🟢/🟡] [등급명] ([미국 직접/국내 연관 등])</span>
+    <span style="font-size:14px;font-weight:bold;color:#1a252f;margin-left:8px;">[종목명]</span>
+    <span style="font-size:12px;color:#555;margin-left:6px;">갭 [해당 항목 ①②③④] 해당</span>
+  </div>
+  <table style="width:100%;border-collapse:collapse;">
+    <tr style="border-bottom:1px solid #f5b7b1;">
+      <td style="width:82px;padding:6px 10px;color:#c0392b;font-weight:bold;white-space:nowrap;">핵심 근거</td>
+      <td style="padding:6px 10px;color:#222;line-height:1.9;">[핵심 근거 서술]</td>
+    </tr>
+    <tr style="border-bottom:1px solid #f5b7b1;">
+      <td style="padding:6px 10px;color:#c0392b;font-weight:bold;white-space:nowrap;">갭 분석</td>
+      <td style="padding:6px 10px;color:#222;line-height:1.9;">① [해당여부 근거] ② [해당여부 근거] ③ [해당여부 근거] ④ [해당여부 근거]</td>
+    </tr>
+    <tr style="border-bottom:1px solid #f5b7b1;">
+      <td style="padding:6px 10px;color:#e67e22;font-weight:bold;white-space:nowrap;">⭐ 신호</td>
+      <td style="padding:6px 10px;color:#222;line-height:1.8;">[강화신호 요약]</td>
+    </tr>
+    <tr style="border-bottom:1px solid #f5b7b1;">
+      <td style="padding:6px 10px;color:#555;font-weight:bold;white-space:nowrap;">주의 사항</td>
+      <td style="padding:6px 10px;color:#555;line-height:1.9;">[리스크 요인]</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 10px;color:#6c3483;font-weight:bold;white-space:nowrap;">🔭 장기</td>
+      <td style="padding:6px 10px;color:#555;line-height:1.8;">[장기 스토리 — 구SECTION10 장기관점이 여기로 흡수됨]</td>
+    </tr>
+  </table>
+</div>
+-->
+
+<!-- 국내 연관/참고 등급 박스(있을 때만, 위 박스와 동일 구조·테두리색만 등급색):
+<div style="border:1px solid #e67e22;border-radius:5px;margin-bottom:14px;overflow:hidden;">
+  <div style="background-color:#fef9f0;padding:8px 12px;border-bottom:1px solid #fad7a0;">
+    <span style="color:#e67e22;font-weight:bold;font-size:14px;">🟡 참고 (수급 조정 후)</span>
+    <span style="font-size:14px;font-weight:bold;color:#1a252f;margin-left:8px;">[테마/연관주 그룹명]</span>
+    <span style="font-size:12px;color:#555;margin-left:6px;">갭 [해당 항목] 해당</span>
+  </div>
+  <table style="width:100%;border-collapse:collapse;">
+    <tr style="border-bottom:1px solid #fad7a0;">
+      <td style="width:82px;padding:6px 10px;color:#e67e22;font-weight:bold;white-space:nowrap;">핵심 근거</td>
+      <td style="padding:6px 10px;color:#222;line-height:1.9;">[핵심 근거 서술]</td>
+    </tr>
+    <tr style="border-bottom:1px solid #fad7a0;">
+      <td style="padding:6px 10px;color:#e67e22;font-weight:bold;white-space:nowrap;">갭 분석</td>
+      <td style="padding:6px 10px;color:#222;line-height:1.9;">① [해당여부] ② [해당여부] ③ [해당여부] ④ [해당여부]</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 10px;color:#555;font-weight:bold;white-space:nowrap;">주의 사항</td>
+      <td style="padding:6px 10px;color:#555;line-height:1.9;">[리스크 요인]</td>
+    </tr>
+  </table>
+</div>
+-->
+
+<div style="margin-top:10px;">
+  <div style="font-size:13px;font-weight:bold;color:#27ae60;margin-bottom:6px;">✅ 장초 확인 리스트</div>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <!-- 항목별로 반복 (구SECTION11이 여기로 흡수됨):
+    <tr style="border-bottom:1px solid #e0e7f0;">
+      <td style="width:18px;padding:5px 8px;text-align:center;">☐</td>
+      <td style="padding:5px 8px;color:#222;">[확인 항목 서술]</td>
+    </tr>
+    -->
+  </table>
+</div>
+
+<!-- ===================== 실행 로그 (섹션 아님, 맨 아래 메타데이터) ===================== -->
+<div style="margin-top:20px;padding:8px 12px;background-color:#f8f9fa;border:1px solid #eeeeee;border-radius:4px;font-size:11px;color:#888888;">
+  ✅ 실행 완료 | MCP [N]회+검색 [N]회 (합산 [N]/[N]회) | 공시 강 신호 [있음/없음] | 후보 채택: [종목·등급 리스트] | 목표주가: [포착여부] | 임원자사주: [포착여부] | 강화-G: [실행여부] | 강화-B: [실행여부] | 등급조정: [있음/없음, 사유] | 금리: [내용] | 환율: [내용] | [시간] 생성
+</div>
+<div style="margin-top:8px;font-size:11px;color:#aaa;">※ 본 브리핑은 투자 참고용이며 투자 권유가 아닙니다. 모든 투자 판단과 책임은 본인에게 있습니다.</div>

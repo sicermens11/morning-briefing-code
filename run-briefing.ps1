@@ -1,0 +1,309 @@
+﻿<#
+run-briefing.ps1 — morning-sector-briefing 자동실행 런처 (2026-08-21 신설)
+
+Windows 작업 스케줄러가 평일 08:00에 이 스크립트를 부른다.
+하는 일은 하나 — Claude Code를 헤드리스로 띄워 morning-sector-briefing 스킬을 실행시키고,
+그 결과를 로그로 남긴다.
+
+수동 실행:
+    powershell -ExecutionPolicy Bypass -File "C:\Users\mrblue\Claude\morning breifing_code\run-briefing.ps1"
+    powershell -ExecutionPolicy Bypass -File "...\run-briefing.ps1" -Mode test    # 제목에 [07:00 테스트] suffix
+#>
+param(
+    # auto = 평일 08:00 정식 실행(제목 suffix 없음) / test = 테스트 실행(제목에 suffix)
+    [ValidateSet('auto', 'test')]
+    [string]$Mode = 'auto',
+
+    # 진단용: claude를 부르지 않고 조립된 프롬프트와 허용도구 목록만 출력한다.
+    # ⚠️ 이게 필요한 이유 — Windows PowerShell 5.1은 BOM 없는 UTF-8 스크립트를 ANSI로 읽는다.
+    #    그러면 스크립트 안의 한글이 "실행 시점에 이미" 깨져서, 깨진 프롬프트가 claude에게
+    #    전달되는데도 로그만 보면 원인을 알기 어렵다(2026-08-21 첫 테스트에서 실제로 겪음).
+    #    이 스위치로 한글이 온전한지 먼저 눈으로 확인할 수 있다. 이 파일은 BOM 포함으로 저장할 것.
+    [switch]$DryRun
+)
+
+$ErrorActionPreference = 'Continue'
+
+$claude  = "C:\Users\mrblue\.local\bin\claude.exe"
+$logDir  = "C:\Users\mrblue\Claude\morning breifing_code\run-logs"
+$stamp   = Get-Date -Format 'yyyy-MM-dd_HHmmss'
+$logFile = Join-Path $logDir "briefing_$stamp.log"
+
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Force -Path $logDir | Out-Null }
+
+function Write-Log([string]$msg) {
+    $line = "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $msg
+    Add-Content -Path $logFile -Value $line -Encoding utf8
+}
+
+Write-Log "=== morning-sector-briefing 시작 (Mode=$Mode) ==="
+
+if (-not (Test-Path $claude)) {
+    Write-Log "치명적: claude CLI를 찾을 수 없음 ($claude). 실행 중단."
+    exit 1
+}
+
+# --- 실행 프롬프트 ----------------------------------------------------------
+# 스킬을 슬래시 명령으로 부르지 않고 문장으로 지시한다. 헤드리스(-p) 실행에서는 슬래시
+# 명령 해석이 보장되지 않아서, 스킬 이름을 명시적으로 짚어주는 쪽이 안정적이다.
+if ($Mode -eq 'test') {
+    # 제목 suffix는 SKILL.md STEP6 규칙을 따른다. 실행 시각을 그대로 박아야 하루에 여러 번
+    # 돌려도 초안이 구분된다 — "[07:00 테스트]"로 고정하면 17시에 돌린 초안도 07:00으로
+    # 남아 나중에 로그를 볼 때 사실과 어긋난다.
+    $hhmm = Get-Date -Format 'HH:mm'
+    $context = "이 실행은 테스트 실행이다. STEP6 Gmail 제목 끝에 suffix ' [수동실행 $hhmm]' 를 붙인다. STEP8 일일 로그는 기록하지 않는다(정식 자동실행이 아니므로)."
+} else {
+    # ⚠️ 2026-08-27: 여기 있던 "'[코드]' 마커는 필수" 지시를 제거했다.
+    #    Cowork 병행은 2026-08-25에 끝났는데 이 줄만 남아 있었다. 08-25·08-26·08-27 사흘 연속
+    #    마커가 붙었고, 08-27엔 검산 스크립트가 SUBJECT_BANNED_MARKER로 잡았는데도
+    #    **모델이 "사용자 지시가 우선"이라며 유지하고 차단 규칙을 되돌리라고 권고했다.**
+    #    모델은 지시대로 한 것이 맞다 — 프롬프트가 "필수"라고 말하고 있었기 때문이다.
+    #    ⚠️ 교훈: 08-26에 SKILL.md·check_subject.py·check_jargon.py 세 곳을 막고 "전부 막았다"고
+    #      했는데, **정작 프롬프트를 만드는 이 런처를 안 봤다.** 규칙을 없앨 때는 그 규칙이
+    #      "선언된 곳"만이 아니라 **"모델에게 전달되는 경로"** 를 전부 훑어야 한다.
+    $context = "이 실행은 평일 08:00 정식 자동 실행이다. 추가 suffix 없음. STEP8 일일 로그까지 기록한다."
+}
+
+$prompt = @"
+morning-sector-briefing 스킬을 실행해 오늘의 모닝 섹터 브리핑을 만들어라.
+
+$context
+
+반드시 지킬 것:
+- 스킬의 STEP 0부터 순서대로 따른다. STEP 0의 도구 스키마 선조회를 건너뛰지 않는다.
+- 어떤 단계에서 에러가 나도 STEP 6(Gmail) · STEP 7(카카오) · STEP 8(일일 로그)까지는 반드시 도달한다.
+- 셸은 PowerShell이다. bash 관용구를 실행하지 않는다.
+- 마지막에 실행 요약을 5줄 이내로 출력한다: 채택 후보와 등급 / MCP 호출수 / Gmail 결과 / 카카오 결과 / 실패한 항목.
+"@
+
+# --- 허용 도구 --------------------------------------------------------------
+# ⚠️ ToolSearch가 반드시 들어가야 한다. 이 환경의 MCP 도구는 전부 deferred 상태라
+#    ToolSearch로 스키마를 불러오지 못하면 커넥터가 붙어 있어도 "도구 없음"으로 실패한다
+#    (2026-08-21 실측 확인: ToolSearch 없이 돌리면 TOOL_MISSING, 넣으면 정상 조회).
+$allowed = @(
+    'ToolSearch', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'Skill',
+    'PowerShell', 'Bash',
+    'mcp__claude_ai_PlayMCP__*',
+    'mcp__claude_ai_FMP__*',
+    'mcp__claude_ai_Exa__*',
+    'mcp__claude_ai_Bigdata_com__*',
+    'mcp__claude_ai_Alpha_Vantage_MCP_Server__*',
+    'mcp__claude_ai_Gmail__*'
+)
+
+if ($DryRun) {
+    Write-Output "===== [DryRun] 허용 도구 ====="
+    $allowed | ForEach-Object { Write-Output "  $_" }
+    Write-Output "`n===== [DryRun] 전달될 프롬프트 ====="
+    Write-Output $prompt
+    Write-Output "`n===== [DryRun] 끝 — claude는 호출하지 않았음 ====="
+    Write-Log "DryRun으로 종료(claude 미호출)"
+    exit 0
+}
+
+# ⚠️ claude.exe를 부르기 전에 반드시 설정한다 (2026-08-25 추가, 실제 사고로 확인).
+#    PowerShell은 네이티브 프로그램의 출력을 [Console]::OutputEncoding으로 디코딩하는데,
+#    한국어 Windows의 기본값은 cp949다. claude.exe는 UTF-8로 출력하므로, 이 줄이 없으면
+#    한글이 전부 깨진 채 로그에 남는다("실행 요약" → "?ㅽ뻾 ?붿빟").
+#    08-24·08-25 자동 실행 로그가 실제로 이렇게 깨져서 사후 확인이 불가능했다.
+#    브리핑 자체(Gmail·카카오)는 claude가 직접 보내므로 영향 없고, 깨지는 건 로그뿐이다.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  ⭐⭐ **퀀트를 claude 앞으로** (2026-09-10 옮김)
+#  사용자: 「퀀트후보 9:30 이면 이미 **장시작하고 … 의미도 없는 시간** 아니야?」
+#
+#  ⚠️ 기준은 **claude 를 피하는 것이 아니다** (2026-09-10 사용자 바로잡음):
+#     「브리핑 시간 설정에 중요한 건, claude 브리핑을 피하는게 먼저가 아니라
+#       **장 시작하기 전에 충분한 정보를 제공하는 거고, 정보를 충분히 수집한 뒤의 시간**이야」
+#  실측 도착 시각: KRX 종가·지수 **08:00:44** · ETF·주식선물·국고채 **08:10**
+#     => 수집이 다 끝나는 때가 **08:10** 이다. 브리핑은 그 뒤에 시작해야 한다
+#     => 09:00 매수 · 08:50 동시호가이므로 후보는 **08:20 안에** 화면에 있어야 한다
+#  ⇒ KRX 확인과 퀀트 후보를 **claude 앞으로** 옮겼다 -> **08:05** 에 나온다
+#  ⚠️ claude 프롬프트에 today-rule.html 이 안 들어가므로 순서를 바꿔도 안전하다
+#  ⚠️ 예약도 08:00 -> **08:02** 로 미뤘다 (주가 08:00:44 도착 뒤에 시작하도록)
+# ══════════════════════════════════════════════════════════════════════
+# --- KRX 공식 시세 적재 -------------------------------------------------------
+# ⚠⚠ **수집은 브리핑보다 먼저 끝나야 한다** (2026-09-09 사용자 지적).
+#    07:52 예약 `KrxFetchBeforeBriefing` 이 **미리 받아둔다**
+#    (fetch_krx_wait · 2분 간격 최대 25분 = 08:17 까지 기다린다)
+#    여기는 **떨어진 것을 주우는 자리**다 — 보통 이미 있어 바로 끝난다
+#    실측(2026-09-09): KRX 종가·지수가 **08:03 에 2초 안으로 같이** 온다
+# ⚠️ 지금 시세·수급·재무가 **전부 네이버 한 곳**에서 온다. 막히면 그날 브리핑이
+#    통째로 흔들리고 백테스트까지 같이 틀어진다. 거래소 공식값을 매일 받아 둔다.
+# ⚠️ 새 기능이 아니라 **대안 확보**다. 값은 이미 네이버로 받고 있다.
+# ⚠️ 시장별로 승인이 따로다 — 한쪽이 401이어도 받은 쪽은 저장한다(로그에 남는다).
+if ($Mode -eq 'auto') {
+    $krx = & (Join-Path $PSScriptRoot 'scripts\run-py.ps1') -Script 'fetch_krx.py' -Args @('--check')
+    Write-Log "KRX 시세: $krx"
+}
+
+# --- ⏳ **종가를 기다린다** (2026-09-10 신설) ---------------------------------
+# ⚠️⚠️ 실측: KRX 종가는 **08:00:44** 에 오는데 이 브리핑은 **08:00:01** 에 시작한다.
+#    **44초 부족**하다. 퀀트를 claude 앞으로 옮겼으므로 그냥 두면
+#    **하루 묵은 종가**로 후보를 뽑게 된다.
+#    예약을 08:02 로 미루려 했으나 **Access is denied** (권한이 더 높은 계정 소유).
+#    => 여기서 **기다린다.** 도착이 늦어져도 대응된다 (2분 간격 · 최대 10분)
+# ⚠️ ETF 는 안 기다려도 된다 — record_pick 이 그걸 쓰는 곳은
+#    「국고채 ETF 로 한국 금리 표시」 한 군데뿐이고, **후보 조건에는 안 들어간다**
+if ($Mode -eq 'auto') {
+    $wait = & (Join-Path $PSScriptRoot 'scripts\run-py.ps1') -Script 'morning_krx.py' -Args @('--최대','10')
+    Write-Log "종가 기다리기: $wait"
+}
+
+# --- 퀀트 후보 뽑기 + 옛 후보 채점 -------------------------------------------
+# ⚠️⚠️ **여기여야 한다** (2026-09-07 옮김). 예전엔 07:50 morning_prep 이 돌았다.
+#    그런데 전 거래일 종가는 **바로 윗줄 fetch_krx 가 받아 온다** — 07:50엔 없다.
+#    나흘 실측: 08:19:01 · 08:21:50 · 08:22:59 · 08:24:18 — 전부 08:15 이후다.
+#    ⇒ 07:50에 뽑은 후보는 **하루 묵은 종가**로 뽑힌 것이었다.
+#      「기다렸다 받기」(fetch_krx_wait)로도 못 메운다. 순서가 문제였다
+# ⚠️ 아래 publish_pages 가 이 결과를 읽어 웹 「퀀트 후보」 3장을 그린다.
+#    그러니 **게시보다 먼저** 돌아야 한다
+if ($Mode -eq 'auto') {
+    $pick = & (Join-Path $PSScriptRoot 'scripts\run-py.ps1') -Script 'record_pick.py'
+    Write-Log "퀀트 후보: $pick"
+    $rhtml = & (Join-Path $PSScriptRoot 'scripts\run-py.ps1') -Script 'build_rule_html.py'
+    Write-Log "규칙 조각: $rhtml"
+}
+
+# --- ⭐ 퀀트만 **먼저 올린다** (2026-09-10 신설) --------------------------------
+# ⚠️⚠️ 퀀트 절을 claude 앞으로 옮겨도 **게시가 맨 뒤**라 화면은 그대로였다.
+#    파일은 08:05 에 생기는데 사용자가 보는 건 claude 28분 뒤인 **08:33** 이었다.
+#    09:00 매수이고 **08:50 에 동시호가**를 보므로, 후보는 그 전에 화면에 있어야 한다.
+#    ⇒ 여기서 한 번 올린다 (실측 13초~1분). 브리핑 본문은 아직 어제 것이지만
+#      그건 08:00~08:33 사이 **원래도 어제 것**이 떠 있었다.
+#    ⚠️ 맨 뒤의 게시는 그대로 둔다 — 거기서 브리핑 본문까지 올린다
+if ($Mode -eq 'auto') {
+    $early = & (Join-Path $PSScriptRoot 'scripts\publish_pages.ps1') 2>&1
+    Write-Log "퀀트 먼저 게시: $($early | Select-Object -Last 1)"
+}
+
+
+Write-Log "claude 실행 시작..."
+$sw = [System.Diagnostics.Stopwatch]::StartNew()
+
+# --output-format json: 실행 요약뿐 아니라 토큰·비용까지 같이 받는다(2026-08-21 추가).
+#   이게 없으면 "이 브리핑이 얼마나 드는지"를 세션 기록을 손으로 파싱해야만 알 수 있다.
+#   비용 최적화(모델 선택·컨텍스트 축소)를 감이 아니라 숫자로 판단하려면 이 기록이 먼저다.
+# --max-turns: MCP 호출 70회대 + 검산·수정 턴까지 있어 기본 제한에 걸릴 수 있으니 넉넉히 준다.
+$raw = & $claude -p $prompt --allowedTools @allowed --max-turns 200 --model claude-opus-5 --output-format json
+$code = $LASTEXITCODE
+
+$sw.Stop()
+Write-Log "claude 종료 (exit=$code, 소요 $([math]::Round($sw.Elapsed.TotalMinutes,1))분)"
+
+# --- 사용량 기록 -------------------------------------------------------------
+# JSON 파싱은 실패해도 실행 자체를 실패로 만들지 않는다 — 브리핑은 이미 발송된 뒤이고,
+# 계측은 부가 정보일 뿐이다. 파싱이 안 되면 원문을 그대로 남겨 나중에 볼 수 있게 한다.
+$result = $null
+try {
+    $j = $raw | ConvertFrom-Json
+    $u = $j.usage
+    $inTotal = [int]$u.input_tokens + [int]$u.cache_creation_input_tokens + [int]$u.cache_read_input_tokens
+    Write-Log ("사용량 | 턴 {0} | 입력 {1:N0} (캐시읽기 {2:N0} · 캐시생성 {3:N0} · 신규 {4:N0}) | 출력 {5:N0} | 비용 ${6:N2}(0이면 미제공)" -f `
+        $j.num_turns, $inTotal, [int]$u.cache_read_input_tokens, [int]$u.cache_creation_input_tokens, `
+        [int]$u.input_tokens, [int]$u.output_tokens, $(if ($null -ne $j.total_cost_usd) { [double]$j.total_cost_usd } else { 0 }))
+    if ($j.permission_denials -and $j.permission_denials.Count -gt 0) {
+        Write-Log "⚠️ 권한 거부 $($j.permission_denials.Count)건 — 허용 도구 목록 확인 필요"
+    }
+    if ($j.is_error) { Write-Log "⚠️ claude가 오류로 종료함 (subtype=$($j.subtype))" }
+    $result = $j.result
+} catch {
+    Write-Log "사용량 파싱 실패: $($_.Exception.Message) — 아래에 원문을 남긴다"
+    $result = $raw
+}
+
+Write-Log "--- 실행 요약 ---"
+if ($result) { Add-Content -Path $logFile -Value $result -Encoding utf8 }
+Write-Log "--- 요약 끝 ---"
+
+# --- 컨센서스 적재 -----------------------------------------------------------
+# ⚠️ 네이버는 컨센서스 **현재값만** 준다(이력 API 없음). 매일 쌓아 두면 어제와의
+#    차이가 곧 '투자의견 강등·목표주가 하향'이 된다. 점수표에 그 배점(−1/−2)은
+#    이미 있는데 **판정 근거가 없었다**(2026-08-28 발견).
+# ⚠️ 그날 후보만 보면 같은 종목을 두 번 볼 일이 없어 차분이 안 생긴다 —
+#    최근 20일에 한 번이라도 후보였던 종목 전부를 다시 본다. 로컬 호출이라 공짜다.
+if ($Mode -eq 'auto') {
+    $con = & (Join-Path $PSScriptRoot 'scripts\run-py.ps1') -Script 'fetch_consensus.py'
+    Write-Log "컨센서스 적재: $con"
+}
+
+# --- 서술 11개 값 기록 -------------------------------------------------------
+# ⚠️ 점수에 반영하지 않는 서술 항목(공매도·외국인지분율추이·분기6개·당좌비율·상대강도…)의
+#    **값**을 픽마다 일일 로그에 붙인다. 예전에는 그날 글로 나갔다가 증발했고,
+#    그래서 "이 값이 높은 픽이 실제로 더 올랐나"를 나중에 계산할 재료가 없었다.
+#    ⚠️ 모델을 거치지 않는다 — 스냅샷에서 스크립트가 직접 뽑는다(토큰 0, 오타 0).
+#    ⚠️ 점수·등급은 건드리지 않는다. `features` 칸에만 쓴다.
+if ($Mode -eq 'auto') {
+    $enr = & (Join-Path $PSScriptRoot 'scripts\run-py.ps1') -Script 'enrich_log.py'
+    Write-Log "서술 값 기록: $enr"
+}
+
+# --- 보유 현황 갱신 -----------------------------------------------------------
+# ⚠️ NH PLUG로 **조회만** 한다. 주문 API는 부르지 않는다.
+# ⚠️ 금액은 `portfolio.json`에만 들어가고 **화면에는 퍼센트만** 나간다.
+#    이 사이트는 주소를 아는 사람이면 누구나 본다(2026-08-28 사용자 선택 A).
+# ⚠️ 실패해도 브리핑을 막지 않는다 — 그날 포트폴리오 화면이 어제 것으로 남을 뿐이다.
+if ($Mode -eq 'auto') {
+    $pf = & (Join-Path $PSScriptRoot 'scripts\run-py.ps1') -Script 'fetch_portfolio.py'
+    Write-Log "보유 현황: $pf"
+}
+
+# --- 웹사이트 갱신 -----------------------------------------------------------
+# 아이폰 홈 화면에 올려 둔 고정 링크(data\site-url.txt)를 오늘 날짜로 다시 올린다.
+#
+# ⚠️ **왜 Artifact가 아닌가** (2026-08-27 교체). Artifact 공유 링크는 **공유한 시점의
+#    버전이 고정돼** 나간다. 매일 새로 올려도 링크로 들어온 사람에게는 옛 것이 계속
+#    보였다 — "고정 링크로 매일 아침 최신을 본다"는 목적 자체가 성립하지 않았다.
+#    지금은 GitHub Pages다. 주소는 그대로고 파일만 갈아 끼운다. 덤으로 claude를 한 번
+#    더 부를 일이 없어져서 호출 한 번과 그 비용이 통째로 사라졌다.
+#
+# ⚠️ 생성·레이아웃 검사·게시가 전부 `publish_pages.ps1` 안에 있다. 여기서 다시 하지
+#    않는다. 실패하면 **어제 페이지가 그대로 남는다** — 빈 페이지나 깨진 페이지보다 낫다.
+#
+# ⚠️ 테스트 실행(-Mode test)에서는 건너뛴다. STEP8 일일 로그를 안 쓰므로 새 날짜가
+#    없고, 공유 중인 링크를 테스트 결과로 덮어쓰면 안 된다.
+if ($Mode -eq 'auto') {
+    Write-Log "웹사이트 게시 중..."
+    $pubOut = & (Join-Path $PSScriptRoot 'scripts\publish_pages.ps1')
+    $pubCode = $LASTEXITCODE
+    $pubOut | ForEach-Object { Write-Log "  $_" }
+    if ($pubCode -ne 0) {
+        # 여기서 브리핑 전체를 실패로 보지 않는다. 지메일은 이미 나갔고, 웹은 어제 것이 남는다.
+        Write-Log "⚠️ 웹사이트 게시 실패(exit=$pubCode) — 어제 페이지가 그대로 남는다"
+    }
+}
+
+# ⚠️⚠️ **건강검진 — 게시가 끝난 뒤에 돈다.** 막지 않고 기록만 한다 (2026-09-01 연결).
+#    `check_health.py`는 2026-08-26에 만들어놓고 **아무 데서도 안 불렀다.** 그 사이
+#    「응답크기_초과」가 3일(08-26·08-27·08-31) 반복되고 있었는데 아무도 몰랐다.
+#    ⚠️ 하루치만 보면 사소한데 **며칠을 겹쳐 보면 명백한** 실패를 잡는 것이 목적이다.
+#    ⚠️ 여기에 `갈라진파일`도 함께 본다 — 2026-08-25에 예약 작업의 런처 경로만 옮기고
+#       데이터를 안 옮겨 옛 폴더와 두 벌로 자란 사고(2026-09-01 발견)를 다시 겪지 않으려는 것.
+try {
+    $hz = & (Join-Path $PSScriptRoot 'scripts
+un-py.ps1') -Script 'check_health.py' -Args @('--days','30')
+    if ($hz) {
+        $hzj = $hz | ConvertFrom-Json
+        Write-Log ("건강검진 | 실패 {0}건 | 반복유형 {1}" -f $hzj.실패건수,
+            (($hzj.반복유형 | ForEach-Object { $_.유형 + '(' + $_.발생일수 + '일)' }) -join ', '))
+        foreach ($f in $hzj.갈라진파일) {
+            if ($f.'⚠️옛것이더새것') {
+                Write-Log ("⚠️⚠️ 옛 폴더가 더 새것 — {0} (옛 {1} / 지금 {2}). 두 벌로 갈라지는 중이다" -f `
+                    $f.파일, $f.옛폴더수정, $f.프로젝트수정)
+            }
+        }
+    }
+} catch {
+    # ⚠️ 건강검진이 실패해도 브리핑은 이미 끝났다. 조용히 넘긴다.
+    Write-Log "건강검진 건너뜀: $($_.Exception.Message)"
+}
+
+# 오래된 로그 정리(60일 초과분). 매일 쌓이는 파일이라 방치하면 계속 늘어난다.
+Get-ChildItem $logDir -Filter 'briefing_*.log' -ErrorAction SilentlyContinue |
+    Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-60) } |
+    Remove-Item -Force -ErrorAction SilentlyContinue
+
+Write-Log "=== 종료 ==="
+exit $code

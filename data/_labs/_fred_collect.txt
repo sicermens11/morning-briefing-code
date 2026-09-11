@@ -1,0 +1,7 @@
+2026-09-03 20:09:56  ===== FRED 금리·거시 · 23개 =====
+2026-09-03 20:17:30    ⚠️ DFF               미국 기준금리(실효)         ConnectionResetError [WinError 10054] 현재 연결은 원격 호스트에 의해 강제로 끊겼습니다
+2026-09-03 20:25:30    ⚠️ DFEDTARU          연준 목표 상단            TimeoutError The read operation timed out
+2026-09-03 20:33:31    ⚠️ DFEDTARL          연준 목표 하단            TimeoutError The read operation timed out
+2026-09-03 20:41:31    ⚠️ DFEDTAR           연준 목표(옛)            TimeoutError The read operation timed out
+2026-09-03 20:48:14    ⚠️ DGS1MO            미국 1개월              TimeoutError The read operation timed out
+2026-09-03 20:55:48    ⚠️ DGS3MO            미국 3개월              ConnectionResetError [WinError 10054] 현재 연결은 원격 호스트에 의해 강제로 끊겼습니다

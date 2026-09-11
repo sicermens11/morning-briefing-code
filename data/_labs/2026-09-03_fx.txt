@@ -1,0 +1,3 @@
+  USDKRW  4130일  20091217 ~ 20260903
+  JPYKRW  4130일  20091217 ~ 20260903
+  저장 → C:\Users\mrblue\Claude\morning breifing_code\data\fx-daily.json

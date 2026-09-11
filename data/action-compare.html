@@ -1,0 +1,87 @@
+<!doctype html><meta charset="utf-8"><title>A + 안2 실물</title><title>깜댕의 주식 브리핑</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+/* ⚠️ 카드뉴스는 **가로로 넘기는 게 목적**이라 `touch-action:pan-y`를 걸면 안 된다.
+   다만 레일 끝에서 더 밀면 iOS가 그걸 "뒤로 가기"로 받아 페이지를 떠나 버린다.
+   `overscroll-behavior-x:none`이 그 끝단 제스처만 막는다(넘기기는 그대로 된다). */
+/* ⚠️ iOS Safari 텍스트 자동 확대 차단 — 카드는 배율(transform:scale)로 그리는데
+   글자만 따로 커지면 카드 안에서 넘친다. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+/* ⚠️⚠️ **좌우는 어떤 환경에서도 고정한다.** (2026-08-27 세 번째 지적)
+   여기에 `overflow-x:clip` **하나만** 걸어 뒀던 게 화근이었다. `clip`은 비교적 새 값이라
+   그 값을 모르는 엔진은 **선언 전체를 버린다** — 그러면 잠금이 통째로 사라진다.
+   데스크톱 크롬에서는 393px에서도 넘침이 0으로 나오는데 아이폰에서는 밀렸다. 즉
+   "어느 요소가 범인인지 재서 잡는" 방식이 여기서는 통하지 않는다. 뿌리에서 막는다.
+     · `hidden`을 먼저 쓰고 `clip`으로 덮는다 — 모르는 엔진은 `hidden`에서 멈춘다.
+     · `max-width:100%`로 뿌리 자체가 넓어지는 길도 닫는다.
+   ⚠️ `.rail`(가로 카드)은 제 안에서 따로 스크롤하므로 이 규칙에 걸리지 않는다. */
+html,body{overscroll-behavior-x:none;max-width:100%;overflow-x:hidden}
+body{margin:0;background:#e8e4dc;-webkit-font-smoothing:antialiased;overflow-x:clip}
+a{color:#9d7a17;text-decoration:none} a:hover{color:#c9a227}
+.days{display:flex;gap:8px;overflow-x:auto;padding:20px 20px 0;scrollbar-width:none}
+.days::-webkit-scrollbar{display:none}
+.day{flex:none;background:#efece5;border:1px solid #d5cec0;border-radius:8px;
+  padding:9px 15px;cursor:pointer;text-align:left;font-family:inherit;
+  font-size:12px;line-height:1.35;color:#6b665c;white-space:nowrap}
+.day b{display:block;font-size:13px;font-weight:700;color:#1c1813}
+.day[aria-selected="true"]{border-color:#1b3bf0;background:#fff}
+.rail{display:none;overflow-x:auto;scroll-snap-type:x mandatory;
+  scroll-behavior:smooth;padding:20px;scrollbar-width:none}
+.rail[data-active="true"]{display:flex}
+.rail::-webkit-scrollbar{display:none}
+/* ⚠️ **폰에서는 카드가 화면 폭을 꽉 채운다** (2026-08-27 지적).
+   예전엔 배율이 고정(.32)이라 폰에서 카드가 화면 한가운데 작게 떴고,
+   가뜩이나 작은 글씨가 더 안 보였다.
+
+   ⚠️⚠️ 배율(`--s`)은 **CSS로 계산할 수 없다.** `calc((100vw - 16px)/1080)`은
+   길이(px)를 내놓는데 `scale()`은 **숫자**를 받는다. 길이를 넣으면 값이 무효라
+   **transform 전체가 통째로 무시되고** 카드가 1080px 원본 크기로 뜬다.
+   그래서 폰 배율만 JS(`fit()`)에서 넣는다. 아래 값은 JS가 죽었을 때의 대비다. */
+.rail{--s:.40;--gap:22px}
+@media(max-width:1240px){.rail{--s:.33}}
+@media(max-width:900px){
+  .rail{--s:.36;--gap:6px;padding:0}
+  .days{padding:10px 8px 0}
+  .nav{padding:10px 0 22px}
+}
+.rail section{scroll-snap-align:center;flex:none;box-shadow:0 2px 18px #17181a14;
+  transform:scale(var(--s));transform-origin:top left;
+  margin-right:calc(var(--gap) - 1080px*(1 - var(--s)));
+  margin-bottom:calc(-1350px*(1 - var(--s)))}
+.nav{display:flex;justify-content:center;align-items:center;gap:7px;padding:14px 0 34px}
+.nav i{width:7px;height:7px;border-radius:50%;background:#c4bdae;display:block;transition:.15s}
+.nav i.on{background:#1b3bf0;transform:scale(1.4)}
+@media(prefers-reduced-motion:reduce){
+  .rail{scroll-behavior:auto}
+  .nav i,.arw{transition:none}
+}
+/* ⚠️ **넘기는 방법이 보여야 한다** (2026-08-27 지적). 예전엔 가로 스크롤뿐이라
+   데스크톱에서는 넘길 수 있다는 사실 자체를 몰랐다. 표지의 "넘겨서 보기 →"는
+   첫 장에만 있어서 힌트 구실을 못 했다. 화살표는 **항상 떠 있다.** */
+.arw{position:fixed;top:50%;transform:translateY(-50%);z-index:5;
+  width:52px;height:52px;border-radius:50%;border:1px solid #d5cec0;background:#efece5ee;
+  color:#1c1813;font-size:22px;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 12px #17181a1f;transition:.15s}
+.arw:hover{background:#fff;border-color:#1b3bf0;color:#1b3bf0}
+.arw[disabled]{opacity:.28;cursor:default;box-shadow:none}
+.arw.prev{left:16px} .arw.next{right:16px}
+/* 폰은 손가락으로 쓸어 넘기는 게 자연스럽고, 카드가 화면을 꽉 채워서
+   화살표를 띄우면 본문을 가린다. 그래서 좁은 화면에서는 숨긴다. */
+@media(max-width:900px){.arw{display:none}}
+</style><div class="days"><button class="day" data-d="2026-08-31" aria-selected="true"><b>08/31(월)</b><span>🟡현대로템 · 🟡HD현대일렉트릭 외 1</span></button><button class="day" data-d="2026-08-28" aria-selected="false"><b>08/28(금)</b><span>🔴안랩 · 🟢한미반도체 외 2</span></button><button class="day" data-d="2026-08-27" aria-selected="false"><b>08/27(목)</b><span>🟡디아이 · 🟡HD한국조선해양 외 2</span></button><button class="day" data-d="2026-08-26" aria-selected="false"><b>08/26(수)</b><span>🟡효성중공업 · 🟡LIG디펜스앤에어로스페이스</span></button><button class="day" data-d="2026-08-25" aria-selected="false"><b>08/25(화)</b><span>🟢엘에스일렉트릭 · 🟡HD현대중공업</span></button></div><style>
+ body{margin:0;background:#dedad1;font-family:'Pretendard Variable','Pretendard','Malgun Gothic',sans-serif;color:#1c1813}
+ .wrap{max-width:1520px;margin:0 auto;padding:34px 22px 80px}
+ h1{font-size:30px;margin:0 0 6px;letter-spacing:-.02em}
+ .lead{font-size:19px;color:#6b665c;margin:0 0 26px;line-height:1.65}
+ .two{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+ @media(max-width:1180px){.two{grid-template-columns:1fr}}
+ .tag{font-size:18px;font-weight:700;letter-spacing:.1em;color:#6b665c;margin-bottom:10px}
+ .tag2{color:#0d8f74}
+ .hold{width:670px;max-width:100%;height:837px;overflow:hidden;border:1px solid #d5cec0}
+ .hold section{transform:scale(.62);transform-origin:top left}
+ .note{margin-top:30px;background:#f2efe8;border-radius:14px;padding:22px 24px;
+   font-size:18px;line-height:1.75;color:#4b4740}
+ b{color:#1c1813}
+</style><div class="wrap"><h1>액션 카드 — 지금 vs 「A + 안2」</h1><p class="lead">2026-08-31 실제 내용입니다. 오른쪽은 <b>「자리 나쁨 → 아직 떨어지는 중」</b>과 <b>안2(상자 여백 15→22px · 간격 12→18px · 신호 118→90자)</b>를 넣은 것입니다.</p><div class="two"><div><div class="tag">지금</div><div class="hold"><section data-label="06 액션플랜" style="position:relative;width:1080px;height:1350px;background:#f2efe8;overflow:hidden;box-sizing:border-box;padding:80px;font-family:'Pretendard Variable','Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;font-feature-settings:'tnum';display:flex;flex-direction:column"><div style="position:relative;display:flex;flex-direction:column;justify-content:space-between;width:100%;height:100%;box-sizing:border-box;padding:12px 18px 96px"><div><div style="flex:none"><div style="display:flex;align-items:center;gap:14px;border-bottom:1px solid #d5cec0;padding-bottom:20px"><span style="width:11px;height:11px;background:#c8352b;flex:none"></span><span style="font-size:27px;letter-spacing:-.01em;color:#c8352b;font-weight:700">액션플랜</span><span style="margin-left:auto;font-family:'Pretendard Variable','Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;font-size:26px;color:#6b665c">06</span></div><h2 style="font-size:58px;font-weight:800;line-height:1.16;letter-spacing:-.04em;color:#1c1813;margin:32px 0 24px;max-width:86%">오늘의 기회는 어디에 있나 1</h2></div><div style="margin:10px 0 0;padding:14px 20px;background:#17181a0a;border-radius:14px;border-left:3px solid #a9a294"><div style="font-size:26px;font-weight:700;letter-spacing:-.01em;color:#6f6a60">참고사항</div><div style="height:10px"></div><div style="font-size:26px;line-height:1.5"><b style="color:#c8352b">🔴 최우선매수</b><span style="color:#6f6a60"> 조건 다수</span> <span style="color:#d5cec0">·</span> <b style="color:#0d8f74">🟢 주목</b><span style="color:#6f6a60"> 조건 일부</span> <span style="color:#d5cec0">·</span> <b style="color:#c9971a">🟡 점검</b><span style="color:#6f6a60"> 조건 적거나 자리 나쁨</span></div><div style="font-size:29px;line-height:1.5;color:#4b4740;margin-top:12px;word-break:keep-all"><b>확인</b>은 <b>이 값을 넘어야 매수를 검토</b>하는 선, <b>손절</b>은 <b>이 값을 내주면 파는</b> 선, <b>발굴</b>은 <b>직전 거래일 종가</b>입니다.</div></div><div style="font-size:29px;color:#6b665c;margin-top:16px;line-height:1.5;word-break:keep-all">오늘 후보 3종목 중 둘만 실었습니다. 나머지와 <b>자세한 근거는 세로 상세</b>에.</div><div style="margin-top:12px;padding-top:10px;border-top:1px solid #d5cec0;font-size:27px;line-height:1.45;color:#4b4740;word-break:keep-all"><b style="color:#6f6a60">어제 후보</b> · <span style="white-space:nowrap">지니언스 <b style="color:#c8352b">+19.02%</b> <span style="color:#6f6a60">적중</span></span> · <span style="white-space:nowrap">안랩 <b style="color:#c8352b">+4.57%</b> <span style="color:#6f6a60">적중</span></span> · <span style="white-space:nowrap">한미반도체 <b style="color:#2050c8">-1.13%</b> <span style="color:#6f6a60">보합</span></span> · <span style="white-space:nowrap">이수페타시스 <b style="color:#6f6a60">0.00%</b> <span style="color:#6f6a60">보합</span></span></div><div><div style="padding:4px 0 4px"><div><div style="display:flex;gap:14px;align-items:baseline"><span style="font-size:29px;color:#6f6a60;flex:none">01</span><span style="font-size:36px;font-weight:800;color:#1c1813;letter-spacing:-.03em">현대로템</span><span style="font-size:29px;color:#6f6a60">064350</span><span style="margin-left:auto;padding:6px 15px;border-radius:999px;border:1px solid #c9971a;color:#c9971a;font-size:29px;font-weight:700;white-space:nowrap;letter-spacing:-.01em">🟡 점검</span></div><div><div style="background:#c8352b0f;border-left:3px solid #c8352b;border-radius:14px;padding:15px 20px;margin-top:12px"><div style="font-size:29px;color:#c8352b;font-weight:700;letter-spacing:-.01em">긍정 신호</div><div style="font-size:29px;line-height:1.45;color:#4b4740;margin-top:6px;word-break:keep-all">오늘 새벽 페루 전차 수출 본계약 추진 보도가 나왔습니다. 한국 장이 닫힌 뒤인 0시 34분이라 금요일 주가에는 아직 안 붙었고, 금요일 등락도 0.36%로 사실상 무반응이었습니다.</div></div><div style="background:#2050c80f;border-left:3px solid #2050c8;border-radius:14px;padding:15px 20px;margin-top:12px"><div style="font-size:29px;color:#2050c8;font-weight:700;letter-spacing:-.01em">부정 신호</div><div style="font-size:29px;line-height:1.45;color:#4b4740;margin-top:6px;word-break:keep-all">아직 계약이 아니라 '추진'입니다. 실제 수주 공시가 안 나오면 소식이 하루 만에 식을 수 있습니다.</div></div><div style="font-size:29px;color:#4b4740;margin-top:14px">확인 <b>140,170원</b> · 손절 <b>128,000원</b> · 발굴 139,100원</div></div></div><div style="border-top:2px solid #d5cec0"></div></div></div></div></section></div></div><div><div class="tag tag2">A + 안2</div><div class="hold"><section data-label="06 액션플랜" style="position:relative;width:1080px;height:1350px;background:#f2efe8;overflow:hidden;box-sizing:border-box;padding:80px;font-family:'Pretendard Variable','Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;font-feature-settings:'tnum';display:flex;flex-direction:column"><div style="position:relative;display:flex;flex-direction:column;justify-content:space-between;width:100%;height:100%;box-sizing:border-box;padding:12px 18px 96px"><div><div style="flex:none"><div style="display:flex;align-items:center;gap:14px;border-bottom:1px solid #d5cec0;padding-bottom:20px"><span style="width:11px;height:11px;background:#c8352b;flex:none"></span><span style="font-size:27px;letter-spacing:-.01em;color:#c8352b;font-weight:700">액션플랜</span><span style="margin-left:auto;font-family:'Pretendard Variable','Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;font-size:26px;color:#6b665c">06</span></div><h2 style="font-size:58px;font-weight:800;line-height:1.16;letter-spacing:-.04em;color:#1c1813;margin:32px 0 24px;max-width:86%">오늘의 기회는 어디에 있나 1</h2></div><div style="margin:10px 0 0;padding:14px 20px;background:#17181a0a;border-radius:14px;border-left:3px solid #a9a294"><div style="font-size:26px;font-weight:700;letter-spacing:-.01em;color:#6f6a60">참고사항</div><div style="height:10px"></div><div style="font-size:26px;line-height:1.5"><b style="color:#c8352b">🔴 최우선매수</b><span style="color:#6f6a60"> 조건 다수</span> <span style="color:#d5cec0">·</span> <b style="color:#0d8f74">🟢 주목</b><span style="color:#6f6a60"> 조건 일부</span> <span style="color:#d5cec0">·</span> <b style="color:#c9971a">🟡 점검</b><span style="color:#6f6a60"> 조건 적거나 아직 떨어지는 중</span></div><div style="font-size:29px;line-height:1.5;color:#4b4740;margin-top:12px;word-break:keep-all"><b>확인</b>은 <b>이 값을 넘어야 매수를 검토</b>하는 선, <b>손절</b>은 <b>이 값을 내주면 파는</b> 선, <b>발굴</b>은 <b>직전 거래일 종가</b>입니다.</div></div><div style="font-size:29px;color:#6b665c;margin-top:16px;line-height:1.5;word-break:keep-all">오늘 후보 3종목 중 둘만 실었습니다. 나머지와 <b>자세한 근거는 세로 상세</b>에.</div><div style="margin-top:12px;padding-top:10px;border-top:1px solid #d5cec0;font-size:27px;line-height:1.45;color:#4b4740;word-break:keep-all"><b style="color:#6f6a60">어제 후보</b> · <span style="white-space:nowrap">지니언스 <b style="color:#c8352b">+19.02%</b> <span style="color:#6f6a60">적중</span></span> · <span style="white-space:nowrap">안랩 <b style="color:#c8352b">+4.57%</b> <span style="color:#6f6a60">적중</span></span> · <span style="white-space:nowrap">한미반도체 <b style="color:#2050c8">-1.13%</b> <span style="color:#6f6a60">보합</span></span> · <span style="white-space:nowrap">이수페타시스 <b style="color:#6f6a60">0.00%</b> <span style="color:#6f6a60">보합</span></span></div><div><div style="padding:4px 0 4px"><div><div style="display:flex;gap:14px;align-items:baseline"><span style="font-size:29px;color:#6f6a60;flex:none">01</span><span style="font-size:36px;font-weight:800;color:#1c1813;letter-spacing:-.03em">현대로템</span><span style="font-size:29px;color:#6f6a60">064350</span><span style="margin-left:auto;padding:6px 15px;border-radius:999px;border:1px solid #c9971a;color:#c9971a;font-size:29px;font-weight:700;white-space:nowrap;letter-spacing:-.01em">🟡 점검</span></div><div><div style="background:#c8352b0f;border-left:3px solid #c8352b;border-radius:14px;padding:22px 24px;margin-top:18px"><div style="font-size:29px;color:#c8352b;font-weight:700;letter-spacing:-.01em">긍정 신호</div><div style="font-size:29px;line-height:1.45;color:#4b4740;margin-top:6px;word-break:keep-all">오늘 새벽 페루 전차 수출 본계약 추진 보도가 나왔습니다.</div></div><div style="background:#2050c80f;border-left:3px solid #2050c8;border-radius:14px;padding:22px 24px;margin-top:18px"><div style="font-size:29px;color:#2050c8;font-weight:700;letter-spacing:-.01em">부정 신호</div><div style="font-size:29px;line-height:1.45;color:#4b4740;margin-top:6px;word-break:keep-all">아직 계약이 아니라 '추진'입니다. 실제 수주 공시가 안 나오면 소식이 하루 만에 식을 수 있습니다.</div></div><div style="font-size:29px;color:#4b4740;margin-top:14px">확인 <b>140,170원</b> · 손절 <b>128,000원</b> · 발굴 139,100원</div></div></div><div style="border-top:2px solid #d5cec0"></div></div></div></div></section></div></div></div><div class="note"><b>등급 설명은 둘 다 한 줄입니다.</b> 「아직 떨어지는 중」으로 바꿔도 안 넘칩니다.<br><br><b>여백은 96px → 98px, 2px밖에 안 늘었습니다.</b> 글을 69자 줄여서 번 자리를 늘린 여백이 거의 다 써버렸기 때문입니다. <b>안2는 보기엔 시원해지지만 넘침 위험은 거의 그대로입니다.</b></div></div>

@@ -1,0 +1,255 @@
+#!/usr/bin/env python3
+r"""
+build_rule_cases.py — **규칙이 최근에 가리킨 것들을 뽑아 둔다** (2026-09-04 신설)
+
+## 왜 만드나
+```
+브리핑에 「이 규칙이 최근에 가리킨 10개가 어떻게 됐나」를 표로 싣는다 (사례제).
+   ① 확률을 설명할 필요가 없다 — 「10개 중 8개」는 그냥 읽힌다
+   ② **검증 가능하다** — 종목명·날짜가 있어 직접 차트를 열어볼 수 있다
+   ③ ⭐ **형식을 안 바꾸고 백테스트 -> 실전으로 넘어간다**
+      예측 기록이 쌓이면 같은 자리에 실전 사례가 들어간다
+   ④ 나쁜 사례가 표에 그냥 보인다
+```
+⚠️ 백테스트 전체를 도는 무거운 작업이라 **매일 돌리지 않는다.**
+   한 달에 한 번(또는 규칙이 바뀔 때) 돌려서 캐시를 갱신한다.
+
+## 확정 규칙 (98·101·104·108차)
+```
+잉여금비율 >=30% · 부채비율 <=80% · 흑자 · 시총 2,000억 아래
+볼린저 -1.0σ · 20일 낙폭 -10% · 관리종목·SPAC 제외
+상대갭 -3.5%p 아래 (**후보 40개 중앙갭** 대비 — 08:50에 그것만 보인다) · **시가 매수만** (장중 매수는 108차에서 기각)
++20% 지정가 · 최대 D+40 · 손절 없음 · 자산 20%씩 · 하루 4종목
+```
+
+저장: `data/rule-cases.json`
+쓰는 법:
+    python scripts\build_rule_cases.py
+    python scripts\build_rule_cases.py --개수 20
+"""
+import datetime as dt
+import glob
+import io
+import json
+import os
+import statistics as st
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import omni_lab as O  # noqa: E402
+from day_lab import 연간재무  # noqa: E402
+
+_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT = os.path.join(_BASE, "data", "rule-cases.json")
+_비용 = 0.26
+_시작 = "20160401"
+_목표 = 20.0
+_최대보유 = 40
+_후보수 = 40      # 08:00에 브리핑이 싣는 개수 — 08:50엔 이것만 보인다
+확정 = {"갭": -3.5, "볼": -1.0, "낙": -10.0, "시총": 2e11, "종목수": 4}
+
+
+def main():
+    개수 = 30
+    if "--개수" in sys.argv:
+        개수 = int(sys.argv[sys.argv.index("--개수") + 1])
+
+    주가 = O.수정주가(("시총", "거래대금"))
+    날 = sorted(주가)
+    기본, 재무 = O._기본(), 연간재무()
+    종계, 자리 = {}, {}
+    for d in 날:
+        for c, v in 주가[d].items():
+            종계.setdefault(c, []).append(v[0])
+            자리.setdefault(c, {})[d] = len(종계[c]) - 1
+    비, 갭표, 시장갭, 앞종, 원시 = {}, {}, {}, {}, {}
+    for f in sorted(glob.glob(os.path.join(O._DATA, "krx-daily", "*.json"))):
+        d = json.load(io.open(f, encoding="utf-8-sig"))
+        d8 = d["기준일"]
+        하루 = {}
+        for c, v in d["종목"].items():
+            try:
+                종c = float(v["종가"])
+                시 = float(v.get("시가") or 0) or 종c
+                고 = float(v.get("고가") or 0) or 종c
+                거 = float(v.get("거래대금") or 0)
+                if min(종c, 시, 고) <= 0:
+                    continue
+            except (TypeError, ValueError, KeyError):
+                continue
+            비.setdefault(d8, {})[c] = (시 / 종c, 고 / 종c, 거)
+            원시.setdefault(d8, {})[c] = 시
+            pv = 앞종.get(c)
+            앞종[c] = 종c
+            if pv and pv > 0:
+                g = (시 / pv - 1) * 100
+                if abs(g) <= 32:
+                    하루[c] = g
+        갭표[d8] = 하루
+        if len(하루) >= 100:
+            시장갭[d8] = st.median(list(하루.values()))
+
+    def 재무값(code, d8):
+        줄 = 재무.get(code)
+        if not 줄:
+            return None
+        m = None
+        for 적용, v in 줄:
+            if 적용 <= d8:
+                m = v
+            else:
+                break
+        return m
+
+    사건 = []
+    for i, d1 in enumerate(날):
+        if i < 260 or i + 1 >= len(날):
+            continue
+        다음 = 날[i + 1]
+        if 다음 < _시작:
+            continue
+        시갭 = 시장갭.get(다음)
+        if 시갭 is None:
+            continue
+        하루갭 = 갭표.get(다음) or {}
+        for code, v in 주가[d1].items():
+            c1, 시총, 대금 = v
+            if 시총 < O._MIN_MC or 대금 < O._MIN_AMT or 시총 >= 확정["시총"]:
+                continue
+            g = 하루갭.get(code)
+            # ⚠️⚠️ **여기서 갭을 걸지 않는다** (2026-09-07 고침).
+            #    08:00에는 갭이 없다. 후보 40개를 먼저 고르고,
+            #    08:50에 **그 40개 안에서** 중앙갭을 내야 실전과 같다
+            if g is None:
+                continue
+            fm = 재무값(code, d1)
+            if not (fm and fm.get("잉여금비율", -9e9) >= 30
+                    and fm.get("부채비율", 9e9) <= 80 and fm.get("흑자") == 1.0):
+                continue
+            bb = 기본.get(code) or {}
+            부 = str(bb.get("업종") or "")
+            if (("관리종목" in 부) or ("SPAC" in 부)
+                    or (bb.get("증권구분") not in (None, "주권"))):
+                continue
+            kk = (자리.get(code) or {}).get(d1)
+            if kk is None or kk < 250:
+                continue
+            sq = 종계[code]
+            s20 = st.mean(sq[kk - 19:kk + 1])
+            sd = st.pstdev(sq[kk - 19:kk + 1]) or 1e-9
+            if (c1 - s20) / (2 * sd) > 확정["볼"] or sq[kk - 20] <= 0:
+                continue
+            낙 = (c1 / sq[kk - 20] - 1) * 100
+            if 낙 > 확정["낙"]:
+                continue
+            b0 = (비.get(다음) or {}).get(code)
+            v0 = 주가[다음].get(code)
+            o0 = (원시.get(다음) or {}).get(code)
+            if not b0 or not v0 or not o0:
+                continue
+            매수 = v0[0] * b0[0]
+            if 매수 <= 0:
+                continue
+            결과, 며칠, 끝났나 = None, None, True
+            for h in range(0, _최대보유 + 1):
+                j = i + 1 + h
+                if j >= len(날):
+                    break
+                vv = 주가[날[j]].get(code)
+                b2 = (비.get(날[j]) or {}).get(code)
+                if not vv or not b2:
+                    break
+                if vv[0] * b2[1] >= 매수 * (1 + _목표 / 100):
+                    결과, 며칠 = _목표 - _비용, max(1, h)
+                    break
+            if 결과 is None:
+                j = i + 1 + _최대보유
+                if j >= len(날):
+                    끝났나 = False        # ⚠️ 아직 안 끝난 것
+                else:
+                    끝 = 주가[날[j]].get(code)
+                    if 끝:
+                        결과, 며칠 = ((끝[0] / 매수 - 1) * 100 - _비용,
+                                      _최대보유)
+            사건.append({
+                "날짜": f"{다음[:4]}-{다음[4:6]}-{다음[6:]}",
+                "종목코드": code, "이름": bb.get("이름", ""),
+                "매수가": round(o0), "_갭": g, "_시장갭": 시갭,
+                "상대갭": None,   # 아래에서 후보중앙갭으로 다시 낸다
+                "20일낙폭": round(낙, 1), "시총억": round(시총 / 1e8),
+                "결과": (round(결과, 2) if 결과 is not None else None),
+                "며칠": 며칠, "끝났나": 끝났나,
+                "도달": (결과 is not None
+                        and 결과 > _목표 - _비용 - 1e-9),
+            })
+
+    # ⚠️⚠️ **실전 절차 그대로** (2026-09-07 고침)
+    #    1) 08:00 — 20일 낙폭 깊은 순 **40개**를 브리핑에 싣는다
+    #    2) 08:50 — **그 40개 예상체결가**의 중앙값을 낸다 (시장 전체가 아니다)
+    #    3) 09:00 — 중앙값보다 3.5%p 더 빠진 것만 최대 4종목
+    #    전에는 2)를 **시장 전체 중앙갭**으로 해서, 브리핑에 나가는 성적이
+    #    **실행할 수 없는 규칙**의 것이었다
+    묶 = {}
+    for x in 사건:
+        묶.setdefault(x["날짜"], []).append(x)
+    산것 = []
+    for d, 칸 in 묶.items():
+        앞 = sorted(칸, key=lambda z: z["20일낙폭"])[:_후보수]
+        if len(앞) < 3:
+            continue
+        중 = st.median([z["_갭"] for z in 앞])
+        골 = []
+        for z in 앞:
+            z["상대갭"] = round(z["_갭"] - 중, 2)
+            if z["상대갭"] <= 확정["갭"]:
+                골.append(z)
+        산것.extend(sorted(골, key=lambda z: z["상대갭"])[:확정["종목수"]])
+    for x in 산것:
+        x.pop("_갭", None)
+        x.pop("_시장갭", None)
+    산것.sort(key=lambda z: z["날짜"])
+    끝난 = [x for x in 산것 if x["끝났나"] and x["결과"] is not None]
+
+    도 = sum(1 for x in 끝난 if x["도달"])
+    플 = sum(1 for x in 끝난 if x["결과"] > 0)
+    묶2 = {}
+    for x in 끝난:
+        묶2.setdefault(x["날짜"][:4], []).append(x["결과"])
+    나온 = {
+        "만든날": dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "규칙": ("잉여금≥30% · 부채≤80% · 흑자 · 시총 2,000억↓ · "
+                "볼린저 −1.0σ · 20일 −10% · 상대갭 −3.5%p↓ · "
+                "시가 매수 · +20% 지정가 · 최대 D+40 · 손절 없음"),
+        "기간": f"{산것[0]['날짜']} ~ {산것[-1]['날짜']}" if 산것 else "",
+        "전체건수": len(끝난),
+        "도달": 도, "도달률": round(도 / max(1, len(끝난)) * 100, 1),
+        "흑자": 플, "승률": round(플 / max(1, len(끝난)) * 100, 1),
+        "평균": round(st.mean([x["결과"] for x in 끝난]), 2) if 끝난 else 0,
+        "평균보유": round(st.mean([x["며칠"] for x in 끝난]), 1) if 끝난 else 0,
+        "가장나쁨": round(min(x["결과"] for x in 끝난), 2) if 끝난 else 0,
+        "해수": len(묶2),
+        "최근": 끝난[-개수:][::-1],           # 최신이 위
+        # 최근 10건이 우연히 다 좋으면 100%로 읽힌다.
+        # 나쁜 사례를 반드시 같이 보여주려고 따로 담는다
+        "최악": sorted(끝난, key=lambda z: z["결과"])[:5],
+        "아직진행중": [x for x in 산것 if not x["끝났나"]],
+    }
+    io.open(OUT, "w", encoding="utf-8").write(
+        json.dumps(나온, ensure_ascii=False, indent=1))
+    print(f"  ✅ {OUT}")
+    print(f"     전체 {len(끝난)}건 · {나온['기간']} · {나온['해수']}개 해")
+    print(f"     도달률 {나온['도달률']}% · 승률 {나온['승률']}% · "
+          f"평균 {나온['평균']:+.2f}% · 평균보유 {나온['평균보유']}일")
+    print(f"     가장 나쁨 {나온['가장나쁨']:+.2f}%")
+    print(f"\n  ── 최근 10건 ──")
+    print(f"    {'날짜':<12}{'종목':<14}{'매수가':>9}{'결과':>9}{'보유':>7}")
+    for x in 나온["최근"][:10]:
+        print(f"    {x['날짜']:<12}{x['이름'][:13]:<14}{x['매수가']:>9,}"
+              f"{x['결과']:>+8.1f}%{x['며칠']:>6}일")
+    if 나온["아직진행중"]:
+        print(f"\n    (아직 안 끝난 것 {len(나온['아직진행중'])}건은 뺐다)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

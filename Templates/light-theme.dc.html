@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e8e4dc; }
+  a { color: #9d7a17; text-decoration: none; }
+  a:hover { color: #c9a227; }
+</style>
+</helmet>
+
+<div style="display:flex; flex-direction:column; align-items:center; gap:56px; padding:72px; background:#e8e4dc; font-family:Pretendard, sans-serif; -webkit-font-smoothing:antialiased; font-feature-settings:'tnum'">
+
+  <!-- 01 · 커버 -->
+  <section data-screen-label="01 커버" style="position:relative; width:1080px; height:1080px; background:#f6f4ef; overflow:hidden; box-sizing:border-box; padding:80px">
+    <div style="position:absolute; inset:44px; border:1px solid #ddd8ce; pointer-events:none"></div>
+    <div style="position:absolute; inset:0; background-image:radial-gradient(#17181a0d 1px, transparent 1px); background-size:22px 22px"></div>
+
+    <div style="position:absolute; inset:0; display:flex; align-items:flex-end; gap:14px; padding:0 44px 44px">
+      <div style="flex:1; height:120px; background:#17181a0d"></div>
+      <div style="flex:1; height:180px; background:#17181a0d"></div>
+      <div style="flex:1; height:150px; background:#17181a0d"></div>
+      <div style="flex:1; height:250px; background:#17181a12"></div>
+      <div style="flex:1; height:210px; background:#17181a12"></div>
+      <div style="flex:1; height:330px; background:#0d8f7418"></div>
+      <div style="flex:1; height:430px; background:#0d8f7422"></div>
+    </div>
+
+    <svg viewBox="0 0 1080 1080" style="position:absolute; inset:0; width:100%; height:100%" aria-hidden="true">
+      <polyline points="60,880 240,760 400,800 560,590 720,640 880,400 1020,250" fill="none" stroke="#0d8f74" stroke-width="4" stroke-opacity="0.45"></polyline>
+      <circle cx="1020" cy="250" r="12" fill="#0d8f74" fill-opacity="0.6"></circle>
+      <circle cx="560" cy="590" r="8" fill="#0d8f74" fill-opacity="0.35"></circle>
+    </svg>
+
+    <div style="position:absolute; inset:0; font-family:'JetBrains Mono',monospace; font-weight:700; color:#9d7a17; pointer-events:none">
+      <div style="position:absolute; top:190px; left:760px; font-size:150px; opacity:0.12; transform:rotate(-14deg)">$</div>
+      <div style="position:absolute; top:430px; left:120px; font-size:96px; opacity:0.1; transform:rotate(12deg)">₩</div>
+      <div style="position:absolute; top:700px; left:840px; font-size:72px; opacity:0.14; transform:rotate(-8deg)">$</div>
+      <div style="position:absolute; top:320px; left:520px; font-size:56px; opacity:0.16; color:#0d8f74; transform:rotate(6deg)">▲</div>
+      <div style="position:absolute; top:840px; left:330px; font-size:44px; opacity:0.14; color:#1b3bf0; transform:rotate(-6deg)">▲</div>
+    </div>
+
+    <div style="position:relative; height:100%; display:flex; flex-direction:column; justify-content:space-between">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:26px; letter-spacing:0.18em; color:#9d7a17">2026.08.27 THU</div>
+        <div style="display:flex; align-items:center; gap:10px">
+          <div style="width:12px; height:12px; border-radius:50%; background:#1b3bf0"></div>
+          <div style="width:12px; height:12px; border-radius:50%; background:#0d8f74"></div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:24px; letter-spacing:0.16em; color:#78716a">VOL.128</div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:36px">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:24px; letter-spacing:0.3em; color:#7c766c">MARKET NOTE</div>
+        <div style="font-size:150px; font-weight:800; color:#17181a; line-height:0.98; letter-spacing:-0.055em">현호의<br>주식 브리핑</div>
+        <div style="display:flex; align-items:center; gap:20px">
+          <div style="width:88px; height:1px; background:#9d7a17"></div>
+          <div style="font-size:34px; color:#5b564e; letter-spacing:-0.02em">3분 만에 읽는 어제와 오늘의 시장</div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:flex-end">
+        <div style="display:grid; grid-template-columns:auto auto auto; gap:12px 22px; font-size:27px; color:#4b4740">
+          <div style="font-family:'JetBrains Mono',monospace; color:#78716a">01</div><div>미국 시장</div><div style="color:#78716a">US</div>
+          <div style="font-family:'JetBrains Mono',monospace; color:#78716a">02</div><div>국내 시장</div><div style="color:#78716a">KR</div>
+          <div style="font-family:'JetBrains Mono',monospace; color:#78716a">03</div><div>관심 종목</div><div style="color:#78716a">PICK</div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:22px; color:#78716a; letter-spacing:0.14em">SWIPE →</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 · 미장 -->
+  <section data-screen-label="02 미장" style="position:relative; width:1080px; height:1080px; background-color:#f6f4ef; background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1080 1080'%3E%3Cpath d='M0 200H1080M0 440H1080M0 680H1080M0 920H1080' stroke='%2317181a' stroke-opacity='.05' stroke-width='2'/%3E%3Cpath d='M122 770V890' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M242 750V860' stroke='%23b8443b' stroke-opacity='.12' stroke-width='3'/%3E%3Cpath d='M362 670V810' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M482 610V740' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M602 630V730' stroke='%23b8443b' stroke-opacity='.12' stroke-width='3'/%3E%3Cpath d='M722 530V680' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M842 440V600' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M962 350V520' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Crect x='100' y='800' width='44' height='70' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='220' y='780' width='44' height='60' fill='%23b8443b' fill-opacity='.12'/%3E%3Crect x='340' y='700' width='44' height='90' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='460' y='640' width='44' height='80' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='580' y='660' width='44' height='55' fill='%23b8443b' fill-opacity='.12'/%3E%3Crect x='700' y='560' width='44' height='100' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='820' y='470' width='44' height='110' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='940' y='380' width='44' height='120' fill='%230d8f74' fill-opacity='.14'/%3E%3Cpolyline points='-20,860 122,835 242,810 362,745 482,680 602,687 722,610 842,525 962,440 1100,395' fill='none' stroke='%231b3bf0' stroke-opacity='.16' stroke-width='4'/%3E%3Ccircle cx='962' cy='440' r='11' fill='%231b3bf0' fill-opacity='.16'/%3E%3Cg font-family='monospace' font-weight='700'%3E%3Ctext x='790' y='250' font-size='180' fill='%23c9a227' fill-opacity='.20' transform='rotate(-13 790 250)'%3E$%3C/text%3E%3Ctext x='90' y='560' font-size='130' fill='%23c9a227' fill-opacity='.20' transform='rotate(11 90 560)'%3E%E2%82%A9%3C/text%3E%3Ctext x='600' y='1000' font-size='70' fill='%230d8f74' fill-opacity='.14' transform='rotate(-7 600 1000)'%3E%E2%96%B2%3C/text%3E%3Ctext x='420' y='330' font-size='58' fill='%231b3bf0' fill-opacity='.16' transform='rotate(6 420 330)'%3E%E2%96%B2%3C/text%3E%3C/g%3E%3C/svg%3E&quot;); background-repeat:no-repeat; background-size:cover; overflow:hidden; box-sizing:border-box; padding:80px; display:flex; flex-direction:column; gap:40px">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:22px; border-bottom:1px solid #ddd8ce">
+      <div style="display:flex; align-items:center; gap:14px">
+        <div style="width:10px; height:10px; background:#1b3bf0"></div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:24px; letter-spacing:0.24em; color:#1b3bf0">US MARKET</div>
+      </div>
+      <sc-if value="{{ showNumbering }}" hint-placeholder-val="{{ true }}">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:24px; letter-spacing:0.14em; color:#78716a">02 — 05</div>
+      </sc-if>
+    </div>
+
+    <div style="font-size:66px; font-weight:800; color:#17181a; line-height:1.12; letter-spacing:-0.045em; text-wrap:pretty">AI 수요 전망 상향,<br>반도체가 지수를 끌었다</div>
+
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid #ddd8ce; border-bottom:1px solid #ddd8ce">
+      <div style="padding:30px 26px 30px 0; display:flex; flex-direction:column; gap:14px; border-right:1px solid #ddd8ce">
+        <div style="font-size:26px; color:#7c766c; letter-spacing:-0.01em">나스닥</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:50px; font-weight:700; color:#17181a; letter-spacing:-0.03em">18,240</div>
+        <div style="display:flex; align-items:flex-end; gap:14px">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:29px; font-weight:700; color:#0d8f74">+1.24%</div>
+          <div style="display:flex; align-items:flex-end; gap:3px; height:30px">
+            <div style="width:6px; height:11px; background:#ded8cd"></div>
+            <div style="width:6px; height:16px; background:#ded8cd"></div>
+            <div style="width:6px; height:13px; background:#ded8cd"></div>
+            <div style="width:6px; height:22px; background:#0d8f74"></div>
+            <div style="width:6px; height:30px; background:#0d8f74"></div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:30px 26px; display:flex; flex-direction:column; gap:14px; border-right:1px solid #ddd8ce">
+        <div style="font-size:26px; color:#7c766c; letter-spacing:-0.01em">S&amp;P 500</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:50px; font-weight:700; color:#17181a; letter-spacing:-0.03em">5,610</div>
+        <div style="display:flex; align-items:flex-end; gap:14px">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:29px; font-weight:700; color:#0d8f74">+0.68%</div>
+          <div style="display:flex; align-items:flex-end; gap:3px; height:30px">
+            <div style="width:6px; height:14px; background:#ded8cd"></div>
+            <div style="width:6px; height:12px; background:#ded8cd"></div>
+            <div style="width:6px; height:18px; background:#ded8cd"></div>
+            <div style="width:6px; height:21px; background:#0d8f74"></div>
+            <div style="width:6px; height:26px; background:#0d8f74"></div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:30px 0 30px 26px; display:flex; flex-direction:column; gap:14px">
+        <div style="font-size:26px; color:#7c766c; letter-spacing:-0.01em">다우</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:50px; font-weight:700; color:#17181a; letter-spacing:-0.03em">40,110</div>
+        <div style="display:flex; align-items:flex-end; gap:14px">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:29px; font-weight:700; color:#b8443b">−0.21%</div>
+          <div style="display:flex; align-items:flex-end; gap:3px; height:30px">
+            <div style="width:6px; height:26px; background:#3a2f2e"></div>
+            <div style="width:6px; height:22px; background:#3a2f2e"></div>
+            <div style="width:6px; height:24px; background:#3a2f2e"></div>
+            <div style="width:6px; height:17px; background:#b8443b"></div>
+            <div style="width:6px; height:13px; background:#b8443b"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:22px; flex:1">
+      <div style="display:flex; gap:22px">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:26px; color:#1b3bf0; padding-top:8px">01</div>
+        <div style="font-size:33px; color:#4b4740; line-height:1.5; text-wrap:pretty">필라델피아 반도체 지수 <strong style="color:#0d8f74; font-weight:700">+2.8%</strong>. AI 서버 투자 확대 전망에 대형주 중심 매수세.</div>
+      </div>
+      <div style="display:flex; gap:22px">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:26px; color:#1b3bf0; padding-top:8px">02</div>
+        <div style="font-size:33px; color:#4b4740; line-height:1.5; text-wrap:pretty">10년물 금리 <strong style="color:#0d8f74; font-weight:700">4.10%</strong>로 하락, 9월 인하 확률 70%대 반영.</div>
+      </div>
+      <div style="display:flex; gap:22px">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:26px; color:#1b3bf0; padding-top:8px">03</div>
+        <div style="font-size:33px; color:#4b4740; line-height:1.5; text-wrap:pretty">달러 약세 · WTI 78달러 보합 — 신흥국 자금 유입에 우호적.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 · 국장 -->
+  <section data-screen-label="03 국장" style="position:relative; width:1080px; height:1080px; background-color:#f6f4ef; background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1080 1080'%3E%3Cpath d='M0 200H1080M0 440H1080M0 680H1080M0 920H1080' stroke='%2317181a' stroke-opacity='.05' stroke-width='2'/%3E%3Cpath d='M122 770V890' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M242 750V860' stroke='%23b8443b' stroke-opacity='.12' stroke-width='3'/%3E%3Cpath d='M362 670V810' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M482 610V740' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M602 630V730' stroke='%23b8443b' stroke-opacity='.12' stroke-width='3'/%3E%3Cpath d='M722 530V680' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M842 440V600' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M962 350V520' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Crect x='100' y='800' width='44' height='70' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='220' y='780' width='44' height='60' fill='%23b8443b' fill-opacity='.12'/%3E%3Crect x='340' y='700' width='44' height='90' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='460' y='640' width='44' height='80' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='580' y='660' width='44' height='55' fill='%23b8443b' fill-opacity='.12'/%3E%3Crect x='700' y='560' width='44' height='100' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='820' y='470' width='44' height='110' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='940' y='380' width='44' height='120' fill='%230d8f74' fill-opacity='.14'/%3E%3Cpolyline points='-20,860 122,835 242,810 362,745 482,680 602,687 722,610 842,525 962,440 1100,395' fill='none' stroke='%231b3bf0' stroke-opacity='.16' stroke-width='4'/%3E%3Ccircle cx='962' cy='440' r='11' fill='%231b3bf0' fill-opacity='.16'/%3E%3Cg font-family='monospace' font-weight='700'%3E%3Ctext x='790' y='250' font-size='180' fill='%23c9a227' fill-opacity='.20' transform='rotate(-13 790 250)'%3E$%3C/text%3E%3Ctext x='90' y='560' font-size='130' fill='%23c9a227' fill-opacity='.20' transform='rotate(11 90 560)'%3E%E2%82%A9%3C/text%3E%3Ctext x='600' y='1000' font-size='70' fill='%231b3bf0' fill-opacity='.16' transform='rotate(-7 600 1000)'%3E%E2%96%B2%3C/text%3E%3Ctext x='420' y='330' font-size='58' fill='%231b3bf0' fill-opacity='.16' transform='rotate(6 420 330)'%3E%E2%96%B2%3C/text%3E%3C/g%3E%3C/svg%3E&quot;); background-repeat:no-repeat; background-size:cover; overflow:hidden; box-sizing:border-box; padding:80px; display:flex; flex-direction:column; gap:36px">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:22px; border-bottom:1px solid #ddd8ce">
+      <div style="display:flex; align-items:center; gap:14px">
+        <div style="width:10px; height:10px; background:#0d8f74"></div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:24px; letter-spacing:0.24em; color:#0d8f74">KR MARKET · 08.26</div>
+      </div>
+      <sc-if value="{{ showNumbering }}" hint-placeholder-val="{{ true }}">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:24px; letter-spacing:0.14em; color:#78716a">03 — 05</div>
+      </sc-if>
+    </div>
+
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:40px">
+      <div style="display:flex; flex-direction:column; gap:12px">
+        <div style="font-size:28px; color:#7c766c">코스피</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:104px; font-weight:700; color:#17181a; line-height:1; letter-spacing:-0.04em">2,742</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:700; color:#0d8f74">+0.92% (+25.1)</div>
+      </div>
+      <div style="display:flex; align-items:flex-end; gap:6px; height:150px">
+        <div style="width:22px; height:62px; background:#ded8cd"></div>
+        <div style="width:22px; height:78px; background:#ded8cd"></div>
+        <div style="width:22px; height:70px; background:#ded8cd"></div>
+        <div style="width:22px; height:96px; background:#ded8cd"></div>
+        <div style="width:22px; height:112px; background:#0d8f74"></div>
+        <div style="width:22px; height:150px; background:#0d8f74"></div>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:26px 0; border-top:1px solid #ddd8ce; border-bottom:1px solid #ddd8ce">
+      <div style="display:flex; flex-direction:column; gap:8px">
+        <div style="font-size:26px; color:#7c766c">코스닥</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:40px; font-weight:700; color:#17181a">812.40</div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:700; color:#b8443b">−0.35%</div>
+      <div style="width:1px; height:56px; background:#ddd8ce"></div>
+      <div style="display:flex; flex-direction:column; gap:8px">
+        <div style="font-size:26px; color:#7c766c">원/달러</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:40px; font-weight:700; color:#17181a">1,352</div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:700; color:#7c766c">−3.0</div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px">
+      <div style="border:1px solid #ddd8ce; padding:24px; display:flex; flex-direction:column; gap:10px">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:22px; letter-spacing:0.14em; color:#78716a">FOREIGN</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:34px; font-weight:700; color:#0d8f74">+4,120억</div>
+      </div>
+      <div style="border:1px solid #ddd8ce; padding:24px; display:flex; flex-direction:column; gap:10px">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:22px; letter-spacing:0.14em; color:#78716a">INSTITUTION</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:34px; font-weight:700; color:#b8443b">−1,880억</div>
+      </div>
+      <div style="border:1px solid #ddd8ce; padding:24px; display:flex; flex-direction:column; gap:10px">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:22px; letter-spacing:0.14em; color:#78716a">RETAIL</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:34px; font-weight:700; color:#4b4740">−2,240억</div>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:16px; flex:1; justify-content:flex-end">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:22px; letter-spacing:0.22em; color:#9d7a17">SECTOR</div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap">
+        <div style="padding:14px 24px; border-radius:999px; background:#0d8f7418; color:#0d8f74; font-size:27px; font-weight:600">반도체 +2.4%</div>
+        <div style="padding:14px 24px; border-radius:999px; background:#0d8f7418; color:#0d8f74; font-size:27px; font-weight:600">2차전지 +1.8%</div>
+        <div style="padding:14px 24px; border-radius:999px; background:#b8443b18; color:#b8443b; font-size:27px; font-weight:600">바이오 −1.6%</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 · 관심 종목 -->
+  <section data-screen-label="04 관심종목" style="position:relative; width:1080px; height:1080px; background-color:#f6f4ef; background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1080 1080'%3E%3Cpath d='M0 200H1080M0 440H1080M0 680H1080M0 920H1080' stroke='%2317181a' stroke-opacity='.05' stroke-width='2'/%3E%3Cpath d='M122 770V890' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M242 750V860' stroke='%23b8443b' stroke-opacity='.12' stroke-width='3'/%3E%3Cpath d='M362 670V810' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M482 610V740' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M602 630V730' stroke='%23b8443b' stroke-opacity='.12' stroke-width='3'/%3E%3Cpath d='M722 530V680' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M842 440V600' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M962 350V520' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Crect x='100' y='800' width='44' height='70' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='220' y='780' width='44' height='60' fill='%23b8443b' fill-opacity='.12'/%3E%3Crect x='340' y='700' width='44' height='90' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='460' y='640' width='44' height='80' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='580' y='660' width='44' height='55' fill='%23b8443b' fill-opacity='.12'/%3E%3Crect x='700' y='560' width='44' height='100' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='820' y='470' width='44' height='110' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='940' y='380' width='44' height='120' fill='%230d8f74' fill-opacity='.14'/%3E%3Cpolyline points='-20,860 122,835 242,810 362,745 482,680 602,687 722,610 842,525 962,440 1100,395' fill='none' stroke='%231b3bf0' stroke-opacity='.16' stroke-width='4'/%3E%3Ccircle cx='962' cy='440' r='11' fill='%231b3bf0' fill-opacity='.16'/%3E%3Cg font-family='monospace' font-weight='700'%3E%3Ctext x='790' y='250' font-size='180' fill='%23c9a227' fill-opacity='.20' transform='rotate(-13 790 250)'%3E$%3C/text%3E%3Ctext x='90' y='560' font-size='130' fill='%23c9a227' fill-opacity='.20' transform='rotate(11 90 560)'%3E%E2%82%A9%3C/text%3E%3Ctext x='600' y='1000' font-size='70' fill='%230d8f74' fill-opacity='.14' transform='rotate(-7 600 1000)'%3E%E2%96%B2%3C/text%3E%3Ctext x='420' y='330' font-size='58' fill='%231b3bf0' fill-opacity='.16' transform='rotate(6 420 330)'%3E%E2%96%B2%3C/text%3E%3C/g%3E%3C/svg%3E&quot;); background-repeat:no-repeat; background-size:cover; overflow:hidden; box-sizing:border-box; padding:80px; display:flex; flex-direction:column; gap:32px">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:22px; border-bottom:1px solid #ddd8ce">
+      <div style="display:flex; align-items:center; gap:14px">
+        <div style="width:10px; height:10px; background:#9d7a17"></div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:24px; letter-spacing:0.24em; color:#9d7a17">WATCH LIST</div>
+      </div>
+      <sc-if value="{{ showNumbering }}" hint-placeholder-val="{{ true }}">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:24px; letter-spacing:0.14em; color:#78716a">04 — 05</div>
+      </sc-if>
+    </div>
+
+    <div style="font-size:60px; font-weight:800; color:#17181a; letter-spacing:-0.045em; line-height:1.14">오늘 지켜볼<br>세 종목</div>
+
+    <div style="display:flex; flex-direction:column; flex:1">
+      <div style="display:flex; align-items:center; gap:28px; padding:30px 0; border-top:1px solid #ddd8ce">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:24px; color:#78716a; width:34px">01</div>
+        <div style="display:flex; flex-direction:column; gap:8px; flex:1">
+          <div style="display:flex; align-items:baseline; gap:14px">
+            <div style="font-size:40px; font-weight:700; color:#17181a; letter-spacing:-0.03em">종목명</div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:24px; color:#78716a">005930</div>
+          </div>
+          <div style="font-size:28px; color:#5b564e; line-height:1.45; text-wrap:pretty">HBM 증설 모멘텀, 외국인 5일 연속 순매수</div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:32px; font-weight:700; color:#17181a">86,400</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:25px; font-weight:700; color:#0d8f74">+2.15%</div>
+        </div>
+        <div style="padding:12px 22px; border-radius:999px; background:#0d8f74; color:#f6f4ef; font-size:24px; font-weight:700; white-space:nowrap">매수 관점</div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:28px; padding:30px 0; border-top:1px solid #ddd8ce">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:24px; color:#78716a; width:34px">02</div>
+        <div style="display:flex; flex-direction:column; gap:8px; flex:1">
+          <div style="display:flex; align-items:baseline; gap:14px">
+            <div style="font-size:40px; font-weight:700; color:#17181a; letter-spacing:-0.03em">종목명</div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:24px; color:#78716a">373220</div>
+          </div>
+          <div style="font-size:28px; color:#5b564e; line-height:1.45; text-wrap:pretty">수주 잔고 확대 + 원가 개선, 지지선 부근</div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:32px; font-weight:700; color:#17181a">341,000</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:25px; font-weight:700; color:#b8443b">−0.87%</div>
+        </div>
+        <div style="padding:12px 22px; border-radius:999px; background:#1b3bf0; color:#ffffff; font-size:24px; font-weight:700; white-space:nowrap">분할 매수</div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:28px; padding:30px 0; border-top:1px solid #ddd8ce; border-bottom:1px solid #ddd8ce">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:24px; color:#78716a; width:34px">03</div>
+        <div style="display:flex; flex-direction:column; gap:8px; flex:1">
+          <div style="display:flex; align-items:baseline; gap:14px">
+            <div style="font-size:40px; font-weight:700; color:#17181a; letter-spacing:-0.03em">종목명</div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:24px; color:#78716a">035420</div>
+          </div>
+          <div style="font-size:28px; color:#5b564e; line-height:1.45; text-wrap:pretty">실적 발표 전 관망, 거래량 동반 돌파 시 대응</div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:32px; font-weight:700; color:#17181a">198,500</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:25px; font-weight:700; color:#7c766c">0.00%</div>
+        </div>
+        <div style="padding:12px 22px; border-radius:999px; border:1px solid #b4aea4; color:#5b564e; font-size:24px; font-weight:700; white-space:nowrap">관망</div>
+      </div>
+    </div>
+
+    <sc-if value="{{ showDisclaimer }}" hint-placeholder-val="{{ true }}">
+      <div style="font-size:23px; color:#78716a; line-height:1.5">개인적인 기록이며 투자 권유가 아닙니다 · 투자 판단과 책임은 본인에게 있습니다</div>
+    </sc-if>
+  </section>
+
+  <!-- 05 · 아웃트로 -->
+  <section data-screen-label="05 아웃트로" style="position:relative; width:1080px; height:1080px; background-color:#f6f4ef; background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1080 1080'%3E%3Cpath d='M0 200H1080M0 440H1080M0 680H1080M0 920H1080' stroke='%2317181a' stroke-opacity='.05' stroke-width='2'/%3E%3Cpath d='M122 770V890' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M242 750V860' stroke='%23b8443b' stroke-opacity='.12' stroke-width='3'/%3E%3Cpath d='M362 670V810' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M482 610V740' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M602 630V730' stroke='%23b8443b' stroke-opacity='.12' stroke-width='3'/%3E%3Cpath d='M722 530V680' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M842 440V600' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Cpath d='M962 350V520' stroke='%230d8f74' stroke-opacity='.14' stroke-width='3'/%3E%3Crect x='100' y='800' width='44' height='70' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='220' y='780' width='44' height='60' fill='%23b8443b' fill-opacity='.12'/%3E%3Crect x='340' y='700' width='44' height='90' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='460' y='640' width='44' height='80' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='580' y='660' width='44' height='55' fill='%23b8443b' fill-opacity='.12'/%3E%3Crect x='700' y='560' width='44' height='100' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='820' y='470' width='44' height='110' fill='%230d8f74' fill-opacity='.14'/%3E%3Crect x='940' y='380' width='44' height='120' fill='%230d8f74' fill-opacity='.14'/%3E%3Cpolyline points='-20,860 122,835 242,810 362,745 482,680 602,687 722,610 842,525 962,440 1100,395' fill='none' stroke='%231b3bf0' stroke-opacity='.16' stroke-width='4'/%3E%3Ccircle cx='962' cy='440' r='11' fill='%231b3bf0' fill-opacity='.16'/%3E%3Cg font-family='monospace' font-weight='700'%3E%3Ctext x='790' y='250' font-size='180' fill='%23c9a227' fill-opacity='.20' transform='rotate(-13 790 250)'%3E$%3C/text%3E%3Ctext x='90' y='560' font-size='130' fill='%23c9a227' fill-opacity='.20' transform='rotate(11 90 560)'%3E%E2%82%A9%3C/text%3E%3Ctext x='600' y='1000' font-size='70' fill='%231b3bf0' fill-opacity='.16' transform='rotate(-7 600 1000)'%3E%E2%96%B2%3C/text%3E%3Ctext x='420' y='330' font-size='58' fill='%231b3bf0' fill-opacity='.16' transform='rotate(6 420 330)'%3E%E2%96%B2%3C/text%3E%3C/g%3E%3C/svg%3E&quot;); background-repeat:no-repeat; background-size:cover; overflow:hidden; box-sizing:border-box; padding:80px">
+    <div style="position:absolute; inset:44px; border:1px solid #ddd8ce"></div>
+    <div style="position:absolute; inset:0; font-family:'JetBrains Mono',monospace; font-weight:700; color:#9d7a17">
+      <div style="position:absolute; top:150px; left:790px; font-size:130px; opacity:0.1; transform:rotate(14deg)">$</div>
+      <div style="position:absolute; top:520px; left:700px; font-size:84px; opacity:0.09; transform:rotate(-10deg)">₩</div>
+    </div>
+    <div style="position:relative; height:100%; display:flex; flex-direction:column; justify-content:space-between">
+      <div style="display:flex; gap:10px">
+        <div style="width:56px; height:4px; background:#1b3bf0"></div>
+        <div style="width:56px; height:4px; background:#0d8f74"></div>
+        <div style="width:56px; height:4px; background:#9d7a17"></div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:32px">
+        <div style="font-size:104px; font-weight:800; color:#17181a; line-height:1.06; letter-spacing:-0.05em">오늘도<br>차분하게,<br>기록하며.</div>
+        <div style="font-size:34px; color:#7c766c; line-height:1.5">내일 아침 8시, 같은 자리에서 다시 정리합니다.</div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-end">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:26px; letter-spacing:0.2em; color:#9d7a17">@HYUNHO.MARKET</div>
+        <div style="display:flex; gap:9px; align-items:center">
+          <div style="width:9px; height:9px; border-radius:50%; background:#cfc8bc"></div>
+          <div style="width:9px; height:9px; border-radius:50%; background:#cfc8bc"></div>
+          <div style="width:9px; height:9px; border-radius:50%; background:#cfc8bc"></div>
+          <div style="width:9px; height:9px; border-radius:50%; background:#cfc8bc"></div>
+          <div style="width:9px; height:9px; border-radius:50%; background:#17181a"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showNumbering&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;카드 옵션&quot;},&quot;showDisclaimer&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;카드 옵션&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      showNumbering: this.props.showNumbering ?? true,
+      showDisclaimer: this.props.showDisclaimer ?? true,
+    };
+  }
+}
+</script>
+</body>
+</html>

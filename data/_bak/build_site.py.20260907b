@@ -1,0 +1,1308 @@
+﻿#!/usr/bin/env python3
+r"""
+build_site.py — 브리핑 전체를 **웹사이트 한 장**으로 묶는다 (Artifact 고정 링크용)
+
+    표지  ─▶ [오늘 브리핑 보기] ─▶ 그날 브리핑 (카드형 ⇄ 세로형 전환)
+          └▶ [지난 브리핑 보기] ─▶ 달력 ─▶ 날짜 선택 ─▶ 그날 브리핑
+
+⚠️ **서버가 없다.** 모든 날짜를 이 파일 안에 미리 넣어 두고 화면 전환만 JS로 한다.
+   그래서 "과거 날짜 누르면 불러온다"가 아니라 **이미 다 들어 있는 걸 보여준다**.
+   Artifact는 정적 페이지라 이게 유일한 방법이고, 대신 링크가 고정된다.
+
+⚠️ **용량이 조용히 늘어난다.** 하루치가 카드형 ~40KB + 세로형 ~32KB다. Artifact 상한이
+   16MB라 산술적으로는 200일 넘게 들어가지만, 첫 로딩이 무거워진다. `--days`로
+   최근 N일만 담는다(기본 60). 그보다 오래된 날은 달력에 회색으로 남고 눌러도 안 열린다 —
+   **없는 척하지 않는다.** 조용히 빠지면 "왜 안 열리지"가 되고, 회색이면 이유가 보인다.
+
+⚠️ 내용은 `build_cards`·`build_scroll`이 만든다. 여기서 다시 그리지 않는다 —
+   세 벌이 되면 어느 하나만 고치고 나머지가 뒤처진다.
+"""
+import argparse
+import calendar
+import io
+import json
+import os
+import sys
+from datetime import datetime, timedelta
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import build_scroll  # noqa: E402
+from build_cards import (  # noqa: E402
+    LOG, PAGE_CSS, PAGE_JS, WEEKDAY, _copy, _f, cards_for,
+)
+from card_theme import BRAND, C, CARD_H, CARD_W, FONTS, LS_KO, MONO, SANS  # noqa: E402
+
+DEFAULT_DAYS = 60
+
+# 이 사이트가 올라가는 **고정 주소.** 아이폰 홈 화면에 올려 둔 링크가 이것이다.
+# ⚠️ `archive-url.txt`(옛 아카이브)와 다른 파일이다. 헷갈리면 엉뚱한 곳에 덮어쓴다.
+SITE_URL_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "site-url.txt")
+
+SITE_CSS = """<style>
+/* ⚠️ 화면이 셋(표지·달력·브리핑)인데 **페이지는 하나**다. `hidden` 속성으로 갈아 끼운다. */
+/* ⚠️ **iOS Safari 텍스트 자동 확대를 끈다** — 아이폰에서만 글자가 커져 상자를 밀어내고,
+   `overflow-x:clip`이 그걸 잘라 버린다. 데스크톱에서는 재현되지 않는 원인이다. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{font-family:__MONO__}
+/* ⚠️⚠️ **좌우 고정은 어떤 환경에서도. 넘치면 자르지 말고 행을 바꾼다.**(2026-08-27 재지시)
+   `build_cards.PAGE_CSS`가 뿌리(html·body)를 잠그고, 여기서는 그 안쪽을 잠근다.
+   `overflow-wrap`은 새 이름이라 모르는 엔진이 있어 `word-wrap`을 **먼저** 쓴다. */
+.view,.pad,.top,.top .in,.nav{max-width:100%;box-sizing:border-box}
+/* ⚠️ `:not(.rail *)` 같은 복합 :not() 은 쓰지 않는다 — 모르는 엔진이 **규칙을 통째로
+   버려서** 잠금이 사라진다. 방금 그 실수를 한 번 했다. 레일은 애초에 건드리지 않는다. */
+.top,.top *,.pad,.pad *,.scrollwrap *{word-wrap:break-word;overflow-wrap:break-word}
+[hidden]{display:none!important}
+.view{min-height:100vh;display:flex;flex-direction:column}
+.pad{max-width:760px;margin:0 auto;padding:0 20px;width:100%;box-sizing:border-box}
+
+/* ── 표지 ── */
+#home{justify-content:center;align-items:center;text-align:center;gap:0;padding:40px 20px}
+/* ⚠️ 페이지 바탕(#e8e4dc)은 카드 바탕(#f2efe8)보다 어두워서 **같은 글자색이라도 대비가 낮다**.
+   그래서 페이지 UI의 흐린 글씨는 `card_theme.C["faint"]`(#6b665c, 대비 4.50)를 쓴다 —
+   카드용 `muted`(#6f6a60)를 여기 쓰면 4.24로 기준 미달이다(2026-08-31 실측). */
+#home .eyebrow{font-family:__MONO__;font-size:14px;letter-spacing:.24em;color:#6b665c}
+#home h1{font-size:clamp(38px,9vw,64px);font-weight:800;letter-spacing:-.045em;
+  color:#1c1813;margin:18px 0 0;line-height:1.08;text-wrap:balance}
+#home .sub{font-size:clamp(15px,3.6vw,19px);color:#6b665c;margin:14px 0 0}
+#home .when{font-family:__MONO__;font-size:14px;color:#9d7a17;font-weight:700;
+  letter-spacing:.1em;margin-top:34px}
+#home .btns{display:flex;flex-direction:column;gap:12px;margin-top:20px;width:100%;
+  max-width:330px}
+.big{display:block;width:100%;box-sizing:border-box;padding:18px 22px;border-radius:12px;
+  font-family:inherit;font-size:17px;font-weight:700;letter-spacing:-.01em;cursor:pointer;
+  border:1px solid #d5cec0;background:#e8e4dc;color:#1c1813;transition:.15s;text-align:left;
+  display:flex;align-items:center;justify-content:space-between;gap:12px}
+.big:hover{border-color:#1b3bf0;color:#1b3bf0}
+.big.primary{background:#17181a;border-color:#1c1813;color:#e8e4dc}
+.big.primary:hover{background:#1b3bf0;border-color:#1b3bf0;color:#fff}
+.big small{font-weight:400;font-size:13px;opacity:.65;display:block;margin-top:3px}
+.big .arw2{font-size:19px;opacity:.5;flex:none}
+#home .note{font-size:12px;color:#9c968c;margin-top:28px;max-width:330px;line-height:1.6}
+
+/* ── 위쪽 막대 (달력·브리핑 공통) ── */
+.top{position:sticky;top:0;z-index:6;background:#e8e4dcf2;backdrop-filter:blur(8px);
+  border-bottom:1px solid #d5cec0}
+/* ⚠️ `flex-wrap:wrap` — 좁은 화면에서 단추가 다 안 들어가면 **다음 줄로 내린다.**
+   예전처럼 한 줄에 우겨넣으면 막대가 화면보다 넓어져 페이지 전체가 좌우로 밀린다. */
+.top .in{display:flex;align-items:center;gap:10px;padding:11px 16px;
+  max-width:1100px;margin:0 auto;flex-wrap:wrap;box-sizing:border-box;width:100%}
+.tbtn{border:1px solid #d5cec0;background:#e8e4dc;color:#1c1813;border-radius:8px;
+  padding:8px 13px;font-family:inherit;font-size:14px;cursor:pointer;white-space:nowrap;
+  transition:.15s}
+.tbtn:hover{border-color:#1b3bf0;color:#1b3bf0}
+.tbtn[disabled]{opacity:.3;cursor:default}
+/* ⚠️ `min-width:0`이 없으면 flex 안에서 **줄어들지 못한다.** 좁은 화면에서 이 날짜
+   글자가 버티는 바람에 상단 막대가 320px 화면에서 334px로 벌어졌다(2026-08-27 실측). */
+.top .now{font-family:__MONO__;font-size:15px;font-weight:700;color:#1c1813;
+  margin-left:4px;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* 아이폰 SE(320px)까지 들어가게 조인다.
+   ⚠️ 예전엔 좁은 화면에서 전환 버튼의 "세로 · "를 숨겨 "상세/요약"만 남겼다. 그건
+      **틀린 처방**이었다(2026-08-27 지적). 사용자는 "가로 요약 / 세로 상세"를 그대로
+      보고 싶어 한다. 숨기는 대신 **넘치면 행을 바꾼다** — 그게 지시받은 규칙이다. */
+@media(max-width:430px){
+  .top .in{gap:6px;padding:9px 10px}
+  .tbtn{padding:7px 9px;font-size:13px}
+  .top .now{font-size:13px}
+  .seg button{padding:7px 9px;font-size:12px}
+}
+/* 표지 목차 — 넓은 화면은 온전한 이름, 좁은 화면은 줄인 이름. 둘 다 **한 줄**이다. */
+/* 목차는 온전한 이름을 쓰고, 안 들어가면 접힌다(2026-08-28 되돌림). */
+
+/* 당겨서 새로고침 표시 — 당기는 만큼 진해지고, 놓으면 돌다가 사라진다.
+   ⚠️ 눈에 보이는 응답이 없으면 사용자는 "된 건가?" 하고 계속 당긴다(2026-08-28 요청). */
+.ptr{position:fixed;top:0;left:0;right:0;display:flex;justify-content:center;
+  padding:16px 0;z-index:9;opacity:0;pointer-events:none;transition:opacity .12s}
+.ptr i{display:block;width:26px;height:26px;border-radius:50%;
+  border:2px solid #d5cec0;border-top-color:#1c1813}
+.ptr.on{opacity:1}
+.ptr.on i{animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.ptr.on i{animation:none}}
+
+/* 글씨 크기 조절 — 전환 단추와 같은 모양으로 붙여 둔다. */
+.fs{display:flex;border:1px solid #d5cec0;border-radius:8px;overflow:hidden;flex:none;
+  margin-left:auto}
+.fs button{border:0;background:#e8e4dc;color:#6b665c;font-family:inherit;font-size:13px;
+  font-weight:700;padding:8px 12px;cursor:pointer;transition:.15s;white-space:nowrap}
+.fs button:hover{color:#1b3bf0}
+.fs+.seg{margin-left:6px}
+@media(max-width:430px){.fs button{padding:7px 9px;font-size:12px}}
+
+/* 형식 전환. 누른 쪽이 눌린 티가 나야 한다. */
+.seg{display:flex;border:1px solid #d5cec0;border-radius:8px;overflow:hidden;
+  flex:none}
+.seg button{border:0;background:#e8e4dc;color:#6b665c;font-family:inherit;font-size:13px;
+  padding:8px 13px;cursor:pointer;transition:.15s;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:#17181a;color:#e8e4dc;font-weight:700}
+
+/* ── 달력 ── */
+.cal{max-width:520px;margin:26px auto 60px;padding:0 16px}
+.cal .mon{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.cal .mon b{font-size:19px;font-weight:800;letter-spacing:-.02em;color:#1c1813}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.grid .dow{text-align:center;font-size:12px;color:#9c968c;padding:6px 0}
+.grid .dow.sun{color:#b8443b}
+.cell{aspect-ratio:1;border:1px solid transparent;border-radius:9px;background:transparent;
+  font-family:inherit;color:#b8b1a3;font-size:14px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;padding:0}
+.cell.has{background:#e8e4dc;border-color:#d5cec0;color:#1c1813;cursor:pointer;font-weight:700}
+.cell.has:hover{border-color:#1b3bf0;color:#1b3bf0}
+.cell.old{background:#efece5;border-color:#d5cec0;color:#b3aca0;cursor:not-allowed}
+.cell.today{border-color:#1b3bf0;border-width:2px}
+.cell .dot{width:5px;height:5px;border-radius:50%;background:#1b3bf0}
+.cell.old .dot{background:#b8b1a3}
+.cal .legend{margin-top:18px;font-size:12px;color:#9c968c;line-height:1.7}
+.cal .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;
+  background:#efece5;border:1px solid #d5cec0;margin-right:5px;vertical-align:-1px}
+
+/* ── 세로형 본문 ── */
+/* ⚠️⚠️ **세로형일 때는 페이지 전체가 세로로만 움직여야 한다** (2026-08-27 재지적).
+   예전엔 `touch-action:pan-y`를 `.scrollwrap`에만 걸었는데, 그러면 그 상자 **바깥**을
+   짚고 밀 때는 여전히 좌우로 딸려 간다. 그래서 `body.lock-x`로 페이지에 건다 —
+   `SITE_JS`의 `paintFmt()`가 세로형일 때만 이 클래스를 붙인다.
+   ⚠️ 카드형에는 절대 붙이면 안 된다. 가로 스와이프가 통째로 죽는다. */
+body.lock-x{touch-action:pan-y}
+/* ⚠️⚠️ **`width:100%`가 반드시 있어야 한다. 지우지 마라.** (2026-08-28 실측으로 확정)
+   이 상자는 `.view{display:flex;flex-direction:column}`의 자식이고 `margin:0 auto`가 붙어 있다.
+   flex 자식에 **좌우 auto 여백**이 있으면 부모 폭으로 늘어나지 않고 "내용에 맞춘 폭"이 된다.
+   그 폭은 줄바꿈이 안 되는 요소(`white-space:nowrap` 등)의 **최소 폭**을 밑돌 수 없어서,
+   아이폰에서 화면이 393px인데 상자가 **482px**로 잡혔다. 글은 446px에서 줄바꿈하고
+   화면 밖 89px이 잘려 나갔다 — 사용자가 "오른쪽 글자가 잘린다"고 다섯 번 말한 그것이다.
+   ⚠️ 데스크톱 크롬에서는 320~430px 어디서도 재현되지 않았다. 그 최소 폭은 **글꼴에 따라
+      달라지는데**, 헤드리스 크롬에서는 393px보다 작게 나왔기 때문이다. 측정을 믿고
+      "괜찮다"고 세 번 보고했다가 세 번 틀렸다. 폭은 재는 게 아니라 **박아 두는 것**이다. */
+.scrollwrap{width:100%;min-width:0;max-width:760px;margin:0 auto;background:#f2efe8;
+  padding:34px 40px 72px;box-shadow:0 2px 24px #17181a14}
+/* ⚠️ 긴 낱말·숫자가 상자를 밀어내지 못하게 막는다. `overflow-x:clip`은 넘친 걸
+   **잘라 버려서** 손가락으로도 못 보게 만든다 — 자르기 전에 안 넘치게 하는 게 먼저다. */
+/* ⚠️ `overflow-wrap:anywhere`는 새 값이라 카톡 인앱 브라우저 같은 오래된 엔진이
+   **통째로 무시한다.** 그러면 긴 글자가 안 접혀 상자를 밀어낸다. 예전 값을 같이 쓴다.
+   ⚠️ `overflow-x:hidden`은 마지막 방어다 — 넘칠 것을 없애는 게 먼저고, 이건 그래도
+   새는 경우를 위한 잠금이다. 이것만 믿고 원인을 안 찾으면 글자가 조용히 잘린다. */
+/* ⚠️⚠️ **`box-sizing:border-box`가 없으면 안쪽 여백(좌우 36px)이 폭에 더해진다.**
+   2026-08-28, 아이폰에서 줄 끝이 서너 글자씩 잘렸다 — 잘린 양이 딱 그 여백만큼이었다.
+   데스크톱 크롭은 이 상자를 전체 폭으로 잡아 재현되지 않았다. 상자 계산은 **박아 둔다.** */
+.scrollwrap,.scrollwrap *{box-sizing:border-box}
+.scrollwrap{overflow-x:hidden}
+.scrollwrap *{max-width:100%;word-wrap:break-word;overflow-wrap:break-word}
+.scrollwrap td,.scrollwrap th{word-break:keep-all}
+@media(max-width:800px){.scrollwrap{padding:24px 18px 48px;box-shadow:none}}
+.scrollwrap table{table-layout:fixed}
+/* ⚠️ **좁은 화면에서는 표를 위아래로 접는다** (2026-08-27 요청). 2단으로 두면
+   글 칸이 화면의 60%밖에 안 돼 줄바꿈이 너무 잦다. 접으면 이름이 위, 글이 아래로
+   가면서 글 폭이 100%가 된다 — 마크다운 문서와 같은 모양이다. */
+@media(max-width:560px){
+  .kv,.kv tbody,.kv tr,.kv td{display:block;width:auto!important}
+  .kv td:first-child{padding:8px 10px 0!important;font-weight:700}
+  .kv td:last-child{padding:2px 10px 10px!important}
+  .kv tr{margin-bottom:2px}
+  /* ⚠️ 3칸 표(날짜·D-day·내용)는 앞 두 칸을 **한 줄에** 둔다. 셋을 다 쌓으면
+     한 행이 세 줄이 되어 표가 세로로 길어지기만 한다(2026-08-28 실측). */
+  .kv3 td:nth-child(1),.kv3 td:nth-child(2){display:inline-block;width:auto!important;
+    padding:8px 10px 0 10px!important}
+  .kv3 td:nth-child(2){padding-left:0!important}
+  .kv3 td:nth-child(3){display:block;width:auto!important;padding:2px 10px 10px!important}
+}
+/* ⚠️ `.g3`(업종 격자)는 **접지 않는다.** 좁은 화면에서도 3칸을 유지한다 —
+   접으면 11개가 한 줄씩 쌓여 화면이 세로로만 길어진다(2026-08-28 지적).
+   대신 글자를 한 단계 줄이고 낱말을 접어 칸 안에 들어가게 한다. */
+@media(max-width:430px){
+  .g3 td{padding:9px 6px!important}
+  .g3 td div:first-child{font-size:12px!important}
+  .g3 td div:last-child{font-size:16px!important}
+}
+@media(max-width:560px){
+  .cols,.cols tbody,.cols tr{display:block}
+  .cols td{display:block;width:auto!important;box-sizing:border-box;margin:0 0 6px}
+}
+/* ⚠️⚠️ `colsx` = **절대 안 접히는 가로 칸**(2026-08-31 신설).
+   지수 셋(S&P500·나스닥100·나스닥선물)과 수급 셋(외국인·기관·개인)은
+   **나란히 놓여야 비교가 된다.** 세로로 쌓이면 그냥 목록이지 비교가 아니다.
+   실제로 아이폰에서 세 개가 한 줄씩 쌓여 지적받았다.
+   ⚠️ 대신 좁아지면 **글자를 줄여** 칸 안에 넣는다 — `.g3`와 같은 처리다.
+      접는 대신 줄이는 쪽이 맞다. 넘쳐서 가로 스크롤이 생기는 것만 막으면 된다. */
+@media(max-width:560px){
+  .colsx td{padding:10px 6px!important}
+  .colsx td div:first-child{font-size:13px!important}
+  .colsx td div:last-child{font-size:17px!important}
+}
+@media(max-width:400px){
+  .colsx td{padding:8px 4px!important}
+  .colsx td div:first-child{font-size:12px!important}
+  .colsx td div:last-child{font-size:15px!important}
+}
+</style>"""
+
+SITE_JS = """<script>
+(function(){
+ // ⚠️⚠️ **새 화면을 만들면 여기에 반드시 넣는다** (2026-09-04에 이걸 빠뜨렸다).
+ //    show()는 이 목록만 훑어 hidden을 켜고 끈다. 목록에 없으면 단추를 눌러도
+ //    **다른 화면만 사라지고 새 화면은 안 나타난다** — 빈 화면이 된다
+ var VIEWS=['home','cal','day','pf','qt'];
+ function $(s){return document.querySelector(s)}
+ function show(v){
+   VIEWS.forEach(function(k){var e=$('#'+k); if(e) e.hidden=(k!==v)});
+   // 화살표는 브리핑 화면에서만. 표지·달력에 떠 있으면 누를 게 없다.
+   document.querySelectorAll('.arw').forEach(function(a){a.hidden=(v!=='day')});
+   if(v==='qt'&&window.__cards&&window.__cards.fit){try{window.__cards.fit()}catch(e){}}
+   window.scrollTo(0,0);
+ }
+ // 기본은 **세로형**이다(2026-08-27 사용자 선택). 처음 여는 사람은 위에서 아래로
+ // 읽는 쪽이 익숙하고, 카드형은 넘겨야 한다는 걸 먼저 알아야 쓸 수 있다.
+ var fmt='scroll';
+ function paintFmt(){
+   document.querySelectorAll('.seg button').forEach(function(b){
+     b.setAttribute('aria-pressed',String(b.dataset.f===fmt))});
+   document.querySelectorAll('.rail:not(.qrail)').forEach(function(r){r.hidden=(fmt!=='card')});
+   document.querySelectorAll('.scrollwrap').forEach(function(s){s.hidden=(fmt!=='scroll')});
+   $('.nav').hidden=(fmt!=='card');
+   document.querySelectorAll('.arw').forEach(function(a){
+     a.style.display=(fmt==='card')?'':'none'});
+   // ⚠️ 세로형일 때만 페이지를 세로로 잠근다. 카드형에 걸면 가로 넘기기가 죽는다.
+   document.body.classList.toggle('lock-x', fmt==='scroll');
+   var fsb=document.querySelector('.fs'); if(fsb) fsb.style.display=(fmt==='scroll')?'flex':'none';
+   try{localStorage.setItem('brief-fmt',fmt)}catch(e){}
+ }
+ var cur=null;
+ function openDay(d){
+   cur=d;
+   $('.now').textContent=d.replace(/-/g,'.')+' ('+WD[new Date(d+'T00:00:00').getDay()]+')';
+   document.querySelectorAll('.scrollwrap').forEach(function(s){s.dataset.on=String(s.dataset.d===d)});
+   document.querySelectorAll('.scrollwrap').forEach(function(s){
+     s.style.display=(s.dataset.d===d)?'':'none'});
+   show('day');
+   // ⚠️ 순서가 중요하다. 레일이 숨어 있는 동안은 폭이 0이라 배율이 엉뚱하게 잡힌다.
+   //    **보이게 만든 다음** show→fit 순으로 부른다.
+   if(window.__cards){window.__cards.show(d);window.__cards.fit();window.__cards.paint();}
+   paintFmt();
+ }
+ var WD=['일','월','화','수','목','금','토'];
+ window.__site={openDay:openDay,show:show};
+
+ $('#btn-today').addEventListener('click',function(){openDay(this.dataset.d)});
+ $('#btn-past').addEventListener('click',function(){show('cal')});
+ var _pf=$('#btn-pf'); if(_pf) _pf.addEventListener('click',function(){show('pf')});
+ var _qt=$('#btn-qt'); if(_qt) _qt.addEventListener('click',function(){show('qt')});
+ document.querySelectorAll('[data-home]').forEach(function(b){
+   b.addEventListener('click',function(){show('home')})});
+ document.querySelectorAll('[data-back]').forEach(function(b){
+   b.addEventListener('click',function(){show('cal')})});
+ document.querySelectorAll('.seg button').forEach(function(b){
+   b.addEventListener('click',function(){
+     fmt=b.dataset.f; paintFmt();
+     if(fmt==='card'&&window.__cards){window.__cards.fit();window.__cards.paint();}
+     window.scrollTo(0,0);})});
+ document.querySelectorAll('.cell.has').forEach(function(c){
+   c.addEventListener('click',function(){openDay(c.dataset.d)})});
+
+ // 달 넘기기. 달 이름은 각 `.month`의 `data-label`에서 읽는다.
+ var months=[].slice.call(document.querySelectorAll('.month'));
+ var mi=months.length-1;
+ function paintMonth(){
+   months.forEach(function(m,i){m.hidden=(i!==mi)});
+   if(months[mi]) $('#m-label').textContent=months[mi].dataset.label;
+   $('#m-prev').disabled=(mi<=0); $('#m-next').disabled=(mi>=months.length-1);
+ }
+ $('#m-prev').addEventListener('click',function(){if(mi>0){mi--;paintMonth()}});
+ $('#m-next').addEventListener('click',function(){if(mi<months.length-1){mi++;paintMonth()}});
+ paintMonth();
+
+/* ⚠️⚠️ **항상 최신을 보여준다.** GitHub Pages는 `Cache-Control: max-age=600`을 보내고
+    그 헤더는 우리가 못 바꾼다 — 즉 링크로 들어온 사람은 **최대 10분 전 화면**을 본다.
+    아이폰 홈 화면에 올려 둔 경우엔 더 오래 남는다. 2026-08-28에 실제로 새 판을 올려도
+    폰에서는 계속 옛 판이 나왔다. "링크 들어갈 때마다 최종 반영된 정보"라는 요구가
+    이 헤더 하나로 깨진다. 그래서 페이지가 **스스로** 최신 판을 확인한다.
+    ⚠️ 무한 새로고침을 막으려고 `?v=`가 붙은 상태에서는 다시 확인하지 않는다. */
+ (function(){
+   var meta=document.querySelector('meta[name="build"]');
+   var mine=meta?meta.content:'';
+   if(/[?&]v=/.test(location.search)){
+     try{history.replaceState({},'',location.pathname);}catch(e){}
+     return;
+   }
+   if(!mine||!window.fetch) return;
+   fetch('index.html?_='+Date.now(),{cache:'no-store'})
+     .then(function(r){return r.ok?r.text():null})
+     .then(function(t){
+       if(!t) return;
+       var m=t.match(/name="build" content="([^"]+)"/);
+       if(m&&m[1]&&m[1]!==mine) location.replace(location.pathname+'?v='+m[1]);
+     })
+     .catch(function(){});   /* 인터넷이 없으면 조용히 넘어간다 — 있는 화면이라도 보여준다 */
+ })();
+
+ /* ⚠️ 첫 화면에서 **아래로 당기면 새로고침**한다(2026-08-28 요청).
+    이 화면은 `min-height:100vh`라 스크롤이 없어서 사파리 기본 당겨서 새로고침이 안 걸린다.
+    그래서 손가락 움직임을 직접 본다. `?v=`를 붙여 캐시를 건너뛴다 —
+    그냥 reload()면 GitHub Pages가 물고 있는 10분 캐시를 다시 받아 온다. */
+ (function(){
+   var y0 = null, home = $('#home'), ptr = $('.ptr'), THRESH = 90;
+   function show(p){                       /* p: 0~1 만큼 당겼다 */
+     if(!ptr) return;
+     ptr.style.opacity = Math.min(1, p);
+     ptr.style.transform = 'translateY(' + Math.min(24, p * 24) + 'px)';
+   }
+   addEventListener('touchstart', function(e){
+     y0 = (!home.hidden && scrollY <= 0) ? e.touches[0].clientY : null;
+   }, {passive:true});
+   addEventListener('touchmove', function(e){
+     if(y0 === null || home.hidden) return;
+     var dy = e.touches[0].clientY - y0;
+     if(dy <= 0) return;
+     show(dy / THRESH);
+     if(dy > THRESH){
+       y0 = null;
+       if(ptr) ptr.classList.add('on');    /* 돌기 시작 — 새로고침이 걸렸다는 신호 */
+       setTimeout(function(){
+         location.replace(location.pathname + '?v=' + Date.now());
+       }, 260);
+     }
+   }, {passive:true});
+   addEventListener('touchend', function(){
+     y0 = null;
+     if(ptr && !ptr.classList.contains('on')) show(0);
+   }, {passive:true});
+ })();
+
+ /* ⚠️ 세로 본문은 **인라인 px**로 크기가 박혀 있다(지메일과 같은 HTML을 쓰기 때문에
+    클래스를 못 쓴다). 그래서 CSS로는 못 키우고, 원래 값을 기억해 두고 곱한다. */
+ var FS = [0.85, 1, 1.15, 1.35], fsi = 1;
+ try{var v=parseInt(localStorage.getItem('brief-fs'),10);
+     if(v>=0&&v<FS.length) fsi=v;}catch(e){}
+ function applyFs(){
+   document.querySelectorAll('.scrollwrap').forEach(function(w){
+     w.querySelectorAll('*').forEach(function(el){
+       var base = el.getAttribute('data-fs0');
+       if(base===null){
+         var cur = el.style.fontSize;
+         if(!cur || cur.slice(-2)!=='px') return;      /* 인라인 px 만 손댄다 */
+         base = parseFloat(cur); el.setAttribute('data-fs0', base);
+       }
+       el.style.fontSize = (parseFloat(base)*FS[fsi]).toFixed(1)+'px';
+     });
+   });
+   try{localStorage.setItem('brief-fs', fsi);}catch(e){}
+ }
+ document.querySelectorAll('.fs button').forEach(function(b){
+   b.addEventListener('click', function(){
+     fsi = Math.max(0, Math.min(FS.length-1, fsi + (b.dataset.fs==='+'?1:-1)));
+     applyFs();
+   });
+ });
+ applyFs();
+
+ try{var f=localStorage.getItem('brief-fmt'); if(f==='card'||f==='scroll') fmt=f;}catch(e){}
+ show('home'); paintFmt();
+
+ /* ⚠️ 진단 막대 — 주소 뒤에 `?diag=1`을 붙였을 때만 뜬다.
+    2026-08-27: 아이폰에서 글이 오른쪽으로 잘리는데 데스크톱 크롬은 320·393·430px 어디서도
+    넘침이 0으로 나왔다. **재현이 안 되는 것을 추측으로 고치다 세 번 틀렸다.** 그래서
+    그 기기가 실제로 무엇을 보고 있는지 화면에서 직접 읽는다. 평소에는 아무 영향이 없다. */
+ /* ⚠️ `?diag=1`이 없어도 **잘림이 실제로 일어나면 스스로 띄운다.**
+    2026-08-28: 아이폰에서 글이 잘리는데 데스크톱 크롬은 320~430px 어디서도 0으로 나왔다.
+    사용자에게 진단 주소를 다시 눌러 달라고 하는 대신, 그 기기가 신고하게 한다.
+    데스크톱에서는 잘림이 없으니 뜨지 않는다 — 평소 화면은 그대로다. */
+ var badly=function(){
+   var n=0, W=document.documentElement.clientWidth;
+   document.querySelectorAll('#day *').forEach(function(el){
+     if(el.closest('.rail')) return;
+     var r=el.getBoundingClientRect();
+     if(r.width>0&&(r.right>W+1||r.left<-1)) n++;
+   });
+   return n;
+ };
+ /* 원인(2026-08-28 `.scrollwrap` 폭)은 잡혔으니 평소에는 뜨지 않는다.
+    다시 잘리는 날이 오면 **스스로 나타난다** — 그게 이걸 남겨 두는 이유다. */
+ if(/[?&]diag=1/.test(location.search)||badly()>0){
+   var box=document.createElement('div');
+   box.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99;background:#17181a;'
+     +'color:#e8e4dc;font:11px/1.5 monospace;padding:7px 9px;white-space:pre-wrap';
+   var draw=function(){
+     var vv=window.visualViewport, sw=document.querySelector('.scrollwrap[data-on="true"]');
+     var w=[];
+     w.push('innerWidth '+innerWidth+'  clientWidth '+document.documentElement.clientWidth);
+     w.push('visual '+(vv?Math.round(vv.width)+' scale '+vv.scale.toFixed(2):'없음')
+            +'  dpr '+devicePixelRatio);
+     w.push('doc '+document.documentElement.scrollWidth+'  body '+document.body.scrollWidth);
+     if(sw){var r=sw.getBoundingClientRect();
+       w.push('본문 '+Math.round(r.width)+'  L'+Math.round(r.left)+' R'+Math.round(r.right));}
+     var W=document.documentElement.clientWidth, wide=[], n=0;
+     document.querySelectorAll('#day *').forEach(function(el){
+       if(el.closest('.rail')) return;
+       var q=el.getBoundingClientRect();
+       if(q.width<1) return;
+       if(q.right>W+1||q.left<-1){
+         n++;
+         if(wide.length<3){
+           var cs=getComputedStyle(el);
+           wide.push(el.tagName+'.'+(el.className||'').toString().slice(0,10)
+             +' w'+Math.round(q.width)+' L'+Math.round(q.left)+' R'+Math.round(q.right)
+             +' bs:'+cs.boxSizing.slice(0,7)+' ov:'+cs.overflowX.slice(0,4));
+         }
+       }});
+     var chain=[['body',document.body],['view',document.getElementById('day')],
+                ['wrap',document.querySelector('.scrollwrap[data-on=\"true\"]')]];
+     chain.forEach(function(c){
+       if(!c[1]) return;
+       var q=c[1].getBoundingClientRect(), cs=getComputedStyle(c[1]);
+       w.push(c[0]+' '+Math.round(q.width)+' (client'+c[1].clientWidth
+              +' scroll'+c[1].scrollWidth+') '+cs.boxSizing.slice(0,7)
+              +' pad'+cs.paddingLeft+'/'+cs.paddingRight);
+     });
+     var t=document.querySelector('.scrollwrap[data-on=\"true\"] h2, .scrollwrap[data-on=\"true\"] p');
+     if(t){var q=t.getBoundingClientRect();
+       w.push('첫 글줄 w'+Math.round(q.width)+' R'+Math.round(q.right));}
+     w.push('밖으로 나간 요소 '+n);
+     wide.forEach(function(x){w.push('  '+x)});
+     box.textContent=w.join(String.fromCharCode(10));
+   };
+   document.body.appendChild(box); draw();
+   addEventListener('resize',draw);
+   if(window.visualViewport){visualViewport.addEventListener('resize',draw);
+                             visualViewport.addEventListener('scroll',draw);}
+   setInterval(draw,1000);
+ }
+})();
+</script>"""
+
+
+PF_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                       "data", "portfolio.json")
+
+
+def _portfolio():
+    r"""보유 현황. **없으면 `None`** — 그러면 단추도 화면도 안 만든다.
+
+    ⚠️ 이 파일에 계좌번호·주문내역을 넣지 않는다. 공개 사이트의 재료다.
+    """
+    if not os.path.exists(PF_FILE):
+        return None
+    try:
+        with io.open(PF_FILE, encoding="utf-8-sig") as fp:
+            d = json.load(fp)
+        return d if (d.get("holdings") or []) else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+QT_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                       "data", "forward-log.jsonl")
+
+
+INDUSTRY = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "data", "industry.json")
+_업종캐시 = {}
+
+
+def _보유(q):
+    r"""아직 안 판 것 + D+40 까지 며칠 남았나 (2026-09-07 신설)
+
+    ⚠️ +20% 지정가는 사면서 걸어두면 증권사가 처리한다.
+       **사람이 기억할 것은 D+40 정리뿐**인데 아무도 안 알려주고 있었다.
+       bought.py 로 적은 것을 여기서 읽어 브리핑 맨 위에 띄운다
+    """
+    import glob as _g
+    _K = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "data", "krx-daily")
+    날 = sorted(os.path.basename(p)[:8] for p in _g.glob(
+        os.path.join(_K, "*.json")))
+    out = []
+    for r in (q or []):
+        for x in (r.get("산것") or []):
+            if x.get("판날"):
+                continue
+            산날 = x.get("산날") or r.get("신호기준일")
+            남 = None
+            if 산날 in 날:
+                남 = 40 - (len(날) - 1 - 날.index(산날))
+            out.append({**x, "남은날": 남})
+    return out
+
+
+def _업종(code):
+    """종목의 업종명. ⚠️ KRX 「업종」은 소속부(벤처/중견/우량기업부)라 못 쓴다 —
+    실제 업종은 data/industry.json 에 3,988종목 전부 들어 있다 (2026-09-04 발견)"""
+    if not _업종캐시:
+        try:
+            with io.open(INDUSTRY, encoding="utf-8-sig") as fp:
+                _업종캐시.update(json.load(fp))
+        except Exception:  # noqa: BLE001
+            _업종캐시["_"] = {}
+    return ((_업종캐시.get(code) or {}).get("업종명") or "").strip()
+
+
+def _esc(s):
+    """HTML 이스케이프. ⚠️ `_f`는 숫자 변환기라 문자열에 쓰면 None이 된다"""
+    return (str(s).replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace('"', "&quot;"))
+
+
+def _quant():
+    r"""오늘의 퀀트 후보. **없으면 `None`** — 그러면 단추도 화면도 안 만든다.
+
+    ⚠️ 이건 브리핑 본문과 **다른 물건**이다 (2026-09-04 신설).
+       브리핑 ①~⑥은 뉴스·수급·공시를 읽고 쓴 **시장 이야기**이고,
+       여기는 재무제표와 주가만 보는 **기계 규칙**이다.
+       그래서 **나오는 종목이 서로 다른 게 정상**이다 — 그 점을 화면에 적는다.
+    """
+    if not os.path.exists(QT_FILE):
+        return None
+    줄 = None
+    try:
+        with io.open(QT_FILE, encoding="utf-8") as fp:
+            for x in fp:
+                x = x.strip()
+                if x:
+                    try:
+                        줄 = json.loads(x)
+                    except ValueError:
+                        continue
+    except Exception:  # noqa: BLE001
+        return None
+    # ⚠️ **후보 0개인 날에도 돌려준다** (2026-09-07 고침).
+    #    전에는 후보가 있어야만 단추를 만들었는데, 그러면 「오늘은 살 게
+    #    없는 날」과 「시스템이 고장난 날」이 화면에서 **똑같아 보인다.**
+    #    규칙상 대부분의 날은 0개다 — 그걸 보여줘야 믿을 수 있다
+    return 줄 or None
+
+
+def _특징(후보):
+    r"""종목마다 **넷을 구별해주는 특징 한 마디**를 붙인다.
+
+    ⚠️ 숫자를 그냥 나열하면 결국 표가 된다. 표가 안 읽혀서 서술로 바꾸는 것이니
+       각 종목이 **어느 칸에서 제일인지** 한 가지만 고른다.
+    ⚠️ 이미 쓴 특징은 다시 안 쓴다. 넷이 다 「가장 많이 빠졌다」면 구별이 안 된다.
+    """
+    if not 후보:
+        return {}
+    잣대 = (
+        ("잉여금비율", True, "쌓아둔 이익이 가장 많습니다"),
+        ("부채비율", False, "빚이 가장 적습니다"),
+        ("볼린저", False, "평소 움직이던 폭에서 가장 멀리 벗어났습니다"),
+        ("20일낙폭", False, "가장 많이 빠졌습니다"),
+    )
+    # ⚠️⚠️ **「가장」은 전체에서 1등일 때만 붙인다** (2026-09-04 고침)
+    #    처음엔 「남은 종목 중 1등」으로 골랐다. 그러면 **마지막 종목은 사실이든
+    #    아니든 남은 딱지가 붙는다** — 넷 중 제일 적게(-10.0%) 빠진 젝시믹스에
+    #    「가장 많이 빠졌습니다」가 붙어 나갈 뻔했다. 브리핑에 나가는 거짓말이다
+    #    ⇒ 전체 1등을 먼저 정하고, 이미 딱지가 있으면 **그 잣대는 그냥 버린다**.
+    #       딱지 없는 종목이 생기는 건 괜찮다 — 틀린 말을 붙이는 것보다 낫다
+    쓴곳 = {}
+    for 칸, 클수록, 말 in 잣대:
+        있 = [x for x in 후보 if x.get(칸) is not None]
+        if not 있:
+            continue
+        best = (max if 클수록 else min)(있, key=lambda z: z[칸])
+        if best["종목코드"] in 쓴곳:
+            continue                      # 이미 다른 딱지가 있다 — 이 잣대는 버린다
+        쓴곳[best["종목코드"]] = 말
+    return 쓴곳
+
+
+def quant_view(q):
+    """퀀트 후보 — 1080x1350 카드 2장 (2026-09-04)
+
+    1장  **종목만** — 오늘 뭘 볼지. 여기에 다 담는다
+    2장  **안내·주의사항** — 어떻게 뽑았고 무엇을 조심할지
+    ⚠️ 2장에 종목을 또 쓰지 않는다. 같은 걸 두 번 보면 기능이 겹쳐 보인다
+       (2026-09-04 사용자 지적)
+
+    ⚠️ 여백은 **기존 브리핑 카드와 같은 기준**: section `padding:80px`,
+       안쪽은 `justify-content:space-between`으로 위아래를 채운다.
+       그렇게 안 하면 아래쪽이 비어 보인다 (사용자 지적)
+    ⚠️ 글자는 **1080 기준**이다 (기존 카드 본문 29px). 화면에서는 scale로 줄어든다
+    """
+    후보 = q.get("후보") or []
+    특 = _특징(후보)
+    # ⚠️ **숫자를 화면에 박지 않는다** (2026-09-07).
+    #    전에는 「210건·86%」를 코드에 적어 뒀는데, build_rule_cases 를
+    #    실전 절차로 고치자 107건이 되어 **화면만 옛 숫자로 남았다**
+    _사례 = {}
+    _p = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "data", "rule-cases.json")
+    if os.path.exists(_p):
+        try:
+            _사례 = json.load(io.open(_p, encoding="utf-8-sig"))
+        except Exception:  # noqa: BLE001
+            _사례 = {}
+    기 = str(q.get("신호기준일") or "")
+    기표 = f"{기[:4]}.{기[4:6]}.{기[6:]}" if len(기) == 8 else 기
+    아침 = ""
+    try:
+        _d = datetime.strptime(기, "%Y%m%d")
+        for _k in range(1, 5):
+            _n = _d + timedelta(days=_k)
+            if _n.weekday() < 5:
+                아침 = f"{_n.month}월 {_n.day}일({WEEKDAY[_n.weekday()]}) 아침"
+                break
+    except (ValueError, TypeError):
+        아침 = ""
+    try:
+        찍 = str(q.get("기록시각") or "")[:10]
+        난 = (datetime.now() - datetime.strptime(찍, "%Y-%m-%d")).days if 찍 else 0
+    except (ValueError, TypeError):
+        찍, 난 = "", 0
+    # ⚠️ 08:50에 예상체결가로 **확정**되었나 (2026-09-07 신설).
+    #    확정 전 = 「볼 종목」 / 확정 후 = 「살 것」. 화면이 그때그때 달라야
+    #    사용자가 따로 확인할 것이 없다 (기존 브리핑의 09:05 갱신과 같은 방식)
+    # 보유 중인 것 — 파일 전체를 다시 읽는다 (q 는 마지막 줄뿐)
+    _줄들 = []
+    try:
+        for _x in io.open(QT_FILE, encoding="utf-8"):
+            _x = _x.strip()
+            if _x:
+                _줄들.append(json.loads(_x))
+    except Exception:  # noqa: BLE001
+        _줄들 = []
+    보유 = _보유(_줄들)
+    팔것 = [x for x in 보유
+            if x.get("남은날") is not None and x["남은날"] <= 0]
+    _동 = q.get("동시호가") or {}
+    확정 = _동.get("예상시장갭") is not None
+    잰때 = str(_동.get("잰시각") or "")[11:16]
+    살것 = [x for x in 후보 if x.get("규칙매수")][:4] if 확정 else []
+
+    def 장(위, 가운데, 아래):
+        """기존 카드와 같은 틀 — padding:80px + space-between 으로 세로를 채운다"""
+        return (f'<section style="width:{CARD_W}px;height:{CARD_H}px;'
+                f'background:{C["card"]};border-radius:26px;box-sizing:border-box;'
+                f'padding:80px;overflow:hidden;font-family:{SANS};'
+                f'color:{C["text"]};display:flex;flex-direction:column">'
+                f'<div style="display:flex;flex-direction:column;'
+                f'justify-content:space-between;width:100%;height:100%;'
+                f'box-sizing:border-box">'
+                f'<div style="flex:none">{위}</div>'
+                f'<div style="flex:1;display:flex;flex-direction:column;'
+                f'justify-content:space-evenly;min-height:0">{가운데}</div>'
+                f'<div style="flex:none">{아래}</div>'
+                f'</div></section>')
+
+    # ══ 1장 · 종목만 ══
+    _제목 = (("오늘 살 것: " + str(len(살것)) + "개") if (확정 and 살것)
+             else ("오늘 살 것: 없음" if 확정
+                   else ("오늘의 " + str(len(후보)) + "종목" if 후보
+                         else "오늘의 목록")))
+    위1 = (f'<div style="font-family:{MONO};font-size:26px;color:{C["sub"]};'
+           f'letter-spacing:.18em;font-weight:700">QUANT · 숫자로만 고른 종목'
+           + (f' · {잰때} 확정' if 확정 else '') + '</div>'
+           f'<div style="font-size:62px;font-weight:800;letter-spacing:-.035em;'
+           f'margin-top:16px;line-height:1.1">{_제목}</div>'
+           + (f'<div style="font-size:31px;color:{C["sub"]};font-weight:700;'
+              f'margin-top:12px">{아침}에 볼 목록</div>' if 아침 else '')
+           + f'<div style="font-size:26px;color:{C["faint"]};margin-top:6px">'
+             f'{기표} <b>종가</b> 기준</div>')
+    if 팔것:
+        _이 = " · ".join((x.get("이름") or x.get("종목코드", "")) for x in 팔것)
+        위1 += (f'<div style="margin-top:18px;background:#fdf2f2;'
+                f'border-left:9px solid #c0392b;padding:18px 22px;'
+                f'font-size:30px;line-height:1.6">'
+                f'🔴 <b>오늘 정리할 것: {_이}</b><br>'
+                f'<span style="font-size:26px">40거래일이 지났습니다. '
+                f'+20%에 안 닿았어도 정리합니다.</span></div>')
+    elif [x for x in 보유 if (x.get("남은날") or 99) <= 3]:
+        _곧 = " · ".join(
+            (x.get("이름") or x.get("종목코드", "")) + " " + str(x["남은날"]) + "일"
+            for x in 보유 if (x.get("남은날") or 99) <= 3)
+        위1 += (f'<div style="margin-top:18px;background:#fffdf5;'
+                f'border-left:9px solid #e67e22;padding:16px 22px;'
+                f'font-size:27px;line-height:1.6">'
+                f'🟡 곧 정리: {_곧}</div>')
+    elif 보유:
+        위1 += (f'<div style="margin-top:18px;font-size:25px;'
+                f'color:{C["faint"]}">들고 있는 것 {len(보유)}개 · '
+                f'+20% 지정가는 걸어 둔 상태여야 합니다</div>')
+    if 난 >= 1:
+        위1 += (f'<div style="margin-top:18px;background:#fdf2f2;'
+                f'border-left:9px solid #c0392b;padding:16px 22px;font-size:27px;'
+                f'line-height:1.55">⚠️ <b>오늘 만든 목록이 아닙니다</b> '
+                f'({찍} · {난}일 전). 매매하지 마세요.</div>')
+
+    가1 = []
+    if not 후보:
+        # ⚠️ 규칙상 **대부분의 날은 0개**다 (실제로 사는 날은 **36일에 한 번** — 2026-09-07 실측, 최근 1년은 21일).
+        #    빈 화면을 두면 고장인지 없는 날인지 알 수 없다 (2026-09-07 신설)
+        가1.append(
+            f'<div style="display:flex;flex-direction:column;'
+            f'justify-content:center;height:100%;text-align:center">'
+            f'<div style="font-size:88px;font-weight:800;'
+            f'letter-spacing:-.04em;line-height:1.1">오늘 볼 것<br>없음</div>'
+            f'<div style="font-size:30px;color:{C["faint"]};margin-top:28px;'
+            f'line-height:1.7">조건을 통과한 종목이 없습니다.<br>'
+            f'이 규칙으로는 오늘 <b>아무것도 하지 않습니다</b>.</div>'
+            f'<div style="font-size:27px;color:{C["sub"]};font-weight:700;'
+            f'margin-top:24px">열 번 중 서너 번은 이런 날입니다 · 실제로 사는 날은 한 달에 한 번쯤</div></div>')
+
+    for n, x in enumerate(후보):
+        업 = _업종(x["종목코드"])
+        잉, 부 = x.get("잉여금비율"), x.get("부채비율")
+        수 = []
+        if 잉 is not None:
+            수.append(f'쌓은 이익 <b>{잉:.0f}%</b>')
+        if 부 is not None:
+            수.append(f'빚 <b>{부:.0f}%</b>')
+        가1.append(
+            f'<div style="padding:22px 0'
+            + (f';border-top:2px solid {C["line"]}' if n else '') + '">'
+            f'<div style="display:flex;align-items:baseline;gap:14px">'
+            f'<span style="font-size:46px;font-weight:800;letter-spacing:-.025em">'
+            f'{_esc(x["이름"])}</span>'
+            + (f'<span style="font-size:27px;font-weight:700;color:{C["sub"]}">'
+               f'{_esc(업)}</span>' if 업 else '')
+            + f'<span style="margin-left:auto;font-size:40px;font-weight:800;'
+              f'color:#c0392b;font-family:{MONO}">{x["20일낙폭"]:.1f}%</span></div>'
+            f'<div style="font-family:{MONO};font-size:27px;color:{C["faint"]};'
+            f'margin-top:10px">{x["종목코드"]} · 전날 종가 '
+            f'<b style="color:{C["text"]}">{x["어제종가"]:,}원</b> · '
+            f'시총 {x["시총억"]:,}억 · ' + ' · '.join(수) + '</div>'
+            # ⚠️ **팔 계획을 종목 줄에 붙인다** (2026-09-07 사용자 요청).
+            #    전에는 안내문에만 있어서 종목을 보면서는 안 보였다
+            + (f'<div style="font-size:24px;color:{C["faint"]};'
+               f'margin-top:6px;line-height:1.55">사게 되면 <b>반은 +15%</b>에 팔고, <b>나머지 반은 +40%</b>까지 기다립니다</div>' if not 확정 else '')
+            + (f'<div style="font-size:27px;color:{C["sub"]};font-weight:700;'
+               f'margin-top:8px">→ {len(후보)}종목 중 {특[x["종목코드"]]}</div>'
+               if (특.get(x["종목코드"]) and not 확정) else '')
+            + (('<div style="font-size:28px;font-weight:800;margin-top:10px;'
+                'color:#c0392b">⬛ 산다 — 지정가 '
+                + format(x.get("문턱가") or 0, ",") + '원 · <span style="color:#1c1813">자산의 20%</span>'
+                + (f'  (상대갭 {x["상대갭"]:+.2f}%p)'
+                   if x.get("상대갭") is not None else '') + '</div>'
+                + '<div style="font-size:25px;margin-top:8px;line-height:1.6">사자마자 <b>주문을 둘로 나눠</b> 겁니다. 산 주식의 <b>반은 +15% 지정가</b>로, <b>나머지 반은 +40% 지정가</b>로 매도 예약을 넣습니다.<br>닿지 않으면 앞의 반은 <b>40거래일</b>, 뒤의 반은 <b>90거래일</b>에 정리합니다.</div>')
+               if (확정 and x.get("규칙매수")) else
+               ((f'<div style="font-size:26px;color:{C["faint"]};margin-top:10px">'
+                 f'안 산다 (상대갭 {x["상대갭"]:+.2f}%p)</div>')
+                if (확정 and x.get("상대갭") is not None) else ''))
+            + '</div>')
+
+    아1 = ((f'<div style="background:#fdf2f2;border-left:9px solid #c0392b;'
+            f'padding:20px 24px;font-size:29px;line-height:1.6">'
+            f'⚠️⚠️ <b>09:01에 체결 안 된 주문을 반드시 취소하세요.</b><br>'
+            f'그냥 두면 장중에 체결되는데, 그렇게 산 경우는 '
+            f'<b>수익이 6분의 1</b>이었습니다.</div>') if (확정 and 살것) else
+           (f'<div style="background:#ffffff99;border-left:9px solid {C["line"]};'
+            f'padding:20px 24px;font-size:29px;line-height:1.6">'
+            f'{잰때}에 예상체결가로 확인한 결과 <b>상대갭 3.5%p를 넘는 것이 '
+            f'없었습니다.</b> 아무것도 사지 않는 것도 규칙대로 한 것입니다.</div>'
+            ) if 확정 else
+           (f'<div style="background:#fdf2f2;border-left:9px solid #c0392b;'
+            f'padding:20px 24px;font-size:29px;line-height:1.6">'
+            f'⚠️ <b>「볼 종목」이고 아직 「살 종목」이 아닙니다.</b> '
+            f'살지는 <b>08:50</b>에 정해집니다.</div>') if 후보 else
+           (f'<div style="background:#ffffff99;border-left:9px solid {C["line"]};'
+            f'padding:20px 24px;font-size:29px;line-height:1.6">'
+            f'아무것도 사지 않는 것도 <b>규칙대로 한 것</b>입니다. '
+            f'억지로 살 것을 찾지 않습니다.</div>')
+           + f'<div style="display:flex;align-items:baseline;margin-top:20px">'
+           f'<span style="font-size:27px;color:{C["sub"]};font-weight:700">'
+           f'넘기면 <b>어떻게 뽑았는지</b> 나옵니다 →</span>'
+           f'<span style="margin-left:auto;font-family:{MONO};font-size:24px;'
+           f'color:{C["faint"]};letter-spacing:.14em">1 / 3</span></div>')
+
+    # ══ 2장 · 안내와 주의사항 ══
+    위2 = (f'<div style="font-family:{MONO};font-size:26px;color:{C["sub"]};'
+           f'letter-spacing:.18em;font-weight:700">HOW &amp; WARNING</div>'
+           f'<div style="font-size:56px;font-weight:800;letter-spacing:-.035em;'
+           f'margin-top:16px;line-height:1.12">어떻게 뽑았나</div>')
+
+    가2 = [f'<p style="font-size:30px;line-height:1.7;margin:0">'
+           f'이 화면은 <b>브리핑 본문과 다른 물건</b>입니다. 브리핑은 '
+           f'뉴스·수급·공시를 읽는 <b>이야기</b>이고, 여기는 '
+           f'<b>재무제표와 주가만 보는 기계 규칙</b>입니다. '
+           f'<b>종목이 서로 다른 것이 정상</b>입니다.</p>',
+           f'<p style="font-size:30px;line-height:1.7;margin:0">찾는 것은 '
+           f'하나입니다 — <b>번 돈을 착실히 쌓아온 작은 회사가, 회사 사정과 '
+           f'상관없이 크게 빠진 날.</b></p>',
+           f'<div style="padding:24px 28px;background:#ffffff99;'
+           f'border-radius:16px;font-size:28px;line-height:1.75">'
+           f'<b>모두 통과한 것</b><br>'
+           f'· 자기 돈의 <b>30% 이상</b>이 벌어서 쌓은 이익<br>'
+           f'· 빚이 자기 돈의 <b>80% 이하</b> · 작년 <b>순이익 흑자</b><br>'
+           f'· 시가총액 <b>2,000억 아래</b><br>'
+           f'· 20거래일 <b>10% 넘게 하락</b> · 평소 폭의 아래쪽</div>',
+           f'<div style="padding:24px 28px;background:#ffffff99;'
+           f'border-radius:16px;font-size:28px;line-height:1.75">'
+           f'<b>얼마나 넣나</b><br>'
+           f'· 한 종목에 <b>자산의 20%</b> · 하루 <b>최대 4종목</b><br>'
+           f'· 그래서 하루에 최대 <b>자산의 80%</b>까지 나간다<br>'
+           f'· 남는 돈은 현금으로 둔다 — 억지로 채우지 않는다</div>',
+           f'<div style="padding:24px 28px;background:#ffffff99;'
+           f'border-radius:16px;font-size:27px;line-height:1.8">'
+           f'<b>어떻게 파나</b><br>'
+           f'한 종목을 사면 <b>주문을 둘로 나눠</b> 겁니다. 산 주식의 반은 <b>+15%</b>에 팔아 이익을 일찍 챙기고, 나머지 반은 <b>+40%</b>까지 기다립니다.<br>값이 거기까지 안 오면 앞의 반은 <b>40거래일</b>, 뒤의 반은 <b>90거래일</b>에 정리합니다. <b>손절은 하지 않습니다.</b><br><span style="font-size:24px;color:#6b665c">이렇게 나누면 한 번에 다 파는 것보다 돈은 18% 늘고 계좌가 흔들리는 폭은 절반 가까이 줄었습니다 (10.4년 · 낙폭 −5.8% → −3.3%).</span></div>',
+           f'<div style="padding:24px 28px;background:#fffdf5;'
+           f'border-left:9px solid #e67e22;font-size:28px;line-height:1.7">'
+           f'<b>08:50에 5분</b><br>'
+           f'후보들의 예상체결가를 보고, 그 값들의 <b>중앙값</b>보다 '
+           f'<b>3.5%p 더 빠진 것</b>만 최대 4종목 지정가로 삽니다.<br>'
+           f'<b>⚠️ 09:01에 체결 안 된 주문은 반드시 취소하세요.</b></div>']
+
+    아2 = (f'<div style="font-size:26px;color:{C["faint"]};line-height:1.65">'
+           f'과거 <b>{_사례.get("전체건수", 0)}건</b> 성적: '
+           f'{_사례.get("승률", 0)}%가 수익 · 평균 <b>{_사례.get("평균", 0):+.1f}%</b> · '
+           f'평균 {_사례.get("평균보유", 0):.0f}일 보유. <b>이 값은 후보 모두 같습니다</b> — 종목별로 '
+           f'다르게 재는 방법은 아직 없습니다.<br>'
+           f'전부 과거 자료로 계산한 것(백테스트)이며 '
+           f'<b>매수 추천이 아닙니다.</b> 판단과 책임은 본인에게 있습니다.</div>'
+           f'<div style="text-align:right;margin-top:16px;font-family:{MONO};'
+           f'font-size:24px;color:{C["faint"]};letter-spacing:.14em">2 / 3</div>')
+
+    # ══ 3장 · 과거에 어땠나 ══ (2026-09-07 — 세로 상세에서 옮겨 왔다)
+    위3 = (f'<div style="font-family:{MONO};font-size:26px;color:{C["sub"]};'
+           f'letter-spacing:.18em;font-weight:700">TRACK RECORD</div>'
+           f'<div style="font-size:56px;font-weight:800;letter-spacing:-.035em;'
+           f'margin-top:16px;line-height:1.12">과거에 어땠나</div>'
+           f'<div style="font-size:24px;color:{C["faint"]};margin-top:8px">'
+           f'{_사례.get("기간", "")} · {_사례.get("해수", 0)}개 해</div>')
+    _최근 = (_사례.get("최근") or [])[:8]
+    _최악 = (_사례.get("최악") or [])[:3]
+    가3 = [f'<p style="font-size:28px;line-height:1.75;margin:0">'
+           f'이 규칙이 <b>과거에 있었다면</b> 이렇게 됐을 것입니다. '
+           f'아무도 실제로 사지 않았고, 컴퓨터가 옛 주가로 계산한 것입니다.</p>']
+    if _사례:
+        가3.append(
+            f'<div style="padding:24px 28px;background:#ffffff99;'
+            f'border-radius:16px;font-size:28px;line-height:1.85">'
+            f'모두 <b>{_사례.get("전체건수", 0)}번</b> 샀고 그중 '
+            f'<b>{_사례.get("승률", 0)}%</b>가 수익이었습니다. '
+            f'평균 <b>{_사례.get("평균", 0):+.1f}%</b>를 '
+            f'<b>{_사례.get("평균보유", 0):.0f}일</b> 만에 냈습니다.<br>'
+            f'<span style="color:#c0392b">가장 나빴던 한 건은 '
+            f'<b>{_사례.get("가장나쁨", 0):+.1f}%</b>였습니다.</span></div>')
+    if _최근:
+        _칸 = "".join(
+            '<tr><td style="padding:8px 0;font-size:25px">'
+            + _esc(x.get("날짜", "")) + '</td>'
+            '<td style="padding:8px 0;font-size:25px;font-weight:700">'
+            + _esc(x.get("이름", "")) + '</td>'
+            '<td style="padding:8px 0;font-size:25px;text-align:right">'
+            + format(x.get("매수가", 0), ",") + '원</td>'
+            '<td style="padding:8px 0;font-size:25px;text-align:right;'
+            'font-weight:700;color:'
+            + ("#c0392b" if (x.get("결과") or 0) > 0 else "#2050c8") + '">'
+            + format(x.get("결과") or 0, "+.1f") + '%</td>'
+            '<td style="padding:8px 0;font-size:24px;text-align:right;color:'
+            + C["faint"] + '">' + str(x.get("며칠", "")) + '일</td></tr>'
+            for x in _최근)
+        가3.append(
+            '<div><div style="font-size:26px;font-weight:800;'
+            'margin-bottom:6px">최근 ' + str(len(_최근)) + '건</div>'
+            '<table style="width:100%;border-collapse:collapse">'
+            + _칸 + '</table></div>')
+    if _최악:
+        _나 = " · ".join(_esc(x.get("이름", "")) + " "
+                         + format(x.get("결과") or 0, "+.1f") + "%"
+                         for x in _최악)
+        가3.append(
+            '<div style="padding:18px 24px;background:#fdf2f2;'
+            'border-left:9px solid #c0392b;font-size:26px;line-height:1.6">'
+            '<b>가장 나빴던 셋</b><br>' + _나 + '</div>')
+    아3 = (f'<div style="font-size:25px;color:{C["faint"]};line-height:1.7">'
+           f'위 숫자는 전부 <b>과거 자료로 계산한 것</b>입니다. '
+           f'「과거에 이랬다」이지 「앞으로 이럴 것」이 아닙니다. '
+           f'실제로 산 기록은 오늘부터 쌓입니다.<br>'
+           f'<b>매수 추천이 아닙니다.</b> 판단과 책임은 본인에게 있습니다.</div>'
+           f'<div style="text-align:right;margin-top:14px;font-family:{MONO};'
+           f'font-size:24px;color:{C["faint"]};letter-spacing:.14em">3 / 3</div>')
+
+
+    return (f'<section class="view" id="qt" hidden>'
+            f'<div class="top"><div class="in">'
+            f'<button class="tbtn" data-home type="button">← 처음</button>'
+            f'<span class="now">퀀트 후보</span></div></div>'
+            f'<div class="rail qrail" data-active="true">'
+            + 장(위1, "".join(가1), 아1)
+            + 장(위2, "".join(가2), 아2)
+            + 장(위3, "".join(가3), 아3)
+            + f'</div>'
+            f'<div style="text-align:center;font-size:13px;color:{C["faint"]};'
+            f'padding:0 0 30px">← 옆으로 넘겨서 보세요 →</div>'
+            f'</section>')
+
+
+def _month_grid(year, month, have, have_all, oldest_kept, today):
+    """한 달치 칸. **이 페이지에 담긴 날만** 누를 수 있다.
+
+    기록은 있는데 안 담긴 날(`--days` 밖)은 회색으로 남긴다 — 아예 빼 버리면
+    "그날은 브리핑이 없었나?"가 되고, 회색이면 "있는데 여기엔 없다"가 보인다.
+    """
+    cells = ""
+    first_dow = (datetime(year, month, 1).weekday() + 1) % 7   # 일요일=0
+    cells += '<div></div>' * first_dow
+    for day in range(1, calendar.monthrange(year, month)[1] + 1):
+        d = f"{year:04d}-{month:02d}-{day:02d}"
+        if d in have:
+            cls = "cell has" + (" today" if d == today else "")
+            cells += (f'<button class="{cls}" data-d="{d}" type="button">'
+                      f'{day}<span class="dot"></span></button>')
+        elif d in have_all:
+            cells += (f'<div class="cell old" title="기록은 있지만 이 페이지에 '
+                      f'담기지 않았습니다">{day}<span class="dot"></span></div>')
+        else:
+            cells += f'<div class="cell">{day}</div>'
+    dows = "".join(f'<div class="dow{" sun" if i == 0 else ""}">{w}</div>'
+                   for i, w in enumerate(["일", "월", "화", "수", "목", "금", "토"]))
+    # 달 이름은 여기 `data-label`에 넣는다. JS가 그걸 읽어 머리글에 쓴다 —
+    # 파이썬과 JS 양쪽에 같은 문자열을 두면 한쪽만 고치게 된다.
+    return (f'<div class="month" data-label="{year}. {month:02d}" hidden>'
+            f'<div class="grid">{dows}{cells}</div></div>')
+
+
+# ⚠️ 섹터 색 — 오르내림(빨강·파랑)이나 제목(청동)과 겹치지 않는 색으로만 고른다.
+#    겹치면 "이 색이 무슨 뜻이지"가 화면마다 달라진다(2026-08-28).
+PF_COLORS = ["#5f7a8a", "#8a7038", "#6b8f6b", "#8a5f7a", "#7a6f5f",
+             "#4f6f8f", "#9c8a4a", "#6f8a8a", "#8a6b5f", "#7f7f6b"]
+
+
+def portfolio_view(day, cp):
+    r"""**깜댕의 포트폴리오** — 섹터별 비율만 보여 준다.
+
+    ⚠️⚠️ **금액을 화면에 내보내지 않는다** (2026-08-28 사용자 선택 A).
+       이 사이트는 주소를 아는 사람이면 누구나 본다. 종목 추천은 남이 봐도 되지만
+       **내 평가금액은 다른 문제다.** `평가금액`은 비율 계산에만 쓰고 화면에는
+       **퍼센트만** 나간다. 금액을 넣고 싶어지면 그때는 사이트를 비공개로 옮기는 것이
+       먼저다 — GitHub Pages 무료 요금제는 비공개가 안 된다.
+
+    ⚠️ 파일이 없거나 보유가 비면 **단추 자체를 안 만든다.** 빈 화면보다 없는 편이 낫다.
+    """
+    pf = _portfolio()
+    if not pf:
+        return ""
+    hold = [h for h in (pf.get("holdings") or []) if h.get("code")]
+    if not hold:
+        return ""
+    total = sum(_f(h.get("평가금액"), 0) or 0 for h in hold)
+    균등 = total <= 0
+
+    def w(h):
+        return 1.0 if 균등 else (_f(h.get("평가금액"), 0) or 0)
+
+    denom = (len(hold) if 균등 else total) or 1
+
+    by = {}
+    for h in hold:
+        by.setdefault(h.get("섹터") or "미분류", []).append(h)
+    secs = sorted(by.items(), key=lambda kv: -sum(w(x) for x in kv[1]))
+    pcts = [(sec, sum(w(x) for x in hs) / denom * 100, hs) for sec, hs in secs]
+
+    # 오늘 후보와 겹치는 종목 — 이 화면의 쓸모다.
+    today = {p_.get("code") for p_ in (day.get("picks") or [])}
+    dup = [h for h in hold if h["code"] in today]
+
+    # ── 도넛 — `conic-gradient` 하나로 그린다(라이브러리 없이). ──
+    stops, acc = [], 0.0
+    for i2, (sec, pct_, _hs) in enumerate(pcts):
+        col = PF_COLORS[i2 % len(PF_COLORS)]
+        stops.append(f"{col} {acc:.2f}% {acc + pct_:.2f}%")
+        acc += pct_
+    donut = (f'<div style="display:flex;justify-content:center;margin-top:22px">'
+             f'<div style="width:190px;height:190px;border-radius:50%;'
+             f'background:conic-gradient({", ".join(stops)});position:relative">'
+             f'<div style="position:absolute;inset:26%;border-radius:50%;'
+             f'background:{C["card"]};display:flex;flex-direction:column;'
+             f'align-items:center;justify-content:center">'
+             f'<div style="font-family:{MONO};font-size:26px;font-weight:800;'
+             f'color:{C["text"]}">{len(hold)}</div>'
+             f'<div style="font-size:12px;color:{C["muted"]}">종목</div>'
+             f'</div></div></div>')
+
+    # ── 섹터별 막대 ──
+    bars = ""
+    for i2, (sec, pct_, hs) in enumerate(pcts):
+        col = PF_COLORS[i2 % len(PF_COLORS)]
+        hit = any(h["code"] in today for h in hs)
+        bars += (f'<div style="margin-top:14px">'
+                 f'<div style="display:flex;justify-content:space-between;'
+                 f'align-items:baseline;font-size:15px">'
+                 f'<span><span style="display:inline-block;width:10px;height:10px;'
+                 f'background:{col};margin-right:8px"></span>'
+                 f'<b style="color:{C["text"]}">{sec}</b>'
+                 + (f'<b style="color:{C["up"]};font-size:13px;margin-left:8px">'
+                    f'오늘 후보</b>' if hit else "")
+                 + f'</span>'
+                 f'<b style="font-family:{MONO};color:{C["text"]}">{pct_:.1f}%</b></div>'
+                 f'<div style="height:10px;background:{C["line"]};margin-top:6px">'
+                 f'<div style="height:10px;width:{min(100, pct_):.1f}%;'
+                 f'background:{col}"></div></div></div>')
+
+    # ── 종목별 표 — 무엇이 어느 섹터인지 ──
+    rows = ""
+    for i2, (sec, _p, hs) in enumerate(pcts):
+        col = PF_COLORS[i2 % len(PF_COLORS)]
+        for h in sorted(hs, key=lambda x: -w(x)):
+            hp = w(h) / denom * 100
+            rows += (f'<tr style="border-top:1px solid {C["line"]}">'
+                     f'<td style="padding:11px 8px 11px 0;font-size:15px;'
+                     f'font-weight:700;color:{C["text"]}">{h.get("name") or h["code"]}'
+                     + (f' <b style="color:{C["up"]};font-size:12px">오늘 후보</b>'
+                        if h["code"] in today else "")
+                     + f'</td>'
+                     f'<td style="padding:11px 8px;font-size:14px;color:{C["muted"]};'
+                     f'white-space:nowrap"><span style="display:inline-block;width:8px;'
+                     f'height:8px;background:{col};margin-right:6px"></span>{sec}</td>'
+                     f'<td align="right" style="padding:11px 0;font-family:{MONO};'
+                     f'font-size:15px;font-weight:700;color:{C["text"]}">'
+                     f'{hp:.1f}%</td></tr>')
+
+    note = ("보유 <b>종목 수</b>로 나눈 비율입니다(금액 정보 없음)." if 균등
+            else "평가금액 기준 비율입니다. <b>금액 자체는 화면에 나가지 않습니다.</b>")
+    미분류 = [h.get("name") for h in hold if (h.get("섹터") or "미분류") == "미분류"]
+
+    return (f'<section class="view" id="pf" hidden>'
+            f'<div class="top"><div class="in">'
+            f'<button class="tbtn" data-home type="button">← 처음</button>'
+            f'<span class="now">깜댕의 포트폴리오</span></div></div>'
+            f'<div class="pad" style="padding-top:22px;padding-bottom:60px">'
+            f'<div style="font-size:23px;font-weight:800;color:{C["text"]};'
+            f'letter-spacing:-.02em">섹터별 비중</div>'
+            f'<div style="font-size:14px;color:{C["muted"]};margin-top:6px">{note} '
+            f'계좌 {pf.get("계좌수", 1)}개 합산 · 기준 {pf.get("updated", "-")}</div>'
+            + donut + bars
+            + f'<div style="font-size:19px;font-weight:800;color:{C["sub"]};'
+              f'letter-spacing:{LS_KO};margin:30px 0 0">종목별</div>'
+              f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+              f'border="0" style="margin-top:8px;table-layout:fixed;width:100%">'
+              f'{rows}</table>'
+            + (f'<div style="margin-top:24px;padding:14px 16px;background:#17181a08;'
+               f'border-left:3px solid {C["up"]}">'
+               f'<b style="font-size:15px;color:{C["up"]}">이미 들고 있는 오늘 후보</b>'
+               f'<div style="font-size:14px;color:{C["text2"]};margin-top:6px">'
+               + " · ".join(h.get("name") or h["code"] for h in dup)
+               + " — 더 담기 전에 이미 얼마나 쏠려 있는지 보십시오.</div></div>"
+               if dup else "")
+            + (f'<div style="font-size:13px;color:{C["muted"]};margin-top:18px">'
+               f'섹터를 못 찾은 종목: {" · ".join(미분류)} — '
+               f'가치사슬맵에 없는 종목입니다.</div>' if 미분류 else "")
+            + f'<div style="font-size:13px;color:{C["faint"]};margin-top:24px">'
+              f'금액·수량은 담지 않습니다. 이 화면은 <b>쏠림</b>을 보는 용도입니다.</div>'
+            + '</div></section>')
+
+
+def _entry_band(date):
+    r"""**09:05 진입체크 결과**를 그날 화면 맨 위에 띠로 붙인다 (2026-08-31 신설).
+
+    ⚠️⚠️ 왜 웹으로 옮겼나: 진입체크의 **유일한 출력이 카카오**였는데, 카카오는
+       알림이 오지 않아 실제로 안 읽혔다(2026-08-31 사용자 결정으로 카카오 폐지).
+       매수는 **09:00~09:30**에 이뤄진다 — 그 시각에 보는 화면이 이 웹이므로,
+       판정이 여기 있어야 쓸모가 있다.
+
+    ⚠️ **판정만 옮긴다. 새로 계산하지 않는다.** 값은 `entry-check-log.jsonl`에 이미
+       쌓여 있다. 화면이 다시 계산하면 09:05 판정과 낮에 본 화면이 달라진다.
+
+    ⚠️ 없는 날은 **아무것도 그리지 않는다.** 빈 띠가 있으면 "오늘은 체크가 안 돌았나"와
+       "아직 09:05 전인가"가 구분되지 않는다.
+    """
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "data", "entry-check-log.jsonl")
+    if not os.path.exists(path):
+        return ""
+    rec = None
+    for line in io.open(path, encoding="utf-8-sig"):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            o = json.loads(line)
+        except Exception:  # noqa: BLE001
+            continue
+        # 같은 날 여러 슬롯이 있으면 09:05를 쓴다(12:20은 2026-08-31에 껐다).
+        if o.get("date") == date and o.get("ok") and o.get("slot", "0905") == "0905":
+            rec = o
+    if not rec or not (rec.get("results") or []):
+        return ""
+
+    색 = {"조건충족": C["green"], "보류": C["gold"], "철회검토": C["down"],
+         "확인필요": C["gold"], "확인불가": C["muted"]}
+    칩 = ""
+    for r in rec["results"]:
+        v = r.get("verdict") or "확인불가"
+        c = 색.get(v, C["muted"])
+        호가 = (r.get("호가") or {})
+        sp = 호가.get("스프레드pct")
+        칩 += (f'<span style="display:inline-block;border:1px solid {c};color:{c};'
+              f'border-radius:999px;padding:5px 12px;margin:5px 8px 0 0;font-size:13px;'
+              f'font-weight:700;white-space:nowrap">{r.get("grade","")} {r.get("name","")} '
+              f'· {v}'
+              + (f' · 스프레드 {sp}%' if sp is not None else "")
+              + '</span>')
+    t = str(rec.get("checked_at", ""))[11:16]
+    return (f'<div style="border:1px solid {C["line"]};background:{C["dim"]}55;'
+            f'padding:12px 14px;margin:0 0 14px">'
+            f'<div style="font-family:{SANS};font-size:13px;font-weight:800;'
+            f'color:{C["green"]};letter-spacing:-.01em">장 시작 후 확인 · {t}</div>'
+            f'<div style="font-family:{SANS};font-size:12px;color:{C["muted"]};'
+            f'margin-top:2px">아침에 써 둔 진입 조건이 지금 맞는지 대조한 결과입니다. '
+            f'매수 권유가 아닙니다</div>{칩}</div>')
+
+
+def build(out, days=DEFAULT_DAYS):
+    if not os.path.exists(LOG):
+        return {"error": f"{LOG} 없음"}
+    rows = [json.loads(x) for x in io.open(LOG, encoding="utf-8-sig") if x.strip()]
+    rows = sorted([r for r in rows if r.get("date")], key=lambda r: r["date"])
+    if not rows:
+        return {"error": "기록이 하나도 없다"}
+
+    all_dates = [r["date"] for r in rows]
+    kept = rows[-days:]
+    kept_dates = {r["date"] for r in kept}
+    latest = kept[-1]["date"]
+    oldest_kept = kept[0]["date"]
+
+    rails, scrolls, missing = [], [], []
+    for o in kept:
+        cp = _copy(o["date"])
+        if not cp:
+            missing.append(o["date"])
+        rails.append(f'<div class="rail" data-d="{o["date"]}" data-active="false">'
+                     + "".join(cards_for(o, cp)) + "</div>")
+        # ⚠️ 09:05 판정은 **세로에 넣지 않는다** (2026-08-31 재조정). 세로는 "왜 이
+        #    종목인가"를 길게 설명하는 자리이고, 09:05 대조 결과는 성격이 다르다 —
+        #    맨 위에 띠로 붙였더니 상세라는 취지와 어긋났다.
+        #    ⇒ **가로 요약의 「장 시작 후 확인」을 그 결과로 갈아 끼운다**(build_cards).
+        #       아침엔 "무엇을 볼지" 체크리스트였다가 09:05 뒤엔 "어떻게 됐나"가 된다.
+        scrolls.append(f'<div class="scrollwrap" data-d="{o["date"]}" style="display:none">'
+                       + build_scroll.render(o, cp, "web") + "</div>")
+
+    # 달력 — 자료가 있는 달만 만든다. 빈 달을 넘기게 하면 넘길 이유가 없다.
+    have = set(kept_dates)
+    have_all = set(all_dates)
+    months = sorted({(int(d[:4]), int(d[5:7])) for d in all_dates})
+    today = datetime.now().strftime("%Y-%m-%d")
+    grids = "".join(_month_grid(y, m, have, have_all, oldest_kept, today)
+                    for y, m in months)
+
+    dt = datetime.strptime(latest, "%Y-%m-%d")
+    n_pick = len(kept[-1].get("picks") or [])
+    # 이 화면을 언제 만들었는지. 캐시로 옛 화면을 보고 있는지 가리는 유일한 단서다.
+    built = datetime.now().strftime("%m/%d %H:%M")
+    stamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    shell = (PAGE_CSS + PAGE_JS).replace("__W__", str(CARD_W)).replace("__H__", str(CARD_H))
+    css, js = shell.split("</style>", 1)
+
+    home = (
+        f'<section class="view" id="home">'
+        f'<div class="eyebrow">MORNING BRIEFING</div>'
+        f'<h1>{BRAND}</h1>'
+        f'<div class="sub">3분 만에 읽는 어제와 오늘의 시장</div>'
+        f'<div class="when">{dt.strftime("%Y.%m.%d")} '
+        f'{WEEKDAY[dt.weekday()]}요일 · 후보 {n_pick}</div>'
+        f'<div class="btns">'
+        f'<button class="big primary" id="btn-today" type="button" data-d="{latest}">'
+        f'<span>오늘 브리핑 보기<small>{dt.month:02d}/{dt.day:02d} '
+        f'({WEEKDAY[dt.weekday()]})</small></span><span class="arw2">→</span></button>'
+        # ⚠️ 오늘 브리핑과 지난 브리핑 **사이**에 넣는다 (2026-09-04, 사용자 지정).
+        #    후보가 없는 날은 단추를 안 만든다 — 눌렀는데 빈 화면이 뜨는 것보다 낫다
+        + (f'<button class="big" id="btn-qt" type="button">'
+           f'<span>퀀트 후보<small>재무·주가만 보는 기계 규칙 · '
+           f'{("오늘 볼 것 없음" if not (_quant().get("후보") or []) 
+              else str(len(_quant()["후보"])) + "종목")}</small></span>'
+           f'<span class="arw2">→</span></button>' if _quant() else "")
+        + f'<button class="big" id="btn-past" type="button">'
+        f'<span>지난 브리핑 보기<small>달력에서 날짜 고르기</small></span>'
+        f'<span class="arw2">→</span></button>'
+        # ⚠️ 포트폴리오 파일이 없으면 **단추 자체를 안 만든다.** 눌렀는데 빈 화면이
+        #    뜨는 것보다 없는 편이 낫다(2026-08-28 신설).
+        + (f'<button class="big" id="btn-pf" type="button">'
+           f'<span>깜댕의 포트폴리오<small>섹터별 비중 — 금액은 나오지 않습니다</small></span>'
+           f'<span class="arw2">→</span></button>' if _portfolio() else "")
+        + f'</div>'
+        # ⚠️ **만든 시각을 찍는다** (2026-08-27 추가). 카톡 인앱 브라우저처럼 캐시가 센
+        #    환경에서는 옛 화면이 그대로 뜨는데, 겉만 봐서는 옛것인지 알 수 없다.
+        #    이 줄이 있으면 "언제 만든 화면을 보고 있는지"가 바로 보인다.
+        f'<div class="note">투자 참고용이며 매수 권유가 아닙니다.<br>'
+        f'수록 {len(kept)}일 ({oldest_kept} ~ {latest}) · '
+        f'화면 생성 {built}</div>'
+        f'</section>')
+
+    # ⚠️ 포트폴리오 화면은 달력과 나란한 형제다 — `cal` 문자열 앞에 붙인다.
+    pf_html = portfolio_view(kept[-1], _copy(latest))
+    _q = _quant()
+    qt_html = quant_view(_q) if _q else ""
+
+    cal = (
+        pf_html
+        + qt_html
+        + f'<section class="view" id="cal" hidden>'
+        f'<div class="top"><div class="in">'
+        f'<button class="tbtn" data-home type="button">← 처음</button>'
+        f'<span class="now">지난 브리핑</span></div></div>'
+        f'<div class="cal"><div class="mon">'
+        f'<button class="tbtn" id="m-prev" type="button">‹</button>'
+        f'<b id="m-label"></b>'
+        f'<button class="tbtn" id="m-next" type="button">›</button></div>'
+        f'{grids}'
+        f'<div class="legend"><i></i>회색으로 채워진 날은 기록은 있지만 이 페이지에 '
+        f'담기지 않은 날입니다 — 최근 {days}일만 싣습니다.</div></div>'
+        f'</section>')
+
+    day = (
+        f'<section class="view" id="day" hidden>'
+        f'<div class="top"><div class="in">'
+        f'<button class="tbtn" data-home type="button">← 처음</button>'
+        f'<button class="tbtn" data-back type="button">달력</button>'
+        f'<span class="now"></span>'
+        # ⚠️ 글씨 크기 조절 — **세로 상세에서만** 쓴다. 가로 카드는 배율로 그려서
+        #    글자만 키우면 카드 밖으로 넘친다(2026-08-28 요청).
+        f'<span class="fs"><button data-fs="-" type="button" aria-label="글씨 작게">'
+        f'A&minus;</button><button data-fs="+" type="button" aria-label="글씨 크게">'
+        f'A+</button></span>'
+        f'<span class="seg">'
+        # ⚠️ 좁은 화면에서 숨기는 쪽은 **"가로·세로"**다(2026-08-27 지적).
+        #    그건 넘기는 방식이고, 읽는 사람에게 필요한 정보는 "상세·요약"이다.
+        f'<button data-f="scroll" type="button" aria-pressed="true">'
+        f'<span class="ax">세로 </span>상세</button>'
+        f'<button data-f="card" type="button" aria-pressed="false">'
+        f'<span class="ax">가로 </span>요약</button>'
+        f'</span></div></div>'
+        + "".join(rails) + "".join(scrolls)
+        + '<div class="nav"></div>'
+        + '<button class="arw prev" type="button" aria-label="이전 카드">&#8249;</button>'
+        + '<button class="arw next" type="button" aria-label="다음 카드">&#8250;</button>'
+        + '</section>')
+
+    html = (f"<title>{BRAND}</title>"
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            # ⚠️ **검색엔진 수집 차단** (2026-08-27 사용자 선택). 링크를 아는 사람은
+            #    볼 수 있게 두되, 검색으로는 찾히지 않게 한다. `robots.txt`만으로는
+            #    부족하다 — 다른 데서 링크가 걸리면 그걸 타고 색인될 수 있어서
+            #    페이지 자체에도 박아 둔다. 둘 다 있어야 한다.
+            '<div class="ptr"><i></i></div>'
+            '<meta name="robots" content="noindex,nofollow,noarchive">'
+            # ⚠️ **판 번호.** 아래 자기 점검이 이 값을 새로 받아온 것과 비교한다.
+            f'<meta name="build" content="{stamp}">'
+            + FONTS + "\n" + css + "</style>"
+            + SITE_CSS.replace("__MONO__", SANS)
+            + home + cal + day + js + SITE_JS)
+    io.open(out, "w", encoding="utf-8").write(html)
+
+    res = {"ok": True, "파일": out, "수록일": len(kept), "전체기록": len(all_dates),
+           "최신": latest, "가장오래된": oldest_kept, "크기KB": round(len(html) / 1024, 1)}
+    if os.path.exists(SITE_URL_FILE):
+        res["url"] = io.open(SITE_URL_FILE, encoding="utf-8-sig").read().strip() or None
+    if missing:
+        res["_경고"] = f"서술 파일 없음: {missing} — 그날은 숫자만 나온다"
+    if len(all_dates) > len(kept):
+        res["_안내"] = f"오래된 {len(all_dates)-len(kept)}일은 달력에 회색으로만 남는다"
+    return res
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--days", type=int, default=DEFAULT_DAYS,
+                    help=f"최근 며칠을 담을지 (기본 {DEFAULT_DAYS})")
+    a = ap.parse_args()
+    print(json.dumps(build(a.out, a.days), ensure_ascii=False))
+
+
+
+
+
+
+
+
+
+
+
+
+

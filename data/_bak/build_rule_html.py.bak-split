@@ -1,0 +1,315 @@
+#!/usr/bin/env python3
+r"""
+build_rule_html.py — **브리핑에 붙일 「숫자만 보는 규칙」 절을 만든다** (2026-09-04 신설)
+
+## 왜 파일로 만드나
+```
+브리핑은 매일 아침 Claude가 SKILL.md를 읽고 HTML을 쓴다.
+그런데 이 절은 **수치가 전부**라 매일 새로 쓸 이유가 없다.
+   모델이 매일 쓰면 -> **숫자가 조금씩 흔들린다**
+   기계가 만들어 두면 -> **절대 안 흔들린다**
+⇒ 여기서 HTML 조각을 만들어 두고, SKILL.md는 **읽어서 그대로 붙이라**고만 한다
+  (SKILL.md 수정이 한 줄이라 브리핑이 깨질 위험도 작다)
+```
+
+## 넣는 것 (사례제 · 105·107차 논의로 확정)
+```
+① 첫 줄은 **행동**       「오늘 볼 종목: 없음」 / 「오늘 볼 종목: OO」
+② 08:50에 할 일          예상체결가 -> 중앙값 -> 상대갭 -> 지정가
+③ ⚠️ 09:01 미체결 취소   이게 없으면 성적이 6분의 1 (108차)
+④ **최근 10건 사례**     종목명·날짜·결과 — 확률 대신 **실제 사례**
+⑤ 전체 통계 한 줄        「최근 10개」 편향을 막는다
+⑥ ⚠️ 백테스트임을 명시    실전 기록이 몇 건인지 같이
+```
+
+쓰는 법:
+    python scripts\build_rule_html.py          data/today-rule.html 을 만든다
+저장: `data/today-rule.html`
+"""
+import datetime as dt
+import io
+import json
+import os
+import sys
+
+_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LOG = os.path.join(_BASE, "data", "forward-log.jsonl")
+CASES = os.path.join(_BASE, "data", "rule-cases.json")
+OUT = os.path.join(_BASE, "data", "today-rule.html")
+# 계좌 낙폭 — verify_all.py 가 자본 시뮬로 재서 남긴다 (없으면 그 절을 뺀다)
+CAP = os.path.join(_BASE, "data", "rule-capital.json")
+# 후보·매수 빈도 — how_often.py 가 만든다 (숫자를 코드에 박지 않는다)
+FREQ = os.path.join(_BASE, "data", "rule-frequency.json")
+_갭문턱 = -3.5
+_최대매수 = 4
+
+
+def 이스(s):
+    return (str(s).replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;"))
+
+
+def main():
+    # ── 오늘 후보 (record_pick.py가 남긴 것) ──
+    줄들 = []
+    if os.path.exists(LOG):
+        for x in io.open(LOG, encoding="utf-8"):
+            x = x.strip()
+            if x:
+                try:
+                    줄들.append(json.loads(x))
+                except Exception:
+                    pass
+    오늘 = 줄들[-1] if 줄들 else {}
+    후보 = (오늘.get("후보") or [])[:8]
+    국면 = 오늘.get("국면") or {}
+    # ── 사례 ──
+    사례 = {}
+    if os.path.exists(CASES):
+        try:
+            사례 = json.load(io.open(CASES, encoding="utf-8-sig"))
+        except Exception:
+            사례 = {}
+    빈도 = {}
+    if os.path.exists(FREQ):
+        try:
+            빈도 = json.load(io.open(FREQ, encoding="utf-8-sig"))
+        except Exception:
+            빈도 = {}
+    _전 = (빈도.get("전체") or {})
+    _년 = (빈도.get("최근1년") or {})
+    최근 = (사례.get("최근") or [])[:10]
+    # ── 실전 기록이 몇 건인가 ──
+    끝난실전 = sum(1 for r in 줄들 for x in (r.get("산것") or [])
+                   if x.get("결과") is not None)
+    산실전 = sum(len(r.get("산것") or []) for r in 줄들)
+
+    H = []
+    A = H.append
+    A('<div style="border-left:4px solid #7f8c8d;padding-left:10px;'
+      'margin:24px 0 8px 0;">')
+    A('<span style="font-size:15px;font-weight:bold;color:#1a252f;">'
+      '🔢 숫자만 보는 규칙</span>')
+    A('<span style="font-size:11px;color:#888;margin-left:8px;">'
+      '위 이야기를 하나도 보지 않습니다 · 10.4년 검증</span>')
+    A('</div>')
+
+    # ── ① 첫 줄: 행동 ──
+    A('<div style="background-color:#f7f7f7;border:1px solid #ddd;'
+      'padding:12px 16px;margin-bottom:10px;border-radius:3px;">')
+    if not 후보:
+        A('<div style="font-size:15px;font-weight:bold;color:#1a252f;">'
+          '⬛ 오늘 볼 종목: 없음</div>')
+        A('<div style="font-size:13px;color:#555;margin-top:6px;'
+          'line-height:1.8;">조건을 통과한 종목이 없습니다. '
+          '이 규칙으로는 오늘 아무것도 하지 않습니다 '
+          f'— 열 번 중 {10 - round((_전.get("후보있는날비율") or 67) / 10)}번쯤은 이런 날입니다.</div>')
+    else:
+        이름들 = " · ".join(f"{이스(x['이름'])}({x['종목코드']})"
+                            for x in 후보[:4])
+        A(f'<div style="font-size:15px;font-weight:bold;color:#1a252f;">'
+          f'⬛ 오늘 볼 종목: {len(후보)}개 — {이름들}'
+          f'{" 외" if len(후보) > 4 else ""}</div>')
+        A('<div style="font-size:13px;color:#555;margin-top:6px;'
+          'line-height:1.8;"><strong>아직 살지 안 살지 정해지지 않았습니다.</strong> '
+          '08:50에 예상체결가를 봐야 정해집니다 — 아래 절차를 따르세요. '
+          f'실제로 사게 되는 날은 <strong>{_전.get("며칠에한번", 36)}일에 한 번쯤</strong>입니다(최근 1년은 {_년.get("며칠에한번", 21)}일에 한 번).</div>')
+    A('</div>')
+
+    # ── 후보 표 ──
+    if 후보:
+        A('<table style="width:100%;border-collapse:collapse;font-size:13px;'
+          'margin-bottom:12px;">')
+        A('<tr style="background-color:#f0f0f0;border-bottom:1px solid #ddd;">'
+          '<td style="padding:6px 8px;font-weight:bold;color:#555;">종목</td>'
+          '<td style="padding:6px 8px;font-weight:bold;color:#555;">코드</td>'
+          '<td style="padding:6px 8px;font-weight:bold;color:#555;'
+          'text-align:right;">어제 종가</td>'
+          '<td style="padding:6px 8px;font-weight:bold;color:#555;'
+          'text-align:right;">20일 낙폭</td>'
+          '<td style="padding:6px 8px;font-weight:bold;color:#555;'
+          'text-align:right;">시가총액</td></tr>')
+        for x in 후보:
+            A(f'<tr style="border-bottom:1px solid #eee;">'
+              f'<td style="padding:6px 8px;font-weight:bold;color:#1a252f;">'
+              f'{이스(x["이름"])}</td>'
+              f'<td style="padding:6px 8px;color:#888;">{x["종목코드"]}</td>'
+              f'<td style="padding:6px 8px;text-align:right;">'
+              f'{x["어제종가"]:,}원</td>'
+              f'<td style="padding:6px 8px;text-align:right;color:#c0392b;">'
+              f'{x["20일낙폭"]:.1f}%</td>'
+              f'<td style="padding:6px 8px;text-align:right;color:#555;">'
+              f'{x["시총억"]:,}억</td></tr>')
+        A('</table>')
+
+        # ── ② 08:50 절차 ──
+        A('<div style="background-color:#fffdf5;border-left:4px solid #e67e22;'
+          'padding:10px 14px;margin-bottom:12px;font-size:13px;'
+          'line-height:1.9;color:#222;">')
+        # ⚠️ **「얼마나」를 적는다** (2026-09-07).
+        #    전에는 무엇을·얼마에만 있고 배분이 없었다
+        A('<div style="background-color:#f7f7f7;border:1px solid #ddd;'
+          'padding:10px 14px;margin-bottom:10px;font-size:13px;'
+          'line-height:1.9;color:#222;">'
+          '<strong>💰 얼마나 넣나</strong><br/>'
+          '한 종목에 <strong>자산의 20%</strong> · 하루 <strong>최대 4종목</strong> '
+          '— 그래서 하루에 최대 <strong>자산의 80%</strong>까지 나갑니다. '
+          '남는 돈은 현금으로 둡니다.</div>')
+        A('<strong>⏱ 08:50에 5분</strong><br/>'
+          '1. 위 종목들의 <strong>예상체결가</strong>를 봅니다<br/>'
+          '2. 각각 어제 종가 대비 몇 % 빠졌는지 계산합니다<br/>'
+          '3. 그 값들의 <strong>중앙값</strong>이 오늘 시장의 낙폭입니다<br/>'
+          f'4. 중앙값보다 <strong>{abs(_갭문턱)}%p 더 빠진</strong> 종목만, '
+          f'최대 <strong>{_최대매수}개</strong>를 그 가격에 '
+          '<strong>지정가</strong> 매수 예약합니다<br/>'
+          '5. 해당하는 게 없으면 <strong>사지 않습니다</strong>')
+        A('</div>')
+        A('<div style="background-color:#fdf2f2;border-left:4px solid #c0392b;'
+          'padding:10px 14px;margin-bottom:12px;font-size:13px;'
+          'line-height:1.9;color:#222;">')
+        A('<strong>⚠️ 09:01에 체결 안 된 주문을 반드시 취소하세요</strong><br/>'
+          '지정가 주문을 그냥 두면 장중에 가격이 내려올 때 체결됩니다. '
+          '그렇게 산 경우를 따로 재봤는데 <strong>수익이 6분의 1, '
+          '손실 폭은 5배</strong>였습니다. 시가에 사는 것과 장중에 사는 것은 '
+          '전혀 다른 결과를 냅니다.<br/>'
+          '<strong>판 뒤</strong>: 사면 바로 +20% 지정가 매도를 걸고, '
+          '40거래일이 지나면 그냥 정리합니다. <strong>손절은 하지 않습니다.</strong>')
+        A('</div>')
+
+    # ── 국면 ──
+    if 국면:
+        조각 = []
+        if 국면.get("미국금리"):
+            조각.append(f"미국 기준금리 <strong>{이스(국면['미국금리'])}</strong>")
+        if 국면.get("한국금리20일") is not None:
+            v = 국면["한국금리20일"]
+            조각.append(f"한국 금리 {'하락' if v > 0.3 else '상승·보합'} 중")
+        if 국면.get("시장20일") is not None:
+            조각.append(f"시장 20일 {국면['시장20일']:+.1f}%")
+        if 조각:
+            A('<div style="font-size:12px;color:#666;margin-bottom:12px;">'
+              '🌡️ 오늘 국면 — ' + " · ".join(조각) + '</div>')
+
+    # ── ④ 최근 사례 ──
+    if 최근:
+        # ⚠️ 제목이 정확해야 한다. 「가리킨 10개」는 실제로 산 것처럼 읽힌다.
+        #    실전 기록이 쌓이면 이 자리가 그대로 실전 표로 바뀐다
+        실전꼴 = 끝난실전 >= 10
+        제목 = ("📋 **이 규칙이 실제로 가리킨 것들** — 최근 "
+              if 실전꼴 else
+              "📋 **과거에 이 규칙이 있었다면** — 최근 ")
+        A('<div style="font-size:13px;font-weight:bold;color:#1a252f;'
+          'margin:14px 0 6px 0;">' + 제목 + f'{len(최근)}건'
+          + ('' if 실전꼴 else ' (백테스트)') + '</div>')
+        if not 실전꼴:
+            A('<div style="font-size:12px;color:#c0392b;margin-bottom:6px;">'
+              '⚠️ 아무도 실제로 사지 않았습니다. 컴퓨터가 과거 주가로 '
+              f'계산한 것입니다. 실전 기록은 오늘부터 쌓입니다 '
+              f'(현재 {끝난실전}건)</div>')
+        A('<table style="width:100%;border-collapse:collapse;'
+          'font-size:12px;margin-bottom:8px;">')
+        A('<tr style="background-color:#f0f0f0;border-bottom:1px solid #ddd;">'
+          '<td style="padding:5px 8px;font-weight:bold;color:#555;">산 날</td>'
+          '<td style="padding:5px 8px;font-weight:bold;color:#555;">종목</td>'
+          '<td style="padding:5px 8px;font-weight:bold;color:#555;'
+          'text-align:right;">산 값</td>'
+          '<td style="padding:5px 8px;font-weight:bold;color:#555;'
+          'text-align:right;">결과</td>'
+          '<td style="padding:5px 8px;font-weight:bold;color:#555;'
+          'text-align:right;">며칠</td></tr>')
+        for x in 최근:
+            색 = "#c0392b" if x["결과"] < 0 else "#27ae60"
+            A(f'<tr style="border-bottom:1px solid #eee;">'
+              f'<td style="padding:5px 8px;color:#888;">{x["날짜"]}</td>'
+              f'<td style="padding:5px 8px;color:#1a252f;">'
+              f'{이스(x["이름"])}</td>'
+              f'<td style="padding:5px 8px;text-align:right;color:#555;">'
+              f'{x["매수가"]:,}원</td>'
+              f'<td style="padding:5px 8px;text-align:right;font-weight:bold;'
+              f'color:{색};">{x["결과"]:+.1f}%</td>'
+              f'<td style="padding:5px 8px;text-align:right;color:#888;">'
+              f'{x["며칠"]}일</td></tr>')
+        A('</table>')
+        # ⚠️⚠️ **나쁜 사례를 반드시 같이 보여준다** (2026-09-04)
+        #    최근 10건이 우연히 다 수익이면 「100% 성공」으로 읽힌다.
+        #    실제로는 210건 중 29건(13.8%)이 손실이고 최악은 -36.1%였다.
+        #    좋은 것만 보여주는 표는 정직하지 않다 — 남에게 보여줄 수도 있는 글이다
+        최악 = (사례.get("최악") or [])[:5]
+        if 최악:
+            A('<div style="font-size:13px;font-weight:bold;color:#c0392b;'
+              'margin:14px 0 6px 0;">📉 가장 나빴던 '
+              f'{len(최악)}개 (같은 규칙, 같은 기간)</div>')
+            A('<table style="width:100%;border-collapse:collapse;'
+              'font-size:12px;margin-bottom:8px;">')
+            A('<tr style="background-color:#fdf2f2;'
+              'border-bottom:1px solid #f5d5d5;">'
+              '<td style="padding:5px 8px;font-weight:bold;color:#555;">'
+              '산 날</td>'
+              '<td style="padding:5px 8px;font-weight:bold;color:#555;">'
+              '종목</td>'
+              '<td style="padding:5px 8px;font-weight:bold;color:#555;'
+              'text-align:right;">산 값</td>'
+              '<td style="padding:5px 8px;font-weight:bold;color:#555;'
+              'text-align:right;">결과</td>'
+              '<td style="padding:5px 8px;font-weight:bold;color:#555;'
+              'text-align:right;">며칠</td></tr>')
+            for x in 최악:
+                A(f'<tr style="border-bottom:1px solid #f5e5e5;">'
+                  f'<td style="padding:5px 8px;color:#888;">{x["날짜"]}</td>'
+                  f'<td style="padding:5px 8px;color:#1a252f;">'
+                  f'{이스(x["이름"])}</td>'
+                  f'<td style="padding:5px 8px;text-align:right;color:#555;">'
+                  f'{x["매수가"]:,}원</td>'
+                  f'<td style="padding:5px 8px;text-align:right;'
+                  f'font-weight:bold;color:#c0392b;">{x["결과"]:+.1f}%</td>'
+                  f'<td style="padding:5px 8px;text-align:right;color:#888;">'
+                  f'{x["며칠"]}일</td></tr>')
+            A('</table>')
+        좋 = sum(1 for x in 최근 if x["결과"] > 0)
+        A(f'<div style="font-size:12px;color:#555;margin-bottom:10px;'
+          f'line-height:1.8;">최근 {len(최근)}개 중 <strong>{좋}개</strong>가 '
+          f'수익이었습니다 — <strong>다만 최근 것만 보면 실제보다 좋아 '
+          f'보입니다.</strong> ')
+        if 사례:
+            A(f'전체 <strong>{사례.get("전체건수",0)}건</strong>'
+              f'({이스(사례.get("기간",""))}, {사례.get("해수",0)}개 해)로 보면 '
+              f'<strong>{사례.get("승률",0)}%</strong>가 수익이었고 '
+              f'{사례.get("도달률",0)}%는 +20%까지 갔습니다. '
+              f'평균 {사례.get("평균",0):+.2f}% · '
+              f'평균 {사례.get("평균보유",0)}일 보유. '
+              f'<strong style="color:#c0392b;">'
+              f'{사례.get("전체건수",0)-사례.get("흑자",0)}건'
+              f'({100-사례.get("승률",0):.1f}%)이 손실</strong>이었고 '
+              f'가장 나빴던 것은 <strong style="color:#c0392b;">'
+              f'{사례.get("가장나쁨",0):+.1f}%</strong>였습니다.')
+        A('</div>')
+
+    # ── ⑥ 면책 ──
+    A('<div style="background-color:#f7f7f7;border:1px dashed #ccc;'
+      'padding:10px 14px;font-size:12px;color:#555;line-height:1.8;">')
+    A('⚠️ <strong>위 성적은 전부 과거 자료로 계산한 것(백테스트)</strong>입니다. '
+      '「과거에 이랬다」이지 「앞으로 이럴 것」이 아닙니다.<br/>')
+    if 산실전 == 0:
+        A('이 규칙으로 <strong>실제로 산 기록은 아직 없습니다.</strong> '
+          '오늘부터 예측을 남겨 3개월 뒤에 실제 성적을 확인할 예정입니다.<br/>')
+    else:
+        A(f'이 규칙으로 실제로 산 기록은 <strong>{산실전}건</strong>이고 '
+          f'그중 <strong>{끝난실전}건</strong>이 결과가 나왔습니다.<br/>')
+    A('이 절은 뉴스·수급·공시·증권사 의견을 <strong>하나도 보지 않습니다</strong>. '
+      '그 항목들은 각각 시험해서 수익에 도움이 안 되는 것으로 나왔습니다. '
+      '위 이야기(시장·재료·기관 의견)와는 <strong>다른 종목</strong>이 나오는 것이 '
+      '정상입니다.<br/>')
+    A('<strong>매수 추천이 아닙니다.</strong> 투자 판단과 책임은 본인에게 있습니다.')
+    A('</div>')
+
+    html = "\n".join(H)
+    io.open(OUT, "w", encoding="utf-8").write(html)
+    print(f"  ✅ {OUT}  ({len(html):,}자)")
+    print(f"     오늘 후보 {len(후보)}개 · 최근 사례 {len(최근)}건 · "
+          f"실전 기록 {산실전}건")
+    print(f"     만든 시각 {dt.datetime.now():%Y-%m-%d %H:%M:%S}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

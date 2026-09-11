@@ -1,0 +1,25 @@
+2026-08-19T02:56:20Z | draft=r-8818892219740403365 | html_chars=15865 | emoji_count=21 | test=07:30사전검증
+2026-08-19T03:15:00Z | draft=r-7033198922692437143 | html_chars=15353 | emoji_count=28 | test=07:30사전검증(2회차 실행, 동일일자 중복 실행 확인됨)
+2026-08-19T03:38:00Z | draft=r-785689700313517520 | html_chars=18645 | emoji_count=27 | test=08:00사전검증
+[2026-08-19 14:xx KST] 08:00 테스트(사전검증) - draftId=r-5520303038728349566 | HTML길이=15111자 | 이모지수=29개 | PROCEED
+[2026-08-20 07:xx KST] 07:00 테스트 - draftId=r4812387216702773869 | HTML길이=19097자 | 이모지수=34개 | PROCEED
+[2026-08-21 07:xx KST] 07:00 테스트(지정일, 10거래일 실험 1구간) - draftId=r-7316960107776352904 | HTML길이=15355자 | 이모지수=24개 | PROCEED
+[2026-08-21 07:41 KST] 07:30 테스트(지정일, 10거래일 실험 1구간) - draftId=r6969248876180197071 | HTML길이=15014자 | 이모지수=34개 | PROCEED
+2026-08-21T00:42:45Z draftId=r3489792174422166486 html_len=13214 emoji_count=28 task=morning-briefing-0800-test-aug
+2026-08-21T02:14:58Z draftId=r3489792174422166486 upgrade_result=FAILED reason=tool_permission_stream_closed_before_response task=morning-briefing-0800-test-aug
+2026-08-21T03:28:50Z draftId=r8053524681585375862 task=morning-briefing-0800-test-aug(2차) html_len=17994 emoji_count=33
+2026-08-21T03:40:12Z draftId=r-6360384923919905515 chars=18864 emojis=25
+2026-08-26 08:00 | draft=r698687884821132727 | html_chars=32139 | surrogate_pairs=39 | links=14
+2026-08-27 08:00 | draftId=r-6191528237602980110 | htmlLen=34695 | emoji=True | links=7
+2026-08-28 08:0x | draftId=r-1740111862167824657 | html_len=45796 | emoji_pairs=51 | links=17 | upgrade=1st
+len=39344 emoji=True at=2026-08-31 08:16:15
+2026-09-01T08:00 KST | draftId=r-82592860034071541 | 요약HTML 업그레이드 1회 | 추정길이=약3,600자 | 이모지=포함(📊🟡📈⚠️🔗) | 후보4종목 전원 점검등급 | 카운터=PROCEED
+2026-09-02 08:0x draftId=r8177008182095871673 len=4409 emoji=yes picks=3 mode=summary-from-cardcopy
+2026-09-03 08:17:00 | draft=r3757200461276113006 | chars=3926 | emoji=yes | picks=3 | mode=short-summary(2026-08-31 rule)
+2026-09-04 08:0x | draftId=r-6042360309902309488 | 1차 텍스트 성공 | 하드카운터 PROCEED | HTML 요약본 업그레이드 1회 시도 (STEP6 축소 규칙 적용, 목표 3000-4000자) | 후보 3개 전부 U+1F7E1 | 이모지 포함 true
+2026-09-04 20:39 | draftId=r-776240578182000116 | htmlLen=2851 | emoji=True | manual-test
+2026-09-08 08:0x KST | draftId=r-1196895632732942654 | html_len=3656 | emoji=yes | mode=summary_upgrade
+2026-09-09 08:20:42 draft=r-4376709128867329057 htmlChars=3503 emoji=True
+2026-09-10T08:19:59	draft=r2355272253686908798	chars=4250	emoji=12	mode=summary
+2026-09-11 draft=r-9129005051074427548 html_chars=3700 emoji=yes upgrade=1
+2026-09-11 08:00 draft=r4795434974211954261 html_chars=4513 emoji=yes upgrade=1

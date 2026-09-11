@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.3" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>공시·연간재무를 2010년까지 (DART 한도 때문에 자정 이후, 이틀에 나눠) 2026-09-02</Description>
+    <URI>\DartOldBackfill</URI>
+  </RegistrationInfo>
+  <Principals>
+    <Principal id="Author">
+      <UserId>S-1-5-21-867816973-2190958012-3945894208-1001</UserId>
+      <LogonType>InteractiveToken</LogonType>
+    </Principal>
+  </Principals>
+  <Settings>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <ExecutionTimeLimit>PT5H</ExecutionTimeLimit>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <WakeToRun>true</WakeToRun>
+    <IdleSettings>
+      <Duration>PT10M</Duration>
+      <WaitTimeout>PT1H</WaitTimeout>
+      <StopOnIdleEnd>true</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <UseUnifiedSchedulingEngine>true</UseUnifiedSchedulingEngine>
+  </Settings>
+  <Triggers>
+    <TimeTrigger>
+      <StartBoundary>2026-09-03T00:05:00+09:00</StartBoundary>
+    </TimeTrigger>
+    <TimeTrigger>
+      <StartBoundary>2026-09-04T00:05:00+09:00</StartBoundary>
+    </TimeTrigger>
+  </Triggers>
+  <Actions Context="Author">
+    <Exec>
+      <Command>C:\Users\mrblue\AppData\Local\Programs\Python\Python313\python.exe</Command>
+      <Arguments>"C:\Users\mrblue\Claude\morning breifing_code\scripts\backfill_dart_old.py" --상한 18000</Arguments>
+      <WorkingDirectory>C:\Users\mrblue\Claude\morning breifing_code</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

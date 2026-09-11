@@ -1,0 +1,251 @@
+#!/usr/bin/env python3
+# ⚠️ docstring은 r"""(raw)로 둔다. 윈도 경로의 `\u`가 유니코드 이스케이프로 해석돼
+#    파일 전체가 SyntaxError가 되는 함정이 있다(2026-08-26 track_unmapped.py에서 겪음).
+r"""
+check_map_health.py — 가치사슬맵 건강검진 (2026-08-26 신설)
+
+두 가지를 본다. **둘 다 "조용히 틀리는" 종류라 사람이 알아채기 어렵다.**
+
+① **죽은 종목** — 상장폐지·합병으로 거래가 멈춘 종목이 맵에 남아 있는지.
+   2026-08-26에 `에이치디현대미포`가 **2025-12-12 이후 거래가 없는 채로 8개월간** 맵에
+   남아 있었다. 그 하나 때문에 `조선 본선` 섹터의 동조성이 0.371(무의미)로 찍혔고,
+   빼니 0.640(강함)이 됐다. **죽은 종목 하나가 섹터 판단 전체를 망가뜨린다.**
+   에러가 나지 않아서 — 시세 조회는 성공하고 옛날 값을 정상적으로 돌려준다 — 못 잡았다.
+
+② **섹터 동조성** — "같은 섹터"라는 말이 정보를 주는지.
+   섹터 내 평균 상관을 **서로 다른 섹터 무작위 쌍의 상관(기준선)**과 비교한다.
+   ⚠️ 기준선을 함께 재는 것이 핵심이다. 절대 상관 0.33은 언뜻 높아 보이지만
+   무작위가 0.343이면 **무작위보다 나쁜 값**이다. 절대값만 보면 이 판단을 못 한다.
+
+⚠️ **이 스크립트는 맵을 고치지 않는다.** 진단만 하고 사람과 `value-chain-map-updater`가 정한다.
+
+사용:
+    run-py.ps1 -Script check_map_health.py -Args @('--report')
+    run-py.ps1 -Script check_map_health.py -Args @('--report','--days','120')
+    run-py.ps1 -Script check_map_health.py -Args @('--stale-only')   # 죽은 종목만(빠름)
+"""
+import concurrent.futures as cf
+import itertools
+import io
+import json
+import os
+import random
+import statistics as st
+import sys
+from datetime import datetime
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import compute_ta as T          # noqa: E402  fetch_rows 재사용
+import fetch_stock as F         # noqa: E402  맵·기업코드 파서 재사용
+
+# 마지막 거래일이 시장 최신일보다 이만큼(달력일) 뒤처지면 "거래 정지/상장폐지 의심"으로 본다.
+# 연휴가 길어도 10일을 넘기지는 않으므로, 넘으면 정상 거래 종목이 아니다.
+#
+# ⚠️ **달력일로 재야 한다.** 처음엔 "관측된 서로 다른 마지막거래일들 중 몇 번째인가"로 셌는데,
+#    대부분 종목의 마지막거래일이 같으면 목록이 ['20251212','20260826'] 두 개뿐이라
+#    8개월 차이가 **"1칸 뒤처짐"**으로 계산돼 검출에 실패했다(2026-08-26 자체 검증에서 발견).
+#    다행히 "제거했던 죽은 종목을 도로 넣어 검출되는지" 테스트를 돌려서 잡았다.
+#    → 진단 코드는 **알려진 정답으로 반드시 한 번 돌려본다.** 0건은 "문제 없음"이 아니라
+#      "검출이 안 되고 있음"일 수도 있다.
+STALE_DAYS = 10
+DEFAULT_DAYS = 120
+MIN_SAMPLE = 60
+
+
+def _corr(a, b):
+    ma, mb = st.mean(a), st.mean(b)
+    num = sum((x - ma) * (y - mb) for x, y in zip(a, b))
+    da = sum((x - ma) ** 2 for x in a) ** 0.5
+    db = sum((y - mb) ** 2 for y in b) ** 0.5
+    return num / (da * db) if da and db else 0.0
+
+
+def _krx_이름표():
+    r"""**KRX 상장 목록에서 종목명 → 코드 표를 만든다** (2026-09-01 신설).
+
+    ⚠️ 왜 필요한가 — 이 스크립트는 `_load_corpcode()`(DART 코드)로 코드를 찾았는데,
+       **DART는 상장폐지 기업도 계속 들고 있고 코드가 KRX와 어긋나는 경우가 있다.**
+       2026-09-01 실측: `소프트캠프`를 DART 코드 `210610`으로 잡아 "가격데이터 없음 →
+       상장폐지 여부 확인"으로 보고했다. 실제 KRX 코드는 `258790`이고 그날 종가 4,745원에
+       정상 거래 중이었다. **살아 있는 종목을 죽었다고 보고하면 맵에서 멀쩡한 종목을 뺀다.**
+
+    ⚠️ **KRX 캐시가 없으면 빈 표를 돌려준다.** 그러면 예전처럼 DART 코드로만 돌아간다 —
+       검사가 멈추는 것보다 낫다. 대신 결과에 `_KRX대조` 로 그 사실을 남긴다.
+    """
+    import glob
+    try:
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        fs = sorted(glob.glob(os.path.join(base, "data", "krx-daily", "*.json")))
+        if not fs:
+            return {}, None
+        d = json.load(io.open(fs[-1], encoding="utf-8-sig"))
+        표 = {v["이름"]: k for k, v in (d.get("종목") or {}).items()}
+        return 표, d.get("기준일")
+    except Exception:
+        return {}, None
+
+
+def collect(days: int):
+    """맵 전 종목의 일간수익률과 마지막 거래일을 모은다."""
+    sec = F._load_map_sectors()
+    code2name, name2code = F._load_corpcode()
+    # ⚠️⚠️ **KRX 상장 목록을 먼저 본다.** DART 코드는 상장폐지 기업까지 들고 있어
+    #    살아 있는 종목을 "죽었다"고 보고한 사고가 있었다(2026-09-01 소프트캠프).
+    krx표, krx기준일 = _krx_이름표()
+    코드불일치 = []
+    tasks, unlisted = {}, []
+    for s, names in sec.items():
+        for n in names:
+            k = krx표.get(n)
+            c = k or name2code.get(n)
+            if k and name2code.get(n) and name2code[n] != k:
+                코드불일치.append({"섹터": s, "종목": n,
+                                   "KRX": k, "DART": name2code[n]})
+            if c:
+                tasks[(s, n)] = c
+            else:
+                # 비상장이라 코드가 없는 것. 실패가 아니라 정상이다(뉴스검색엔 쓰인다).
+                unlisted.append({"섹터": s, "종목": n})
+
+    def one(code):
+        rows = T.fetch_rows(code)[-(days + 1):]
+        if not rows:
+            # ⚠️ 시세 API가 **헤더만** 돌려주는 경우다. 에러가 아니라 빈 응답이라
+            #    그냥 두면 "조회 실패"로 묻힌다. 실제로는 **상장폐지된 종목**일 가능성이 높다
+            #    (2026-08-26 실측: 오스템임플란트·씨아이에스·소프트캠프 3종목이 여기 걸렸다).
+            #    죽은 종목에는 두 종류가 있다 — ①옛날 데이터가 남아 있는 것 ②데이터가 아예 없는 것.
+            return {"데이터없음": True}
+        closes = [float(r["close"]) for r in rows]
+        rets = [(closes[i] - closes[i - 1]) / closes[i - 1]
+                for i in range(1, len(closes)) if closes[i - 1]]
+        return {"마지막거래일": str(rows[-1]["date"]), "종가": closes[-1], "수익률": rets}
+
+    data, empty, failed = {}, [], []
+    with cf.ThreadPoolExecutor(max_workers=12) as ex:
+        futs = {ex.submit(one, c): k for k, c in tasks.items()}
+        for f in cf.as_completed(futs):
+            k = futs[f]
+            try:
+                r = f.result()
+            except Exception as e:
+                failed.append({"섹터": k[0], "종목": k[1], "코드": tasks[k],
+                               "사유": f"{type(e).__name__}: {e}"})
+                continue
+            if r.get("데이터없음"):
+                empty.append({"섹터": k[0], "종목": k[1], "코드": tasks[k]})
+            else:
+                data[k] = r
+    return sec, tasks, data, unlisted, empty, failed, 코드불일치, krx기준일
+
+
+def find_stale(data, tasks, empty):
+    """시장 최신 거래일 기준으로 뒤처진 종목을 찾는다.
+
+    ⚠️ 휴장일 달력을 쓰지 않는다. **맵 종목 전체의 최빈 마지막 거래일**을 시장 최신일로 본다 —
+    대부분의 종목은 정상 거래되므로 그게 곧 오늘(또는 직전 거래일)이다.
+    달력 파일에 의존하지 않으니 연휴·임시휴장에도 알아서 맞는다.
+    """
+    stale = [{**e, "마지막거래일": "없음", "뒤처짐일": None, "유형": "가격데이터 없음",
+              "조치": "상장폐지 여부 확인 후 맵에서 제거할 것"} for e in empty]
+    if not data:
+        return None, stale
+    counts = {}
+    for v in data.values():
+        counts[v["마지막거래일"]] = counts.get(v["마지막거래일"], 0) + 1
+    latest = max(counts, key=counts.get)
+    ld = datetime.strptime(latest, "%Y%m%d")
+    for (s, n), v in data.items():
+        behind = (ld - datetime.strptime(v["마지막거래일"], "%Y%m%d")).days
+        if behind >= STALE_DAYS:
+            stale.append({
+                "섹터": s, "종목": n, "코드": tasks[(s, n)],
+                "마지막거래일": v["마지막거래일"], "뒤처짐일": behind, "유형": "거래 멈춤",
+                "조치": "상장폐지·합병·거래정지 확인 후 맵에서 제거할 것",
+            })
+    stale.sort(key=lambda x: -(x["뒤처짐일"] or 10 ** 6))
+    return latest, stale
+
+
+def measure(sec, data, stale):
+    """섹터 동조성. 죽은 종목은 **빼고** 잰다 — 안 빼면 그 섹터가 통째로 왜곡된다."""
+    dead = {(x["섹터"], x["종목"]) for x in stale}
+    live = {k: v["수익률"] for k, v in data.items() if k not in dead}
+    if len(live) < 10:
+        return None, []
+    n = min(len(v) for v in live.values())
+    if n < MIN_SAMPLE:
+        return None, []
+    live = {k: v[-n:] for k, v in live.items()}
+
+    # 기준선: 서로 다른 섹터 종목 무작위 쌍. 시드 고정으로 실행마다 값이 흔들리지 않게 한다.
+    items = list(live.items())
+    random.seed(7)
+    base = []
+    for _ in range(3000):
+        (k1, v1), (k2, v2) = random.sample(items, 2)
+        if k1[0] != k2[0]:
+            base.append(_corr(v1, v2))
+    baseline = round(st.mean(base), 3) if base else None
+
+    out = []
+    for s in sorted(sec):
+        mem = [(k[1], v) for k, v in live.items() if k[0] == s]
+        if len(mem) < 2:
+            out.append({"섹터": s, "종목수": len(mem), "상관": None, "판정": "종목부족"})
+            continue
+        cs = [_corr(a[1], b[1]) for a, b in itertools.combinations(mem, 2)]
+        m = round(st.mean(cs), 3)
+        lift = round(m - baseline, 3)
+        verdict = ("강함" if lift >= 0.15 else "보통" if lift >= 0.08
+                   else "약함" if lift >= 0.03 else "무의미")
+        row = {"섹터": s, "종목수": len(mem), "상관": m, "기준선대비": lift, "판정": verdict}
+        if verdict == "무의미":
+            row["조치"] = ("`동조성 낮음` 표시를 붙이고 섹터 단위 추론(💡 섹터 참고·⚡ 섹터 강세)에 "
+                           "쓰지 않는다. 또는 이질 종목을 찾아 정리한다.")
+            # 어느 종목이 겉도는지까지 짚어준다 — "고쳐라"만으로는 손을 못 댄다.
+            odd = sorted(((round(st.mean([_corr(v, w) for m2, w in mem if m2 != nm]), 3), nm)
+                          for nm, v in mem))[:3]
+            row["이질종목"] = [{"종목": nm, "나머지와_평균상관": c} for c, nm in odd]
+        out.append(row)
+    out.sort(key=lambda r: (r["상관"] is None, -(r["상관"] or 0)))
+    return baseline, out
+
+
+def main():
+    argv = sys.argv[1:]
+    # ⚠️ 알 수 없는 인자는 **조용히 무시하지 않는다.** `--report`가 기본 동작이라
+    #    오타(`--reprot`)를 쳐도 리포트가 나와서 "먹혔다"고 착각하기 쉽다(2026-08-26 감사에서 발견).
+    KNOWN = {"--report", "--stale-only", "--days"}
+    unknown = [a for a in argv if a.startswith("--") and a not in KNOWN]
+    if unknown:
+        print(json.dumps({"_fatal_error": f"알 수 없는 인자: {unknown} (지원: {sorted(KNOWN)})"},
+                         ensure_ascii=False))
+        return
+    days = int(argv[argv.index("--days") + 1]) if "--days" in argv else DEFAULT_DAYS
+    sec, tasks, data, unlisted, empty, failed, 코드불일치, krx기준일 = collect(days)
+    latest, stale = find_stale(data, tasks, empty)
+
+    res = {
+        "기준거래일": latest,
+        "섹터수": len(sec),
+        "조회성공": len(data),
+        "죽은종목": stale,
+        "비상장": unlisted,     # 코드 없음 — 정상. 뉴스검색엔 쓰인다.
+        "조회실패": failed,
+        # ⚠️ **DART 코드와 KRX 코드가 다른 종목.** 비어 있어야 정상이다.
+        #    차 있으면 DART 쪽이 낡은 것이니 그대로 두고 KRX를 믿는다(2026-09-01).
+        "코드불일치": 코드불일치,
+        "_KRX대조": krx기준일 or "KRX 캐시 없음 — DART 코드로만 돌았다",
+    }
+    if "--stale-only" not in argv:
+        baseline, rows = measure(sec, data, stale)
+        res["무작위기준선"] = baseline
+        res["_기준선설명"] = ("서로 다른 섹터 종목 무작위 쌍의 평균 상관. 섹터 상관이 이 값을 "
+                              "못 넘으면 '같은 섹터'라는 사실이 아무 정보도 주지 않는다는 뜻이다.")
+        res["섹터동조성"] = rows
+    print(json.dumps(res, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()
+

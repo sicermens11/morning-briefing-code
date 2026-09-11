@@ -1,0 +1,56 @@
+{
+  "//": "VS Code가 자꾸 멎어서 넣었다 (2026-09-04).",
+  "//1": "원인: data 폴더에 파일이 44,800개인데 VS Code가 전부 실시간 감시하고 있었다.",
+  "//2": "flow-daily 4,105 · krx-daily 4,104 · dart-daily 4,104 · kind-time 4,103 ·",
+  "//3": "index-daily 4,103 · etf-krx 4,103 · naver-quarter 2,766 · dart-snap 7,953 ...",
+  "//4": "폴더를 하나씩 적다 넷을 빠뜨려서, data 전체를 감시에서 뺐다.",
+  "//5": "숨기는 게 아니다. 탐색기에 그대로 보이고 열 수도 있다. '감시'만 안 한다.",
+  "//6": "data는 스크립트가 쓰는 곳이라 VS Code가 지켜볼 이유가 없다.",
+
+  "files.watcherExclude": {
+    "**/data/**": true,
+    "**/__pycache__/**": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true
+  },
+
+  "//7": "검색(Ctrl+Shift+F)에서는 자료 JSON만 뺀다.",
+  "//8": ".md와 .jsonl(브리핑 기록·백테스트 기록)은 검색에 남겨둔다 — 자주 뒤진다.",
+  "search.exclude": {
+    "**/data/**/*.json": true,
+    "**/data/_labs/**": true,
+    "**/data/_search/**": true,
+    "**/data/_test/**": true,
+    "**/data/card-copy/**": true,
+    "**/data/briefings/**": true,
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/*.bak-*": true
+  },
+
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true
+  },
+
+  "//9": "AGENDA.md가 623KB다. 열 때 버벅이지 않게 한다.",
+  "editor.largeFileOptimizations": true,
+  "editor.minimap.enabled": false,
+  "editor.wordWrap": "on",
+  "editor.stickyScroll.enabled": false,
+
+  "//10": "JSON이 수만 개라 자동 검사·스키마 내려받기를 끈다.",
+  "json.maxItemsComputed": 5000,
+  "json.schemaDownload.enable": false,
+
+  "//11": "파이썬 파일이 100개 넘어 자동 색인이 무겁다. data는 아예 안 본다.",
+  "python.analysis.exclude": ["**/data/**", "**/__pycache__/**", "**/node_modules", "**/.*"],
+  "python.analysis.indexing": false,
+
+  "//12": "git이 매번 44,800개 변경을 훑지 않게 한다. 수동 새로고침은 그대로 된다.",
+  "git.autorefresh": false,
+  "git.autofetch": false,
+
+  "//13": "터미널 스크롤 기록을 줄인다 (긴 시험 출력이 쌓인다).",
+  "terminal.integrated.scrollback": 5000
+}
