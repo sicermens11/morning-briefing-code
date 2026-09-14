@@ -36,7 +36,14 @@ function 판($이름, $설명, $환경) {
 # -- 0 . 앞 시험이 돌고 있으면 기다린다 -----------------------------
 적기 "[0] 앞 시험 확인"
 $분 = 0
-while ((Get-Process python -ErrorAction SilentlyContinue) -and ($분 -lt 180)) {
+# ⚠️ **파이썬이면 무조건 기다리면 안 된다** (2026-09-14).
+#    KrxArrivalFine(11MB · KRX 도착 관측)에 막혀 판이 안 돌았다.
+#    막아야 하는 건 **9GB 짜리 gate7_lab 이 둘 겹치는 것**이다
+function 큰파이썬 {
+    @(Get-Process python -ErrorAction SilentlyContinue |
+      Where-Object { $_.WorkingSet64 -gt 1GB }).Count
+}
+while ((큰파이썬) -gt 0 -and ($분 -lt 180)) {
     Start-Sleep -Seconds 60; $분 = $분 + 1
 }
 적기 "[0] $분 분 기다림"

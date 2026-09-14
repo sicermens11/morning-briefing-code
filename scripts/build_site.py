@@ -73,6 +73,15 @@ body{font-family:__MONO__}
 .top,.top *,.pad,.pad *,.scrollwrap *{word-wrap:break-word;overflow-wrap:break-word}
 [hidden]{display:none!important}
 .view{min-height:100vh;display:flex;flex-direction:column}
+/* ⭐⭐ **퀀트 화면만 어둡다** (2026-09-14 디자인 지시).
+   가로 요약 8장은 크림색 그대로다 — `#qt` 안에서만 덮는다.
+   ⚠️ 전에는 종목 블록만 어둡고 카드가 크림색이라 **종목명이 안 보였다** */
+#qt{background:#12100d;color:#d3ccbe}
+#qt .top{background:#12100d;border-bottom:1px solid #3a342b}
+#qt .tbtn{background:#24201a;border-color:#3f382d;color:#d3ccbe}
+#qt .tbtn:hover{border-color:#d4ab45;color:#f2efe8}
+#qt .top .now{color:#f2efe8}
+#qt .rail::-webkit-scrollbar-thumb{background:#3f382d}
 .pad{max-width:760px;margin:0 auto;padding:0 20px;width:100%;box-sizing:border-box}
 
 /* ── 표지 ── */
@@ -701,6 +710,25 @@ def _특징(후보):
     return 쓴곳
 
 
+# ⭐⭐⭐ **퀀트 전용 색표** (2026-09-14 디자인 지시).
+#    퀀트 화면은 **배경 전체가 어둡다.** 종목 블록만 어둡고 카드가 크림색이라
+#    **종목명이 안 보였다** (어두운 블록 + 어두운 글자).
+#    ⚠️ 가로 요약 8장은 **크림색 그대로다** — 퀀트만 어둡다
+QC = {
+    "쪽": "#12100d",      # 페이지 배경
+    "카드": "#1a1713",    # 카드 바탕
+    "블록": "#24201a",    # 종목 블록
+    "블록선": "#3f382d",  # 종목 블록 테두리
+    "이름": "#f2efe8",    # 큰 글자 · 이름
+    "본문": "#d3ccbe",
+    "보조": "#a49c8e",    # 보조 · 라벨
+    "금": "#d4ab45",      # 금색 강조
+    "빨": "#ef7a6c",      # 낙폭 · 경고
+    "파": "#7fa6ff",
+    "선": "#3a342b",      # 구분선
+}
+
+
 def quant_view(q):
     """퀀트 후보 — 1080x1350 카드 2장 (2026-09-04)
 
@@ -778,6 +806,13 @@ def quant_view(q):
     확정 = _동.get("예상시장갭") is not None
     잰때 = str(_동.get("잰시각") or "")[11:16]
     살것 = [x for x in 후보 if x.get("규칙매수")][:4] if 확정 else []
+    # ⭐⭐⭐ **제목·목록·상태 칩이 같은 집합을 가리킨다** (2026-09-14 디자인 지시).
+    #    전에는 제목이 `살것` 을 세는데 화면은 `후보[:4]` 를 그렸다 —
+    #    사는 종목이 앞 4개에 없으면 제목은 「2개」인데 넷 다
+    #    「안 샀습니다」가 됐다. 9/14 아침 화면이 그랬다. **돈이 걸린 자리다**
+    #      사는 날    -> 실제 매수 종목만
+    #      안 사는 날 -> 후보 상위 4개
+    보일것 = 살것 if 살것 else 후보[:4]
 
     # ⚠️⚠️ **글은 언제나 왼쪽 80 · 오른쪽 1000** (2026-09-11 사용자 지시).
     #    「각 페이지 왼쪽에서 시작하는 지점, 오른쪽에서 끝나는 지점 맞춰.
@@ -797,7 +832,7 @@ def quant_view(q):
     #       이 지시가 더 나중이고 더 분명하다 — 되돌렸다
     _선, _안 = 9, 30
 
-    def 박스(속, 바탕="#ffffff99", 선=None, 글=28, 줄=1.75, 둥글=20):
+    def 박스(속, 바탕="#1f1b16", 선=None, 글=28, 줄=1.75, 둥글=20):
         return (f'<div style="border-left:{_선}px solid {선 or "transparent"};'
                 f'background:{바탕};border-radius:{둥글}px;'
                 f'padding:26px {_안}px;'
@@ -815,9 +850,9 @@ def quant_view(q):
         """
         return (f'<section data-label="{딱지}" '
                 f'style="width:{CARD_W}px;height:{CARD_H}px;'
-                f'background:{C["card"]};border-radius:26px;box-sizing:border-box;'
+                f'background:{QC["카드"]};border-radius:26px;box-sizing:border-box;'
                 f'padding:80px;overflow:hidden;font-family:{SANS};'
-                f'color:{C["text"]};display:flex;flex-direction:column">'
+                f'color:{QC["이름"]};display:flex;flex-direction:column">'
                 f'<div style="display:flex;flex-direction:column;'
                 f'justify-content:space-between;width:100%;height:100%;'
                 f'box-sizing:border-box">'
@@ -863,30 +898,36 @@ def quant_view(q):
         f'<span style="background:{_bg};color:{_fg};border-radius:5px;'
         f'padding:2px 11px;font-size:22px;font-weight:800;'
         f'margin-right:6px">{_라}</span>'
-        for _라, _bg, _fg in (("시장", "#e8f2fa", "#1a5c8a"),
-                              ("낙폭", "#f0f0f0", "#444"),
-                              ("섹터", "#f3eefa", "#5b3a8a")))
+        for _라, _bg, _fg in (("시장", "#1b2536", "#7fa6ff"),
+                              ("낙폭", "#26231d", "#a49c8e"),
+                              ("섹터", "#231d2e", "#b89ae8")))
     # ⚠️⚠️ 딱지 설명은 **목록보다 먼저** 나와야 한다 (2026-09-11 지시).
     #    아래에 두면 종목을 다 읽은 **뒤에야** 딱지 뜻을 알게 된다 —
     #    「첫페이지만 보면 무슨 뜻인지 모르겠네」. 위1 로 옮겼다
-    위1 = (f'<div style="font-family:{MONO};font-size:26px;color:{C["sub"]};'
+    위1 = (f'<div style="font-family:{MONO};font-size:26px;color:{QC["금"]};'
            # ⭐ **디자인 답 B-4** — 전환을 **여기서 한 번에** 알린다.
            #    아래 종목 줄은 자리·라벨·크기가 그대로라 조용히 값만 바뀐다
            f'letter-spacing:.18em;font-weight:700">QUANT · '
            + ("08:50 확정" if 확정 else "08:00 후보") + '</div>'
            f'<div style="font-size:62px;font-weight:800;letter-spacing:-.035em;'
            f'margin-top:16px;line-height:1.1">{_제목}</div>'
-           + (f'<div style="font-size:31px;color:{C["sub"]};font-weight:700;'
+           + (f'<div style="font-size:31px;color:{QC["금"]};font-weight:700;'
               f'margin-top:12px">{아침}에 볼 목록'
-              + (f'<span style="color:{C["faint"]};font-weight:400"> · '
-                 f'{len(후보)}개 중 많이 걸린 순서로 4개</span>'
+              # ⭐ **목록이 무엇인지 그대로 적는다** (2026-09-14).
+              #    「4개」가 박혀 있어 사는 날에는 틀렸다 —
+              #    그날 목록은 **실제 매수 종목**이고 개수도 다르다
+              + (f'<span style="color:{QC["보조"]};font-weight:400"> · '
+                 + (f'{len(후보)}개 중 **규칙이 사라고 한 {len(보일것)}개**'
+                    if 살것 else
+                    f'{len(후보)}개 중 많이 걸린 순서로 {len(보일것)}개')
+                 + '</span>'
                  # ⚠️ 확정 뒤에도 남긴다 — 08:50 이후 이 줄이 사라져
                  #    「무슨 목록인지」가 화면에서 없어졌다 (2026-09-11 지적)
-                 if len(후보) > 4 else '')
+                 if len(후보) > len(보일것) else '')
               + '</div>' if 아침 else '')
            # ⭐ **딱지 뜻을 목록 바로 위에** 놓는다 (2026-09-11 지시)
            + ((f'<div style="margin-top:14px;font-size:25px;'
-               f'color:{C["faint"]};line-height:1.5">{_딱지뜻}'
+               f'color:{QC["보조"]};line-height:1.5">{_딱지뜻}'
                f'<span style="margin-left:6px">딱지는 <b>그 종목이 어느 '
                f'규칙으로 걸렸는지</b>입니다. 뜻은 2장에</span></div>')
               if (후보 and not 확정) else '')
@@ -898,8 +939,8 @@ def quant_view(q):
     if 뒤팔것:
         _이2 = " · ".join((x.get("이름") or x.get("종목코드", ""))
                           for x in 뒤팔것)
-        위1 += (f'<div style="margin-top:18px;background:#fdf2f2;'
-                f'border-left:9px solid #c0392b;border-radius:20px;'
+        위1 += (f'<div style="margin-top:18px;background:#2a1c1a;'
+                f'border-left:9px solid #ef7a6c;border-radius:20px;'
                 f'padding:24px 30px;font-size:30px;line-height:1.6">'
                 f'🔴 <b>오늘 나머지 반 정리: {_이2}</b><br>'
                 f'<span style="font-size:26px">90거래일이 지났습니다. '
@@ -907,8 +948,8 @@ def quant_view(q):
                 f'</span></div>')
     if 팔것:
         _이 = " · ".join((x.get("이름") or x.get("종목코드", "")) for x in 팔것)
-        위1 += (f'<div style="margin-top:18px;background:#fdf2f2;'
-                f'border-left:9px solid #c0392b;border-radius:20px;'
+        위1 += (f'<div style="margin-top:18px;background:#2a1c1a;'
+                f'border-left:9px solid #ef7a6c;border-radius:20px;'
                 f'padding:24px 30px;'
                 f'font-size:30px;line-height:1.6">'
                 f'🔴 <b>오늘 반만 정리: {_이}</b><br>'
@@ -919,18 +960,18 @@ def quant_view(q):
         _곧 = " · ".join(
             (x.get("이름") or x.get("종목코드", "")) + " " + str(x["남은날"]) + "일"
             for x in 보유 if (x.get("남은날") or 99) <= 3)
-        위1 += (f'<div style="margin-top:18px;background:#fffdf5;'
-                f'border-left:9px solid #e67e22;border-radius:20px;'
+        위1 += (f'<div style="margin-top:18px;background:#241f14;'
+                f'border-left:9px solid #d4ab45;border-radius:20px;'
                 f'padding:22px 30px;'
                 f'font-size:27px;line-height:1.6">'
                 f'🟡 곧 정리: {_곧}</div>')
     elif 보유:
         위1 += (f'<div style="margin-top:18px;font-size:25px;'
-                f'color:{C["faint"]}">들고 있는 것 {len(보유)}개 · '
+                f'color:{QC["보조"]}">들고 있는 것 {len(보유)}개 · '
                 f'<b>반은 +15% · 반은 +40%</b> 지정가가 걸려 있어야 합니다</div>')
     if 난 >= 1:
-        위1 += (f'<div style="margin-top:18px;background:#fdf2f2;'
-                f'border-left:9px solid #c0392b;border-radius:20px;'
+        위1 += (f'<div style="margin-top:18px;background:#2a1c1a;'
+                f'border-left:9px solid #ef7a6c;border-radius:20px;'
                 f'padding:22px 30px;font-size:27px;'
                 f'line-height:1.55">⚠️ <b>오늘 만든 목록이 아닙니다</b> '
                 f'({찍} · {난}일 전). 매매하지 마세요.</div>')
@@ -953,27 +994,27 @@ def quant_view(q):
             f'<div style="display:flex;flex-direction:column;'
             f'justify-content:flex-start;gap:60px;height:100%">'
             f'<div><div style="font-size:96px;font-weight:800;'
-            f'letter-spacing:-.04em;line-height:1;color:{C["gold"]}">0개</div>'
+            f'letter-spacing:-.04em;line-height:1;color:{QC["금"]}">0개</div>'
             f'<div style="font-size:33px;line-height:1.6;margin-top:18px;'
-            f'color:{C["text2"]};word-break:keep-all">'
+            f'color:{QC["본문"]};word-break:keep-all">'
             f'조건을 통과한 종목이 없습니다. 열흘에 세 번쯤 있습니다. '
             f'고장이 아닙니다.</div></div>'
             f'<div><div style="font-size:25px;font-weight:700;'
-            f'color:#8a7038">먼저 지나야 하는 문</div>'
+            f'color:#d4ab45">먼저 지나야 하는 문</div>'
             f'<div style="font-size:33px;line-height:1.6;margin-top:8px;'
-            f'color:{C["text2"]};word-break:keep-all">'
+            f'color:{QC["본문"]};word-break:keep-all">'
             + " · ".join(_조건들) + '</div></div>'
             f'<div><div style="font-size:25px;font-weight:700;'
-            f'color:#8a7038">그 다음</div>'
+            f'color:#d4ab45">그 다음</div>'
             f'<div style="font-size:33px;line-height:1.6;margin-top:8px;'
-            f'color:{C["text2"]};word-break:keep-all">'
+            f'color:{QC["본문"]};word-break:keep-all">'
             f'낙폭 · 섹터 · 시장 <b>셋 중 하나</b>에 걸려야 합니다.</div></div>'
             f'</div>')
 
     # ⚠️⚠️ **2026-09-11** — 카드는 1080x1350 **고정 + overflow:hidden** 이라
     #    40개를 넣으면 **잘린다**. 실제로 화면에서 잘려 나갔다 (사용자 지적).
     #    => **상위 4종목까지만** 쓴다. 하루에 사는 것도 최대 4종목이다
-    for n, x in enumerate(후보[:4]):
+    for n, x in enumerate(보일것):
         업 = _업종(x["종목코드"])
         잉, 부 = x.get("잉여금비율"), x.get("부채비율")
         수 = []
@@ -987,12 +1028,12 @@ def quant_view(q):
             f'padding:2px 12px;font-size:22px;font-weight:800;'
             f'margin-left:9px">{_라}</span>'
             for _라, _bg, _fg, _on in (
-                ("시장", "#e8f2fa", "#1a5c8a", x.get("시장규칙")),
-                ("낙폭", "#f0f0f0", "#444", x.get("기존규칙")),
-                ("섹터", "#f3eefa", "#5b3a8a", x.get("섹터규칙")))
+                ("시장", "#1b2536", "#7fa6ff", x.get("시장규칙")),
+                ("낙폭", "#26231d", "#a49c8e", x.get("기존규칙")),
+                ("섹터", "#231d2e", "#b89ae8", x.get("섹터규칙")))
             if _on)
         if _짧:
-            _딱 += (f'<span style="background:#fdf0e4;color:#a35a17;'
+            _딱 += (f'<span style="background:#2b2519;color:#d4ab45;'
                     f'border-radius:5px;padding:2px 12px;font-size:22px;'
                     f'font-weight:800;margin-left:9px">{_짧}</span>')
 
@@ -1008,13 +1049,13 @@ def quant_view(q):
         # ⚠️⚠️ **확정 전/후가 같은 자리를 쓴다** (2026-09-11 지시).
         # ⭐⭐⭐ **디자인 답 B-1·B-2·B-4** (2026-09-11):
         #    ⓐ 라벨은 **세 상태 모두 같다** — 자리·말·색이 안 흔들려야 조용한 전환
-        #    ⓑ 색도 세 상태 모두 **금색**. 확정 전 파랑(#1a5c8a)은 버렸다 —
+        #    ⓑ 색도 세 상태 모두 **금색**. 확정 전 파랑(#7fa6ff)은 버렸다 —
         #       「파랑까지 바뀌면 조용한 전환이 아니다」
         #    ⓒ 상태는 **오른쪽 끝 칩**으로만 가른다. 흐리게 쓰는 건 칩뿐이다
-        _갭말 = (f'<span style="display:block;font-size:21px;color:{C["faint"]};'
+        _갭말 = (f'<span style="display:block;font-size:21px;color:{QC["보조"]};'
                  f'font-family:{MONO}">상대갭 {x["상대갭"]:+.2f}%p</span>'
                  if x.get("상대갭") is not None else '')
-        _위라, _위색 = "문턱가 · 이 값 아래여야 산다", "#8a7038"
+        _위라, _위색 = "문턱가 · 이 값 아래여야 산다", "#d4ab45"
         if not 확정:
             _위값 = "~".join(f"{_v:,}" for _v in R.매수범위(x["어제종가"])) + "원"
             # ⚠️⚠️ **이 한 줄을 빼지 마라.** 문턱가는 전날 종가 근처가 아니라
@@ -1029,14 +1070,14 @@ def quant_view(q):
                        if x.get("주문가") else "")
                 _칩 = ('<span style="display:inline-block;border-radius:6px;'
                        'padding:3px 12px;font-size:21px;font-weight:800;'
-                       'background:#fbeceb;color:#c0392b">산다</span>')
+                       'background:#2a1c1a;color:#ef7a6c">산다</span>')
             else:
                 _작 = "넘겨서 안 샀습니다"
                 _칩 = ('<span style="display:inline-block;border-radius:6px;'
                        'padding:3px 12px;font-size:21px;font-weight:800;'
-                       f'background:#f2efe8;color:{C["faint"]}">안 산다</span>')
+                       f'background:#2b2519;color:{QC["보조"]}">안 산다</span>')
         _위끝 = ((f'<span style="display:block;font-size:21px;'
-                  f'color:{C["faint"]};font-family:{MONO}">{_작}</span>')
+                  f'color:{QC["보조"]};font-family:{MONO}">{_작}</span>')
                  if _작 else "") + (_갭말 if 확정 else "")
         _오른위 = (f'<span style="margin-left:auto;text-align:right;'
                    f'white-space:nowrap">'
@@ -1050,122 +1091,114 @@ def quant_view(q):
                       f'{_위값}</span>' if _위값 else '')
                    + _위끝 + '</span>')
 
+        # ⭐⭐⭐ **QUANT-Q1-REFLOW.md (2026-09-14) — 종목 블록 3줄**
+        #    전에는 둘째 줄에 다 넣어 **1,018px** 이 920px 칸에서 잘렸다.
+        #    글자를 줄인 게 아니라 **줄을 바꿨다.** 실측 블록 176px x 4 = 704
+        #    ⚠️ 상대갭은 **1줄**에 둔다 — 3줄에 두면 보조 문구가 눌려 접힌다
+        _낙 = (f'<span style="flex:none;margin-left:14px;white-space:nowrap">'
+               f'<span style="font-size:24px;color:#a49c8e">20일 낙폭</span> '
+               f'<span style="font-size:32px;font-weight:800;color:#ef7a6c;'
+               f'font-family:{MONO}">{x["20일낙폭"]:.1f}%</span></span>')
+        _상대 = (f'<span style="flex:none;margin-left:auto;font-size:23px;'
+                 f'color:#a49c8e;white-space:nowrap;font-family:{MONO}">'
+                 f'상대갭 {x["상대갭"]:+.2f}%p</span>'
+                 if x.get("상대갭") is not None else
+                 '<span style="margin-left:auto"></span>')
+        _줄1 = (f'<div style="display:flex;align-items:baseline;'
+                f'white-space:nowrap">'
+                f'<span style="flex:none;font-size:34px;font-weight:700;'
+                # ⭐ **색을 박는다** (2026-09-14) — 물려받으면 어두운 블록에
+                #    어두운 글자로 들어가 **안 보인다**
+                f'letter-spacing:-.02em;color:#f2efe8">{_esc(x["이름"])}</span>'
+                + (f'<span style="flex:none;font-size:26px;font-weight:700;'
+                   f'color:#d3ccbe;margin-left:11px">{_esc(업)}</span>'
+                   if 업 else '')
+                + f'<span style="flex:none;font-family:{MONO};font-size:23px;'
+                  f'color:#a49c8e;margin-left:9px">{x["종목코드"]}</span>'
+                + _상대 + _낙 + '</div>')
+        _줄2 = ('<div style="display:flex;align-items:baseline;gap:18px;'
+                'margin-top:10px;white-space:nowrap">'
+                + "".join(
+                    f'<span style="flex:none">'
+                    f'<span style="font-size:23px;color:#a49c8e">{_라}</span> '
+                    f'<span style="font-size:26px;font-weight:800;'
+                    f'color:#f2efe8;font-family:{MONO}">{_값}</span></span>'
+                    for _라, _값 in _칸)
+                + (f'<span style="flex:none;margin-left:auto">{_딱}</span>'
+                   if _딱 else '')
+                + '</div>')
+        _줄3 = (f'<div style="display:flex;align-items:baseline;gap:12px;'
+                f'margin-top:11px;padding-top:11px;'
+                f'border-top:1px solid #3f382d;white-space:nowrap">'
+                f'<span style="flex:none;font-size:23px;font-weight:700;'
+                f'color:#d4ab45">{_위라}</span>'
+                f'<span style="flex:none;font-size:29px;font-weight:800;'
+                f'color:#f2efe8;font-family:{MONO}">{_위값}</span>'
+                + (f'<span style="flex:1;min-width:0;font-size:21px;'
+                   f'color:#a49c8e;overflow:hidden;text-overflow:ellipsis">'
+                   f'{_작}</span>' if _작 else '<span style="flex:1"></span>')
+                + (f'<span style="flex:none">{_칩}</span>' if _칩 else '')
+                + '</div>')
         가1.append(
-            # ⭐⭐ **`flex:1 1 0` 이 네 박스를 같은 높이로 만든다** (2026-09-11).
-            #    높이를 px 로 박으면 후보 수가 달라지는 날 또 깨진다.
-            #    남는 자리를 똑같이 나눠 가지므로 **몇 개든 항상 같은 높이**다
-            f'<div style="flex:1 1 0;min-height:0;overflow:hidden;'
-            f'background:#ffffff99;border-radius:20px;'
-            f'padding:13px 26px;box-sizing:border-box;'
-            # ⚠️ 내용이 박스 **위쪽에 붙어** 보였다 (2026-09-11 지적).
-            #    `justify-content:center` 는 넘칠 때만 가운데가 된다 —
-            #    `margin:auto 0` 로 **남는 자리를 위아래로 똑같이** 나눈다
-            f'display:flex;flex-direction:column;justify-content:center">'
-            f'<div style="margin:auto 0;width:100%">'
-            # ── 윗줄 · 이름 / 업종 / 코드 / 딱지 …… **매수 상한** ──
-            #    ⚠️⚠️ **2026-09-11 지시** — 20일 낙폭을 한 칸 아래로 내리고,
-            #       그 자리(오른쪽 위)에 **08:50 에 걸 값**을 쓴다.
-            #       사용자: 「**5분에 인간이 계산하고 이럴 시간 없고**,
-            #        아예 매수 적정 범위를 첫페이지에 써주는 게 좋을 것 같아」
-            #    ⚠️ 전날 종가 **근처가 아니다.** 3.5%p 아래다 —
-            #       안 밝히면 사람이 비싸게 산다
-            # ⚠️ `baseline` 이면 작은 글자(업종·코드·딱지)가 큰 이름의
-            #    **밑선에 맞춰 내려가** 가운데가 아닌 것처럼 보인다
-            #    (2026-09-11 지적) -> `center` 로 세로 가운데를 맞춘다
-            f'<div style="display:flex;align-items:center">'
-            f'<span style="font-size:36px;font-weight:800;'
-            f'letter-spacing:-.025em">{_esc(x["이름"])}</span>'
-            + (f'<span style="font-size:25px;font-weight:700;color:{C["sub"]};'
-               f'margin-left:11px">{_esc(업)}</span>' if 업 else '')
-            + f'<span style="font-family:{MONO};font-size:22px;'
-              f'color:{C["faint"]};margin-left:9px">{x["종목코드"]}</span>'
-            + _딱
-            # ⭐⭐ **매수 적정 범위** (2026-09-11 지시).
-            #    문턱가 = 어제종가 x (1 + (중앙갭 + -3.5)/100) 인데
-            #    중앙갭은 08:50 에야 안다. 실측으로 **열에 아홉 날이
-            #    -0.40% ~ +0.40%** 라 그 구간을 범위로 준다 (rule_def.매수범위)
-            + _오른위
-            + '</div>'
-            # ── 옅은 선 — 「무엇인가」와 「숫자」를 가른다 ──
-            + f'<div style="border-top:1px solid {C["line"]};'
-              f'margin:9px 0 7px"></div>'
-            # ── 아랫줄 · 라벨 + 값 네 칸 …… 오른쪽에 **20일 낙폭** ──
-            + '<div style="display:flex;align-items:flex-end;gap:30px">'
-            + "".join(
-                f'<div><div style="font-size:21px;color:{C["faint"]};'
-                f'font-weight:700;letter-spacing:-.01em">{_라}</div>'
-                f'<div style="font-family:{MONO};font-size:25px;'
-                f'font-weight:800;margin-top:1px">{_값}</div></div>'
-                for _라, _값 in _칸)
-            + f'<div style="margin-left:auto;text-align:right">'
-              f'<div style="font-size:21px;color:{C["faint"]};'
-              f'font-weight:700">20일 낙폭</div>'
-              f'<div style="font-size:29px;font-weight:800;color:#c0392b;'
-              f'font-family:{MONO};line-height:1.02">'
-              f'{x["20일낙폭"]:.1f}%</div></div>'
-            + '</div>'
-            + (f'<div style="font-size:23px;color:{C["sub"]};margin-top:9px">'
-               f'→ {len(후보)}종목 중 {특[x["종목코드"]][0]}</div>'
-               if (특.get(x["종목코드"]) and not 확정
-                   and len(후보[:4]) <= 2) else '')
-            # ⚠️ 산다/안 산다는 **오른쪽 위**로 옮겼다 (2026-09-11)
-            + '</div></div>')
+            f'<div style="flex:none;background:#24201a;'
+            f'border:1px solid #3f382d;border-radius:16px;'
+            f'padding:14px 22px;box-sizing:border-box'
+            + ('' if n == 0 else ';margin-top:12px') + '">'
+            + _줄1 + _줄2 + _줄3 + '</div>')
 
     # ⚠️ 매수 상한은 **시장 보합 기준**이다. 시장이 같이 빠지면 더 내려간다
-    _상한말 = ((f'<div style="font-size:25px;color:#1a3a52;line-height:1.5;'
-                f'margin-bottom:10px;padding:8px 14px;background:#eef5fb;'
+    _상한말 = ((f'<div style="font-size:25px;color:#7fa6ff;line-height:1.5;'
+                f'margin-bottom:10px;padding:8px 14px;background:#1b2536;'
                 f'border-radius:11px"><b>매수 적정 범위</b>는 08:50에 정해질 '
                 f'값이 들어올 자리입니다 (열에 아홉 날 기준). 시장이 더 많이 '
                 f'빠져 있으면 <b>이보다 낮아집니다.</b> 반은 +15%, 반은 +40%에 '
                 f'팝니다.</div>')
                if (후보 and not 확정) else '')
 
-    _팔계획 = ((f'<div style="font-size:26px;color:{C["sub"]};line-height:1.5;'
+    _팔계획 = ((f'<div style="font-size:26px;color:{QC["금"]};line-height:1.5;'
                 # ⚠️ 두 줄이면 아래 칸이 236px 이 되어 가운데가 21px 잘린다
                 f'margin-bottom:14px">네 종목 <b>모두 같습니다</b>. '
                 f'<b>반은 +15%</b>, <b>나머지 반은 +40%</b>에 팝니다</div>')
                if (후보 and not 확정) else '')
 
-    아1 = (_상한말 + ((f'<div style="background:#fdf2f2;border-left:9px solid #c0392b;'
+    아1 = (_상한말 + ((f'<div style="background:#2a1c1a;border-left:9px solid #ef7a6c;'
             f'border-radius:20px;padding:22px 30px;'
             f'font-size:29px;line-height:1.6">'
-            f'⚠️⚠️ <b>09:01에 체결 안 된 주문을 반드시 취소하세요.</b><br>'
-            f'그냥 두면 장중에 체결되는데, 그렇게 산 경우는 '
-            f'<b>수익이 6분의 1</b>이었습니다.</div>') if (확정 and 살것) else
-           (f'<div style="background:#ffffff99;border-left:9px solid {C["line"]};'
+            # ⭐ **한 줄** (2026-09-14 디자인 ②) — 두 줄이면 아래 여백이 45px 로 죽는다
+            f'⚠️⚠️ <b>09:01에 체결 안 된 주문은 반드시 취소</b> '
+            f'(장중 체결분은 수익 1/6)</div>') if (확정 and 살것) else
+           (f'<div style="background:#1f1b16;border-left:9px solid {QC["선"]};'
             f'border-radius:20px;padding:22px 30px;'
             f'font-size:29px;line-height:1.6">'
-            f'{잰때}에 예상체결가로 확인한 결과 <b>상대갭 3.5%p를 넘는 것이 '
-            f'없었습니다.</b> 아무것도 사지 않는 것도 규칙대로 한 것입니다.</div>'
+            # ⭐ 「상대갭 … 없었습니다」는 **위 리드에 이미 있다** — 각주에서 뺐다
+            f'<b>아무것도 사지 않는 것도 규칙대로</b> 한 것입니다.</div>'
             ) if 확정 else
-           (f'<div style="background:#fdf2f2;border-left:9px solid #c0392b;'
+           (f'<div style="background:#2a1c1a;border-left:9px solid #ef7a6c;'
             f'border-radius:20px;padding:22px 30px;'
             f'font-size:29px;line-height:1.6">'
             # ⚠️ 「08:50 이후에 매수 적정 범위가 표시됩니다」는 **거꾸로**다.
             #    범위는 **08:50 전**에 미리 보여 주는 것이고, 08:50이 되면
             #    범위가 사라지고 **정확한 지정가 한 값**으로 바뀐다 (2026-09-11)
-            f'⚠️ 아직 <b>「살 종목」이 아닙니다.</b> 위 범위는 '
-            f'<b>미리 계산해 둔 자리</b>이고, <b>08:50</b>에 예상체결가를 보고 '
-            f'<b>살지와 정확한 지정가</b>가 정해집니다.</div>') if 후보 else
-           (f'<div style="background:#ffffff99;border-left:9px solid {C["line"]};'
+            f'⚠️ 아직 <b>「살 종목」이 아닙니다</b> · '
+            f'<b>08:50</b>에 살지와 지정가가 정해집니다</div>') if 후보 else
+           (f'<div style="background:#1f1b16;border-left:9px solid {QC["선"]};'
             f'border-radius:20px;padding:22px 30px;'
             f'font-size:29px;line-height:1.6">'
-            f'아무것도 사지 않는 것도 <b>규칙대로 한 것</b>입니다. '
-            f'억지로 살 것을 찾지 않습니다.</div>'))
+            f'아무것도 사지 않는 것도 <b>규칙대로 한 것</b>입니다</div>'))
            + f'<div style="display:flex;align-items:baseline;margin-top:20px">'
-           f'<span style="font-size:27px;color:{C["sub"]};font-weight:700">'
+           f'<span style="font-size:27px;color:{QC["금"]};font-weight:700">'
            f'넘기면 <b>어떻게 뽑았는지</b> 나옵니다 →</span>'
            f'<span style="margin-left:auto;font-family:{MONO};font-size:24px;'
-           f'color:{C["faint"]};letter-spacing:.14em">1 / 4</span></div>')
+           f'color:{QC["보조"]};letter-spacing:.14em">1 / 4</span></div>')
 
     # ══ 2장 · 안내와 주의사항 ══
-    위2 = (f'<div style="font-family:{MONO};font-size:26px;color:{C["sub"]};'
+    위2 = (f'<div style="font-family:{MONO};font-size:26px;color:{QC["금"]};'
            f'letter-spacing:.18em;font-weight:700">HOW THEY WERE PICKED</div>'
            f'<div style="font-size:56px;font-weight:800;letter-spacing:-.035em;'
            f'margin-top:16px;line-height:1.12">어떻게 뽑았나</div>'
            # ⚠️ 본문에 있던 설명을 **머리말로** 올렸다 (2026-09-11).
            #    가운데 칸을 비워 「셋 중 하나」를 같은 장에 들인다
-           f'<div style="font-size:27px;color:{C["sub"]};margin-top:12px;'
+           f'<div style="font-size:27px;color:{QC["금"]};margin-top:12px;'
            f'line-height:1.55">브리핑은 뉴스를 읽는 <b>이야기</b>, 여기는 '
            f'<b>재무제표와 주가만 보는 기계 규칙</b>이라 종목이 서로 다른 것이 '
            f'정상입니다. 찾는 것은 하나, <b>번 돈을 착실히 쌓아온 작은 회사가 '
@@ -1190,12 +1223,12 @@ def quant_view(q):
                     or (v[1] is not None and v[1] <= -10))]
         _줄9 = []
         for _라, _bg, _fg, _n, _말 in (
-                ("시장", "#e8f2fa", "#1a5c8a", _시,
+                ("시장", "#1b2536", "#7fa6ff", _시,
                  "지수가 크게 빠져 있어서 종목이 <b>조금만</b> 빠져도 후보"
                  + (f" ({' · '.join(_눌)})" if _눌 else "")),
-                ("낙폭", "#f0f0f0", "#444", _기존,
+                ("낙폭", "#26231d", "#a49c8e", _기존,
                  "20일에 <b>10% 넘게</b> 빠지고 볼린저 아래"),
-                ("섹터", "#f3eefa", "#5b3a8a", _섹,
+                ("섹터", "#231d2e", "#b89ae8", _섹,
                  "방산·원전·반도체 등 <b>업종마다 다른 기준</b>")):
             if not _n:
                 continue
@@ -1227,9 +1260,9 @@ def quant_view(q):
                     f'<b>{_c}개</b> · {_말2}</span></div>'
                     for _r, _b, _f, _c, _말2 in _줄9]
         if _줄9:
-            _왜 = (f'<div style="padding:15px 28px;background:#f4f8fb;'
+            _왜 = (f'<div style="padding:15px 28px;background:#1b2230;'
                    f'border:2px solid #d6e4ef;border-radius:20px">'
-                   f'<div style="font-size:28px;font-weight:800;color:#1a3a52;'
+                   f'<div style="font-size:28px;font-weight:800;color:#7fa6ff;'
                    f'margin-bottom:10px">🧭 오늘 왜 이 종목들인가</div>'
                    + "".join(_줄9)
                    # ⚠️ 꼬리 한 줄을 뺐다 — 1장 딱지 설명과 **같은 말**이고,
@@ -1243,7 +1276,7 @@ def quant_view(q):
         return (f'<div style="background:{바탕};border-left:9px solid {띠};'
                 f'border-radius:20px;padding:14px 26px;'
                 f'font-size:26px;line-height:1.55">'
-                f'<span style="display:inline-block;background:#ffffffcc;'
+                f'<span style="display:inline-block;background:#1f1b16cc;'
                 f'color:{글색};border-radius:6px;padding:1px 13px;'
                 f'font-size:23px;font-weight:800;margin-right:11px">{라}</span>'
                 f'{속}</div>')
@@ -1263,11 +1296,11 @@ def quant_view(q):
     # ⭐⭐ **부제를 카드뉴스 꼴로** (2026-09-11 지시).
     #    「① ②」 문자 대신 **동그란 번호 딱지 + 굵은 한글**.
     #    순서는 딱지가, 뜻은 글자가 나른다 — 눈이 번호부터 잡는다
-    def _머리표(번, 글, 색="#1a3a52"):
+    def _머리표(번, 글, 색="#7fa6ff"):
         return (f'<div style="display:flex;align-items:center;gap:13px;'
                 f'margin:0 0 7px">'
                 f'<span style="flex:none;width:34px;height:34px;'
-                f'border-radius:50%;background:{색};color:#fff;'
+                f'border-radius:50%;background:{색};color:#12100d;'
                 f'font-family:{MONO};font-size:21px;font-weight:800;'
                 f'display:flex;align-items:center;justify-content:center;'
                 f'line-height:1">{번}</span>'
@@ -1278,29 +1311,29 @@ def quant_view(q):
     가2 = ([_왜] if _왜 else []) + [
            f'<div style="{_무리}">'
            + _머리표(1, '먼저, 이걸 <b>모두</b> 통과')
-           + f'<div style="padding:19px 28px;background:#ffffff99;'
+           + f'<div style="padding:19px 28px;background:#1f1b16;'
            f'border-radius:20px;font-size:26px;line-height:1.55">'
            f'· 자기 돈의 <b>{R.잉여금하한:g}% 이상</b>이 벌어서 쌓은 이익 · '
            f'빚은 <b>{R.부채상한:g}% 이하</b> · 작년 <b>순이익 흑자</b><br>'
            f'· 시가총액 <b>{R.시총하한억:,.0f}억~{R.시총상한억:,.0f}억</b> · '
            f'하루 거래 <b>{R.대금하한억:g}억 이상</b> '
-           f'<span style="font-size:23px;color:#6b665c">'
+           f'<span style="font-size:23px;color:#a49c8e">'
            f'(관리종목·우선주·스팩 제외)</span></div></div>',
 
            f'<div style="{_무리}">'
            + _머리표(2, '그 다음, <b>셋 중 하나</b>만 맞으면 후보')
-           + _규칙줄("낙폭", "#f6f6f5", "#444", "#9a968d",
+           + _규칙줄("낙폭", "#211d18", "#a49c8e", "#9a968d",
                      f"20거래일 동안 <b>{abs(R.낙폭20문턱):g}% 넘게</b> 빠졌고, "
                      f"값이 평소 움직이던 폭의 <b>아래쪽</b>"
                      f"(볼린저 −{abs(R.볼린저문턱):g}σ)에 있다")
            + '<div style="height:11px"></div>'
-           + _규칙줄("섹터", "#f7f3fc", "#5b3a8a", "#8b6ec4",
+           + _규칙줄("섹터", "#231d2e", "#b89ae8", "#8b6ec4",
                      f"방산·원전·반도체 등 <b>{len(R.섹터규칙)}개 업종</b>은 "
                      f"업종마다 "
                      "<b>다른 기준</b>을 쓴다. 잘 빠지는 업종은 더 많이 빠져야 "
                      "걸린다")
            + '<div style="height:11px"></div>'
-           + _규칙줄("시장", "#eef5fb", "#1a5c8a", "#5b9bd0",
+           + _규칙줄("시장", "#1b2536", "#7fa6ff", "#7fa6ff",
                      f"<b>지수가 눌려 있는 날</b>"
                      f"(20일 −{abs(R.지수낙20문턱):g}% · "
                      f"60일 −{abs(R.지수낙60문턱):g}%)에는 <b>조금만</b> "
@@ -1309,24 +1342,24 @@ def quant_view(q):
                      f"60일 −{abs(R.시장낙60문턱):g}%)")
            + '</div>']
 
-    아2 = (f'<div style="font-size:26px;color:{C["faint"]};line-height:1.65">'
+    아2 = (f'<div style="font-size:26px;color:{QC["보조"]};line-height:1.65">'
            f'여러 규칙에 걸린 종목이 <b>1장 위쪽</b>에 옵니다. '
            f'다음 장은 <b>언제 사고 언제 파는지</b>입니다.</div>'
            f'<div style="text-align:right;margin-top:16px;font-family:{MONO};'
-           f'font-size:24px;color:{C["faint"]};letter-spacing:.14em">2 / 4</div>')
+           f'font-size:24px;color:{QC["보조"]};letter-spacing:.14em">2 / 4</div>')
 
     # ══ 4장 · 어떻게 사고 파나 ══ (2026-09-11 신설)
     #    ⚠️ 2장이 **2251px** 까지 부풀어 901px 이 카드 밖으로 나갔다.
     #       「얼마나 넣나 · 어떻게 파나 · 08:50에 5분」이 통째로 안 보였다.
     #       내용을 버리지 않고 **장을 하나 늘린다**
-    위2b = (f'<div style="font-family:{MONO};font-size:26px;color:{C["sub"]};'
+    위2b = (f'<div style="font-family:{MONO};font-size:26px;color:{QC["금"]};'
             f'letter-spacing:.18em;font-weight:700">HOW TO BUY &amp; SELL</div>'
             f'<div style="font-size:56px;font-weight:800;letter-spacing:-.035em;'
             f'margin-top:16px;line-height:1.12">어떻게 사고 파나</div>'
             # ⚠️ 3장 제목과 ❶ 사이가 비어 있었다 (2026-09-11 지시).
             #    「설명글이나, 공간이 모자라서 뺐거나 그런 내용을 넣어줬으면」
             #    ⇒ **규칙이 정하는 것과 안 정하는 것**을 여기서 못 박는다
-            f'<div style="font-size:27px;color:{C["sub"]};margin-top:12px;'
+            f'<div style="font-size:27px;color:{QC["금"]};margin-top:12px;'
             f'line-height:1.55">규칙이 정하는 것은 <b>언제 사고 언제 파는지</b> '
             f'둘뿐입니다. <b>얼마를 넣을지는 정하지 않습니다.</b></div>')
     # ⚠️⚠️ **「얼마나 넣나」를 뺐다** (2026-09-11 사용자 지적).
@@ -1354,22 +1387,22 @@ def quant_view(q):
     # ⚠️ ❶ 무리만 내린다 (2026-09-11 지시). `space-between` 은 **마지막 자식을
     #    바닥에 붙이므로** 여기에 margin 을 줘도 ❷ 는 안 움직인다
     가2b = ['<div style="margin-top:74px">'
-            + _머리표(1, '어떻게 <b>사나</b>', 색="#a35a17")
+            + _머리표(1, '어떻게 <b>사나</b>', 색="#d4ab45")
             + 박스('<b>08:50에 5분, 여기서 살지 정해진다</b><br>'
                    '후보들의 예상체결가를 보고, 그 값들의 <b>중앙값</b>보다 '
                    f'<b>{abs(R.상대갭문턱):g}%p 더 빠진 것</b>만 '
                    f'<b>최대 {R.하루최대종목}종목</b> 지정가로 삽니다.<br>'
                    '<b>⚠️ 09:01에 체결 안 된 주문은 반드시 취소하세요.</b><br>'
-                   '<span style="font-size:24px;color:#6b665c">'
+                   '<span style="font-size:24px;color:#a49c8e">'
                    '맞는 게 없으면 <b>아무것도 사지 않습니다.</b></span>',
-                   바탕="#fffdf5", 선="#e67e22", 글=25, 줄=1.55) + '</div>',
+                   바탕="#241f14", 선="#d4ab45", 글=25, 줄=1.55) + '</div>',
 
             '<div>' + _머리표(2, '어떻게 <b>파나</b>')
             + 박스('<b>목표에 닿으면 · 둘로 나눠 판다</b><br>'
                    '한 종목을 사면 <b>주문을 둘로 나눠</b> 겁니다. 산 주식의 '
                    f'반은 <b>+{R.앞몫목표:g}%</b>에 팔아 이익을 일찍 챙기고, '
                    f'나머지 반은 <b>+{R.뒷몫목표:g}%</b>까지 기다립니다.<br>'
-                   '<span style="font-size:23px;color:#6b665c">나눠 팔면 '
+                   '<span style="font-size:23px;color:#a49c8e">나눠 팔면 '
                    f'계좌 흔들림이 <b>{abs(_옛낙):.1f}% → {abs(_새낙):.1f}%</b>'
                    '로 줄었습니다.</span>', 글=25, 줄=1.55)
             + '<div style="height:11px"></div>'
@@ -1382,17 +1415,17 @@ def quant_view(q):
     # ⚠️⚠️ **성적 숫자를 뺐다** (2026-09-11 지적). 4장이 성적표 전용인데
     #    여기에도 「130건 · 85.4% · 평균 +17.9% · 47일」을 적어 **겹쳤다.**
     #    5장으로 쪼갤 때 내가 옮겨 붙인 것이다 — 4장에만 둔다
-    아2b = (f'<div style="font-size:26px;color:{C["faint"]};line-height:1.65">'
+    아2b = (f'<div style="font-size:26px;color:{QC["보조"]};line-height:1.65">'
             f'다음 장은 이 규칙이 <b>과거에 어땠는지</b>입니다.</div>'
             f'<div style="text-align:right;margin-top:16px;font-family:{MONO};'
-            f'font-size:24px;color:{C["faint"]};letter-spacing:.14em">3 / 4</div>')
+            f'font-size:24px;color:{QC["보조"]};letter-spacing:.14em">3 / 4</div>')
 
     # ══ 3장 · 과거에 어땠나 ══ (2026-09-07 — 세로 상세에서 옮겨 왔다)
-    위3 = (f'<div style="font-family:{MONO};font-size:26px;color:{C["sub"]};'
+    위3 = (f'<div style="font-family:{MONO};font-size:26px;color:{QC["금"]};'
            f'letter-spacing:.18em;font-weight:700">TRACK RECORD</div>'
            f'<div style="font-size:56px;font-weight:800;letter-spacing:-.035em;'
            f'margin-top:16px;line-height:1.12">과거에 어땠나</div>'
-           f'<div style="font-size:24px;color:{C["faint"]};margin-top:8px">'
+           f'<div style="font-size:24px;color:{QC["보조"]};margin-top:8px">'
            f'{_사례.get("기간", "")} · {_사례.get("해수", 0)}개 해</div>')
     # ⚠️ 8 → 6 (2026-09-11). 8건이면 「가장 나빴던 셋」 박스가
     #    아래 문단과 **포개져** 글이 글 위에 찍혔다 (실측)
@@ -1405,50 +1438,50 @@ def quant_view(q):
            f'아무도 실제로 사지 않았고, 컴퓨터가 옛 주가로 계산한 것입니다.</p>']
     if _사례:
         가3.append(
-            f'<div style="padding:26px 30px;background:#ffffff99;'
+            f'<div style="padding:26px 30px;background:#1f1b16;'
             f'border-radius:20px;'
             f'font-size:28px;line-height:1.85">'
             f'모두 <b>{_사례.get("전체건수", 0)}번</b> 샀고 그중 '
             f'<b>{_사례.get("승률", 0)}%</b>가 수익이었습니다. '
             f'평균 <b>{_사례.get("평균", 0):+.1f}%</b>를 '
             f'<b>{_사례.get("평균보유", 0):.0f}일</b> 만에 냈습니다.<br>'
-            f'<span style="color:#c0392b">가장 나빴던 한 건은 '
+            f'<span style="color:#ef7a6c">가장 나빴던 한 건은 '
             f'<b>{_사례.get("가장나쁨", 0):+.1f}%</b>였습니다.</span></div>')
     if _최근:
         _칸 = "".join(
-            '<tr><td style="padding:8px 0;font-size:25px">'
+            '<tr><td style="padding:8px 0;font-size:25px;color:#d3ccbe">'
             + _esc(x.get("날짜", "")) + '</td>'
-            '<td style="padding:8px 0;font-size:25px;font-weight:700">'
+            '<td style="padding:8px 0;font-size:25px;color:#d3ccbe;font-weight:700">'
             + _esc(x.get("이름", "")) + '</td>'
-            '<td style="padding:8px 0;font-size:25px;text-align:right">'
+            '<td style="padding:8px 0;font-size:25px;color:#d3ccbe;text-align:right">'
             + format(x.get("매수가", 0), ",") + '원</td>'
             '<td style="padding:8px 0;font-size:25px;text-align:right;'
             'font-weight:700;color:'
-            + ("#c0392b" if (x.get("결과") or 0) > 0 else "#2050c8") + '">'
+            + ("#ef7a6c" if (x.get("결과") or 0) > 0 else "#2050c8") + '">'
             + format(x.get("결과") or 0, "+.1f") + '%</td>'
             '<td style="padding:8px 0;font-size:24px;text-align:right;color:'
-            + C["faint"] + '">' + str(x.get("며칠", "")) + '일</td></tr>'
+            + QC["보조"] + '">' + str(x.get("며칠", "")) + '일</td></tr>'
             for x in _최근)
         # ⚠️⚠️ **머리글이 없어 숫자가 뭔지 몰랐다** (2026-09-09 사용자 지적)
         #    「5230원, +27.2%, 7일 이것들이 뭐 의미하는지 모르겠어」
         #    그리고 **+27.2%가 계속 같은 이유**도 적어 준다:
         #    반 +15% · 반 +40% 에 팔아 둘 다 닿으면 언제나 0.5x14.74+0.5x39.74
-        _머 = ('<tr><td style="padding:2px 0;font-size:21px;color:' + C["faint"]
+        _머 = ('<tr><td style="padding:2px 0;font-size:21px;color:' + QC["보조"]
                + '">날짜</td>'
-               '<td style="padding:2px 0;font-size:21px;color:' + C["faint"]
+               '<td style="padding:2px 0;font-size:21px;color:' + QC["보조"]
                + '">종목</td>'
                '<td style="padding:2px 0;font-size:21px;text-align:right;color:'
-               + C["faint"] + '">산 값</td>'
+               + QC["보조"] + '">산 값</td>'
                '<td style="padding:2px 0;font-size:21px;text-align:right;color:'
-               + C["faint"] + '">수익률</td>'
+               + QC["보조"] + '">수익률</td>'
                '<td style="padding:2px 0;font-size:21px;text-align:right;color:'
-               + C["faint"] + '">며칠</td></tr>')
+               + QC["보조"] + '">며칠</td></tr>')
         가3.append(
             '<div><div style="font-size:26px;font-weight:800;'
             'margin-bottom:6px">최근 ' + str(len(_최근)) + '건</div>'
             '<table style="width:100%;border-collapse:collapse">'
             + _머 + _칸 + '</table>'
-            '<div style="font-size:21px;color:' + C["faint"]
+            '<div style="font-size:21px;color:' + QC["보조"]
             + ';margin-top:6px;line-height:1.45">'
             '산 값 = 그날 시가 · 며칠 = 다 팔 때까지 걸린 날<br>'
             '수익률이 자주 <b>+27.2%</b>로 같은 것은 '
@@ -1460,17 +1493,17 @@ def quant_view(q):
                          + format(x.get("결과") or 0, "+.1f") + "%"
                          for x in _최악)
         가3.append(
-            '<div style="padding:24px 30px;background:#fdf2f2;'
-            'border-left:9px solid #c0392b;border-radius:20px;'
+            '<div style="padding:24px 30px;background:#2a1c1a;'
+            'border-left:9px solid #ef7a6c;border-radius:20px;'
             'font-size:26px;line-height:1.6">'
             '<b>가장 나빴던 셋</b><br>' + _나 + '</div>')
-    아3 = (f'<div style="font-size:25px;color:{C["faint"]};line-height:1.7">'
+    아3 = (f'<div style="font-size:25px;color:{QC["보조"]};line-height:1.7">'
            f'위 숫자는 전부 <b>과거 자료로 계산한 것</b>입니다. '
            f'「과거에 이랬다」이지 「앞으로 이럴 것」이 아닙니다. '
            f'실제로 산 기록은 오늘부터 쌓입니다.<br>'
            f'<b>매수 추천이 아닙니다.</b> 판단과 책임은 본인에게 있습니다.</div>'
            f'<div style="text-align:right;margin-top:10px;font-family:{MONO};'
-           f'font-size:24px;color:{C["faint"]};letter-spacing:.14em">4 / 4</div>')
+           f'font-size:24px;color:{QC["보조"]};letter-spacing:.14em">4 / 4</div>')
 
 
     return (f'<section class="view" id="qt" hidden>'
@@ -1483,7 +1516,7 @@ def quant_view(q):
             + 장(위2b, "".join(가2b), 아2b, "퀀트3 사고파나", 틈=34)
             + 장(위3, "".join(가3), 아3, "퀀트4 성적표")
             + f'</div>'
-            f'<div style="text-align:center;font-size:13px;color:{C["faint"]};'
+            f'<div style="text-align:center;font-size:13px;color:{QC["보조"]};'
             f'padding:0 0 30px">← 옆으로 넘겨서 보세요 →</div>'
             f'</section>')
 
@@ -1518,7 +1551,7 @@ def _month_grid(year, month, have, have_all, oldest_kept, today):
 
 # ⚠️ 섹터 색 — 오르내림(빨강·파랑)이나 제목(청동)과 겹치지 않는 색으로만 고른다.
 #    겹치면 "이 색이 무슨 뜻이지"가 화면마다 달라진다(2026-08-28).
-PF_COLORS = ["#5f7a8a", "#8a7038", "#6b8f6b", "#8a5f7a", "#7a6f5f",
+PF_COLORS = ["#5f7a8a", "#d4ab45", "#6b8f6b", "#8a5f7a", "#7a6f5f",
              "#4f6f8f", "#9c8a4a", "#6f8a8a", "#8a6b5f", "#7f7f6b"]
 
 

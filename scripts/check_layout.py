@@ -49,7 +49,9 @@ MIN_MARGIN = 90     # 카드 안쪽 여백 하한(px)
 #    기관 의견 카드가 290px 남고 같은 날 액션플랜은 86px였다.
 #    ⚠️ 막지 않는다(경고). 그날 글이 짧은 건 레이아웃이 고칠 수 있는 일이 아니다 —
 #       **글을 더 쓰라는 신호**로 쓴다.
-MAX_MARGIN = 260    # 이보다 많이 남으면 "글을 더 담을 자리가 있다"는 뜻
+# ⚠️ `MAX_MARGIN` 은 **없앴다** (2026-09-14 지적).
+#    FINAL-CARDS 의 상한은 **110px 이고 항목 간격에서 본다** — 바닥에서 보지 않는다.
+#    260px 로 두니 채움 70% 미만인 정상 카드가 전부 경고로 찍혔다
 # ⚠️ 2026-08-28에 22 → 26으로 올렸다. 사용자가 "아무리 작아도 본문 크기 정도"를 요청했고,
 #    실측으로 26까지는 액션플랜 카드가 견디는 것을 확인했다(글 예산을 같이 줄여서).
 #    ⚠️ 더 올리려면 `build_cards.CUT`을 또 줄여야 한다 — 글자와 글은 같은 자리를 다툰다.
@@ -203,7 +205,21 @@ setTimeout(function(){
              cut, cutTxt, Math.round(H), gaps.join(","), noRule, kvBad,
              /* ⭐ 그 장이 **어느 날짜**인가 — rail 이 data-d 를 들고 있다.
                 40px 규칙은 **오늘 이후 날짜에만** 건다 (2026-09-11 디자인 답) */
-             ((s.closest(".rail")||{}).dataset||{}).d||""].join("|"));
+             ((s.closest(".rail")||{}).dataset||{}).d||"",
+             /* ⭐ 퀀트용 — **마지막 종목 블록 밑 -> 카드 아래끝** (2026-09-14).
+                ⚠️ 「그 아래 **첫 글자**까지」로 재면 **각주를 침입물로 보게 된다.**
+                   각주는 그 90px 안에 있는 **정상 요소**다 — 카드 패딩 80px
+                   자리에 각주가 있는 건 설계대로다 (디자인 지시)
+                종목 블록은 바탕 #24201a 로 가른다. 없으면 빈 칸 */
+             (function(){
+               var 블=[];
+               s.querySelectorAll("div").forEach(function(d){
+                 if(getComputedStyle(d).backgroundColor==="rgb(36, 32, 26)")
+                   블.push(d);});
+               if(!블.length) return "";
+               var 끝=블[블.length-1].getBoundingClientRect().bottom;
+               return String(Math.round(sr.bottom-끝));
+             })()].join("|"));
   });
   document.title="R::"+out.join("@@");
  },600);
@@ -469,7 +485,7 @@ def check(cards_path, site_path=None):
                 #    잘린 글은 **아예 안 보이는 것**이다 (2026-09-11)
                 _cut = int(p[6]) if len(p) > 6 and p[6].isdigit() else 0
                 if _cut:
-                    fails.append(f"{label}: **글 {_cut}마디가 칸 안에서 잘렸다** "
+                    fails.append(f"{label}: **게시 금지 · 글 {_cut}마디가 칸 안에서 잘렸다** "
                                  f"— 화면에 안 나온다 (첫 조각: "
                                  f"{p[7] if len(p) > 7 else '?'})")
                 # ⭐⭐ **6절 자기 검사 8개** (2026-09-11 지시서).
@@ -481,6 +497,13 @@ def check(cards_path, site_path=None):
                     _H = int(p[8]) if len(p) > 8 and p[8].lstrip("-").isdigit() else 0
                     _갭 = [int(z) for z in (p[9].split(",") if len(p) > 9 and p[9] else [])
                            if z.lstrip("-").isdigit()]
+                    # ⚠️⚠️ **여기서 날짜를 먼저 정한다** (2026-09-14 지적).
+                    #    전에는 아래 ④ 앞에 있었는데, 그보다 **위**인
+                    #    「상자를 못 찾아」 검사가 `_오늘이후` 를 썼다 —
+                    #    첫 장은 UnboundLocalError 로 죽고, 둘째 장부터는
+                    #    **앞 장 값이 남아** 오판했다
+                    _날 = p[12] if len(p) > 12 else ""
+                    _오늘이후 = (not _날) or (_날 >= _오늘)
                     # ⚠️⚠️ **상자를 못 찾으면 통과가 아니라 실패다** (2026-09-11).
                     #    「안 재고 통과」가 오늘 하루에만 두 번 났다 —
                     #    기본 경로가 None 이라 통째로 건너뛴 것,
@@ -499,8 +522,7 @@ def check(cards_path, site_path=None):
                     #    지난 날짜는 글이 이미 고정돼 있어 맞추려면 **그날 글을
                     #    더 자르는 것**밖에 없다 — 손해다.
                     #    지난 날짜는 「넘침 0 · 바닥 90px」 두 가지만 본다
-                    _날 = p[12] if len(p) > 12 else ""
-                    _오늘이후 = (not _날) or (_날 >= _오늘)
+                    #    (`_날`·`_오늘이후` 는 **위에서** 정한다)
                     # ④ ⭐ FINAL-CARDS §1·§6 — 목표 50~110px.
                     #    **30px 미만이면 게시를 막는다.** 범위 밖은 **기록만** 남긴다
                     #    (2·3절을 세 번 적용하고도 못 들면 그대로 내보낸다)
@@ -535,9 +557,9 @@ def check(cards_path, site_path=None):
                 if min(_왼, _오) < 78:
                     fails.append(f"{label}: 좌우 여백 {min(_왼, _오)}px "
                                  f"— 글은 왼쪽 80 · 오른쪽 1000 안에 있어야 한다")
-                elif margins[1] > MAX_MARGIN:
-                    fails.append(f"{label}: 아래가 {margins[1]}px 남았다 (여유 {MAX_MARGIN} 초과) "
-                                 f"— 글을 더 담을 자리가 있다")
+                # ⚠️ 여기 있던 `elif margins[1] > MAX_MARGIN` 을 지웠다 (2026-09-14).
+                #    `elif` 라서 **좌우가 좁은 장은 바닥 검사가 건너뛰어졌다.**
+                #    남는 자리는 FINAL-CARDS §3 「채우는 순서」가 본다
                 if bad:
                     fails.append(f"{label}: {bad}")
 
@@ -563,13 +585,26 @@ def check(cards_path, site_path=None):
                 label = p[0]
                 _cut = int(p[6]) if p[6].isdigit() else 0
                 if _cut:
-                    fails.append(f"{label}: **글 {_cut}마디가 칸 안에서 잘렸다** "
+                    fails.append(f"{label}: **게시 금지 · 글 {_cut}마디가 칸 안에서 잘렸다** "
                                  f"— 화면에 안 나온다 (첫 조각: "
                                  f"{p[7] if len(p) > 7 else '?'})")
-                _m = min(int(x) for x in p[1:5])
-                if _m < MIN_MARGIN:
-                    fails.append(f"{label}: 여백 {_m}px (하한 {MIN_MARGIN}) "
-                                 f"— 내용이 넘쳤다")
+                # ⚠️⚠️ **퀀트에는 「여백 >= 90」을 걸지 않는다** (2026-09-14 디자인 ③).
+                #    `min(p[1:5])` 는 위·아래·좌·우 중 제일 작은 값인데,
+                #    퀀트는 **카드 패딩 80px 자리에 각주가 제자리로** 있어
+                #    늘 80 이 나왔다 — 내용이 넘친 게 아니다.
+                #    네 장이 **전부 같은 80** 이었던 게 그 증거다.
+                #    이 검사는 **가로 요약 8장에만** 건다.
+                #    퀀트는 「마지막 종목 블록 아래 >= 90px」로 본다 (아래 _블아래)
+                # ⭐ 퀀트 카드 검사는 **셋뿐**이다 (2026-09-14 디자인):
+                #    잘림 0(차단) · 높이 1350 · **마지막 블록 밑 -> 카드 아래끝 >= 90**
+                _블아래 = (int(p[13]) if len(p) > 13 and p[13].lstrip("-").isdigit()
+                           else None)
+                if _블아래 is not None and _블아래 < MIN_MARGIN:
+                    fails.append(f"{label}: **마지막 블록 밑에서 카드 아래끝까지 "
+                                 f"{_블아래}px** (하한 {MIN_MARGIN})")
+                _qH = int(p[8]) if len(p) > 8 and p[8].lstrip("-").isdigit() else 0
+                if _qH and abs(_qH - 1350) > 1:
+                    fails.append(f"{label}: 카드 높이 {_qH}px (1350이어야 한다)")
 
     # 0. 좌우 잠금 + 스크립트 문법 (크롬 측정으로는 못 잡는 것들)
     fails.extend(check_locks(site_path))
