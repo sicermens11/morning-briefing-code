@@ -1200,7 +1200,8 @@ def quant_view(q):
            #       종목 블록이 밀려 「문턱가 · 이 값 아래여야 산다」가
            #       **네 곳에서 잘렸다**(게시 금지). 한 줄이면 잘림 0 이다
            + ((f'<div style="margin-top:14px;font-size:24px;line-height:1.45;'
-               f'color:{QC["보조"]}">차례는 <b>전날 08:00 후보 순서</b> — '
+               # ⚠️ **브리핑 전체에서 「—」는 안 쓴다** — 가르는 자리는 「·」다
+               f'color:{QC["보조"]}">차례는 <b>전날 08:00 후보 순서</b> · '
                f'상대갭 깊은 순이 아니라 얕은 것이 위에 올 수 있습니다</div>')
               if (보일것 and not 살것) else '')
            + f'<div style="display:flex;align-items:baseline;margin-top:20px">'
