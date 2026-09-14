@@ -176,6 +176,28 @@ def 밴드종목목록():
     return sorted(밴드)
 
 
+def 시총종목목록(하한억):
+    r"""⭐ 최신 krx-daily 의 시총 **N억 이상 전부** (2026-09-14 밤 · 「뉴스 전 종목 백필」).
+
+    `--밴드` 는 500~2,000억(2,410종목)이라 규칙 하한 300억과 어긋났다(300~500억 345종목 빠짐).
+    ⚠️ 네이버 종목뉴스는 약 1년치뿐이다 — 깊이는 **밤마다 돌려** 쌓는다
+    """
+    파일들 = sorted(glob.glob(os.path.join(_BASE, "data", "krx-daily", "*.json")))
+    if not 파일들:
+        return []
+    d = json.load(io.open(파일들[-1], encoding="utf-8-sig"))
+    코드 = []
+    for c, v in (d.get("종목") or {}).items():
+        try:
+            x = float(v.get("시총") or 0)
+        except (TypeError, ValueError):
+            continue
+        억 = x / 1e8 if x > 1e7 else x
+        if 억 >= 하한억:
+            코드.append(c)
+    return sorted(set(코드))
+
+
 def main():
     확인만 = "--확인" in sys.argv
     # 매일 돌 때 쓴다 — 이미 받은 종목에 **새 기사만 덧붙인다**
@@ -185,7 +207,11 @@ def main():
     쉼 = float(sys.argv[sys.argv.index("--쉼") + 1]) if "--쉼" in sys.argv else 0.35
     os.makedirs(OUT, exist_ok=True)
     # ⭐ **--후보** — forward-log 에 오른 종목만 (2026-09-10 · 사용자 결정 ㉡)
-    if "--후보" in sys.argv:
+    if "--시총" in sys.argv:
+        _하 = float(sys.argv[sys.argv.index("--시총") + 1])
+        코드들 = 시총종목목록(_하)
+        찍기(f"  ⭐ 시총 {_하:,.0f}억 이상 **전부** — {len(코드들):,}종목 (최신 krx-daily)")
+    elif "--후보" in sys.argv:
         코드들 = 후보종목목록()
         찍기(f"  ⭐ **후보 종목만** 받는다 — {len(코드들):,}종목 "
              "(forward-log 누적)")
