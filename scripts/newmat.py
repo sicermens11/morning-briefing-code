@@ -97,20 +97,23 @@ def _공시시각표(날들):
                 시각 = {}
         하루 = {}
         for 칸 in ("챙길공시", "그밖의공시"):
+            챙 = 1 if 칸 == "챙길공시" else 0
             for x in (dd.get(칸) or []):
                 code = str(x.get("종목코드") or "")
                 번호 = str(x.get("접수번호") or "")
                 if not code or not 번호:
                     continue
                 t = str(시각.get(번호) or "")
-                중, 후 = 하루.get(code, (0, 0))
+                중, 후, 챙길 = 하루.get(code, (0, 0, 0))
                 if not t:
                     pass                      # 시각을 모르면 어느 쪽에도 안 센다
                 elif _장시작 <= t <= _장끝:
                     중 += 1
                 else:
                     후 += 1
-                하루[code] = (중, 후)
+                # ⭐ 「챙길공시」 = 계약·실적·증자처럼 값에 닿는 것 · 「그밖」 = 주총 소집 등
+                #    132차는 이 둘을 안 갈랐다 — 종류가 뜻을 가른다
+                하루[code] = (중, 후, 챙길 + 챙)
         if 하루:
             표[d8] = 하루
     return 표
@@ -153,6 +156,130 @@ def _최근합(표, code, 날짜8, 일수, 날들, 자리):
     if i >= j:
         return 0.0
     return sum(vs[i:j])
+
+
+def _컨센서스표():
+    r"""종목코드 -> (정렬된 날짜8, 목표주가, 의견점수) — 2020~2026 · 81달
+
+    ⚠️ 189차 때는 **2021~23 이 비어 있었다**(받는 중). 지금은 다 찼다(2026-09-14 확인) —
+       그래서 그때 「표본 부족」으로 못 쟀던 목표주가·투자의견을 다시 잰다.
+    의견은 말이 제각각이라(「매수」·「Buy」·「투자의견없음」) 점수로 바꾼다.
+    """
+    좋 = ("매수", "buy", "strongbuy", "적극매수", "outperform", "overweight")
+    중 = ("중립", "hold", "neutral", "marketperform", "보유")
+    나 = ("매도", "sell", "underperform", "underweight", "비중축소")
+    표 = {}
+    for f in sorted(glob.glob(os.path.join(_DATA, "consensus", "*.json"))):
+        try:
+            j = json.load(io.open(f, encoding="utf-8-sig"))
+        except ValueError:
+            continue
+        for x in (j.get("리포트") or []):
+            code = str(x.get("코드") or "")
+            d8 = _날8(x.get("날짜"))
+            if not code or len(d8) != 8:
+                continue
+            목 = _숫(x.get("목표주가"))
+            if 목 is not None and 목 <= 0:
+                목 = None                      # 「목표주가 0」은 의견 없음이다
+            의 = str(x.get("의견") or "").strip().lower().replace(" ", "")
+            점 = (1.0 if any(w in 의 for w in 좋) else
+                  0.0 if any(w in 의 for w in 중) else
+                  -1.0 if any(w in 의 for w in 나) else None)
+            표.setdefault(code, []).append((d8, 목, 점))
+    for code in 표:
+        # ⚠️ 날짜로만 정렬한다 — 뒤 칸에 None 이 섞여 있어 튜플 비교가 터진다
+        표[code].sort(key=lambda z: z[0])
+    return 표
+
+
+def _컨센재기(표, code, 날짜8, 일수, 날들, 자리, 주가):
+    r"""(리포트 수, 목표주가 갭%, 의견 점수 평균) — 없으면 None
+
+    목표주가 갭 = **목표주가가 지금 값보다 몇 % 위인가**. 클수록 「싸다」는 뜻이다
+    (189차 E절이 재려던 것 · 그때는 표본이 모자랐다)
+    """
+    벌 = 표.get(code)
+    if not 벌:
+        return None
+    시작 = 날들[max(0, 자리 - 일수)]
+    ds = [z[0] for z in 벌]
+    i = bisect.bisect_left(ds, 시작)
+    j = bisect.bisect_right(ds, 날짜8)
+    if i >= j:
+        return (0, None, None)
+    칸 = 벌[i:j]
+    목들 = [z[1] for z in 칸 if z[1]]
+    점들 = [z[2] for z in 칸 if z[2] is not None]
+    갭 = None
+    if 목들 and 주가 and 주가 > 0:
+        갭 = (sum(목들) / len(목들) / 주가 - 1) * 100
+    return (j - i, 갭, (sum(점들) / len(점들)) if 점들 else None)
+
+
+def _증자표():
+    r"""종목코드 -> {갈래: 정렬된 날짜8 목록}. 유상증자·무상증자·감자·자사주취득
+
+    ⚠️ 236차가 「0건」으로 나온 적이 있다 — 구조를 잘못 읽어서였다(257차에서 재시험).
+       여기서는 **접수번호 앞 8자리**를 날짜로 쓴다 (rcept_no = YYYYMMDD…)
+    """
+    갈래들 = ("유상증자", "무상증자", "유무상증자", "감자", "자사주취득")
+    표 = {}
+    for f in glob.glob(os.path.join(_DATA, "dart-capital", "*.json")):
+        code = os.path.basename(f)[:-5]
+        try:
+            j = json.load(io.open(f, encoding="utf-8-sig"))
+        except ValueError:
+            continue
+        하나 = {}
+        for g in 갈래들:
+            ds = []
+            for x in (j.get(g) or []):
+                d8 = str(x.get("rcept_no") or "")[:8]
+                if len(d8) == 8 and d8.isdigit():
+                    ds.append(d8)
+            if ds:
+                하나[g] = sorted(ds)
+        if 하나:
+            표[code] = 하나
+    return 표
+
+
+def _증자재기(표, code, 갈래, 날짜8, 일수, 날들, 자리):
+    """그 갈래 공시가 최근 `일수` 거래일 안에 몇 건 있었나"""
+    ds = (표.get(code) or {}).get(갈래)
+    if not ds:
+        return 0.0
+    시작 = 날들[max(0, 자리 - 일수)]
+    return float(bisect.bisect_right(ds, 날짜8) - bisect.bisect_left(ds, 시작))
+
+
+def _ETF자금표(날들):
+    r"""날짜8 -> (전체 ETF 거래대금 합, 시가총액 합) — **시장에 돈이 들어오나**
+
+    ⚠️ ETF 는 종목별 재료가 아니라 **그날 시장 전체** 재료다. 사건의 날짜에 붙인다.
+       246차는 ETF 를 「지수 대용 갭」으로만 썼다 — 자금 흐름은 한 번도 안 봤다.
+    """
+    필요 = set(날들)
+    표 = {}
+    for f in sorted(glob.glob(os.path.join(_DATA, "etf-krx", "*.json"))):
+        d8 = os.path.basename(f)[:8]
+        if d8 not in 필요:
+            continue
+        try:
+            j = json.load(io.open(f, encoding="utf-8-sig"))
+        except ValueError:
+            continue
+        대금 = 시총 = 0.0
+        for v in (j.get("종목") or {}).values():
+            a, b = _숫(v.get("거래대금")), _숫(v.get("시가총액"))
+            if a:
+                대금 += a
+            if b:
+                시총 += b
+        if 대금 or 시총:
+            표[d8] = (대금, 시총)
+    return 표
 
 
 def _상장주식수():
@@ -228,11 +355,13 @@ def 붙이기(사건, 날들, 뉴스포함=True, 찍기=print):
         for x in 사건:
             i = x["인"] - 1                      # 신호일
             d8 = 날들[i] if 0 <= i < len(날들) else None
-            중, 후 = (공시.get(d8) or {}).get(x["code"], (0, 0)) if d8 else (0, 0)
+            중, 후, 챙 = ((공시.get(d8) or {}).get(x["code"], (0, 0, 0))
+                        if d8 else (0, 0, 0))
             x["공시장중"] = float(중)
             x["공시장후"] = float(후)
             x["공시건수"] = float(중 + 후)
-        붙은 += ["공시장중", "공시장후", "공시건수"]
+            x["챙길공시"] = float(챙)
+        붙은 += ["공시장중", "공시장후", "공시건수", "챙길공시"]
         찍기(f"      {len(공시):,}일 · 사건에 붙임")
 
     # ② 임원 매매 — 증감 주수를 **상장주식수 대비 %** 로
@@ -295,6 +424,64 @@ def 붙이기(사건, 날들, 뉴스포함=True, 찍기=print):
                     x["뉴스20"] = float(b[0])
             붙은 += ["뉴스5", "뉴스20", "뉴스호재5", "뉴스악재5"]
             찍기(f"      {len(뉴스):,}종목 (⚠️ 약 1년치 — 옛 사건은 빈 값)")
+
+    # ⑤ 컨센서스 — 189차가 「리포트 유무」만 쟀다. 목표주가·의견은 그때 표본 부족이었고
+    #    2021~23 이 비어 있었다. **지금은 81달이 다 찼다** (2026-09-14 확인)
+    찍기("    컨센서스(consensus) 붙이는 중...")
+    컨 = _컨센서스표()
+    if 컨:
+        for x in 사건:
+            i = x["인"] - 1
+            d8 = 날들[i] if 0 <= i < len(날들) else None
+            if not d8:
+                continue
+            r = _컨센재기(컨, x["code"], d8, 90, 날들, i, x.get("주가"))
+            if r is None:
+                continue
+            x["리포트90"] = float(r[0])
+            if r[1] is not None:
+                x["목표주가갭"] = r[1]
+            if r[2] is not None:
+                x["투자의견"] = r[2]
+        붙은 += ["리포트90", "목표주가갭", "투자의견"]
+        찍기(f"      {len(컨):,}종목 · 2020~2026")
+
+    # ⑥ 증자·감자·자사주 — 236차가 「0건」으로 나왔던 것(구조를 잘못 읽었다)
+    찍기("    증자·감자·자사주(dart-capital) 붙이는 중...")
+    증자 = _증자표()
+    if 증자:
+        짝 = (("유상증자", "유상증자60"), ("무상증자", "무상증자60"),
+              ("감자", "감자60"), ("자사주취득", "자사주60"))
+        for x in 사건:
+            i = x["인"] - 1
+            d8 = 날들[i] if 0 <= i < len(날들) else None
+            if not d8:
+                continue
+            for 갈, 이름 in 짝:
+                x[이름] = _증자재기(증자, x["code"], 갈, d8, 60, 날들, i)
+        붙은 += [z[1] for z in 짝]
+        찍기(f"      {len(증자):,}종목")
+
+    # ⑦ ETF 자금 — **그날 시장 전체**. 246차는 ETF 를 지수 대용으로만 썼다
+    찍기("    ETF 자금 흐름(etf-krx) 붙이는 중...")
+    etf = _ETF자금표(날들)
+    if etf:
+        순 = [etf.get(d) for d in 날들]
+        for x in 사건:
+            i = x["인"] - 1
+            if not (0 <= i < len(날들)) or not 순[i]:
+                continue
+            대금, 시총 = 순[i]
+            # 20 거래일 평균 대비 오늘 ETF 거래대금 (시장에 돈이 몰리나)
+            앞 = [순[j][0] for j in range(max(0, i - 19), i + 1) if 순[j]]
+            if 앞 and sum(앞) > 0:
+                x["ETF대금배수"] = 대금 / (sum(앞) / len(앞))
+            # 20 거래일 전 대비 ETF 전체 시가총액 변화율 (자금 유입)
+            j0 = i - 20
+            if j0 >= 0 and 순[j0] and 순[j0][1] > 0:
+                x["ETF시총20"] = (시총 / 순[j0][1] - 1) * 100
+        붙은 += ["ETF대금배수", "ETF시총20"]
+        찍기(f"      {len(etf):,}일")
     return 붙은
 
 
