@@ -1393,6 +1393,17 @@ PAGE_JS = """<script>
      var 합=0;
      for(var j=0;j<el.children.length;j++) 합+=el.children[j].offsetHeight;
      var 성김=(가용>0 && 합/가용<0.70);
+     /* ⭐⭐ **01 뉴스는 늘 `space-between` 이다** (2026-09-14 지시).
+        2026-09-14 에 01 뉴스만 비율 0.688 로 문턱 0.70 을 **2%p 차이로** 놓쳐
+        `flex-start` 로 빠졌고, 아래여백이 **220px** 이 됐다(다른 장은 90~95).
+        뉴스 넷은 날마다 길이가 들쭉날쭉해 이 문턱을 오락가락 넘나든다 —
+        그때마다 아래여백이 95 <-> 220 으로 **널뛰는 게 더 이상하다.**
+        ⚠️ 다만 **항목이 셋 미만이면 그대로 둔다** — 옛 장(2026-08-25)은 항목이
+           2개뿐이라 `space-between` 이면 둘 사이가 **800px** 벌어진다.
+           그게 애초에 `flex-start` 를 넣은 이유다(2026-09-11 디자인 답 ①) */
+     var _s=el.closest("section");
+     if(_s&&(_s.dataset.label||"").indexOf("01")===0&&el.children.length>=3)
+       성김=false;
      el.style.justifyContent = 성김 ? 'flex-start' : 'space-between';
      el.style.gap = 성김 ? '60px' : '';
    }
