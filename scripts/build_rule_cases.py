@@ -527,6 +527,13 @@ def main():
         # 최근 10건이 우연히 다 좋으면 100%로 읽힌다.
         # 나쁜 사례를 반드시 같이 보여주려고 따로 담는다
         "최악": sorted(끝난, key=lambda z: z["결과"])[:5],
+        # ⭐ 퀀트 4장 「가장 좋았던 셋」 (2026-09-14 · QUANT-FINAL 6절 1)
+        "최고": sorted(끝난, key=lambda z: -z["결과"])[:3],
+        # ⭐ 「손실 거래 평균」 (QUANT-FINAL 6절 2) — 손실이 없으면 화면이 비운다.
+        #    지어내지 않는다: 건수가 0이면 None
+        "손실건수": sum(1 for x in 끝난 if x["결과"] < 0),
+        "손실평균": (round(st.mean([x["결과"] for x in 끝난 if x["결과"] < 0]), 2)
+                    if any(x["결과"] < 0 for x in 끝난) else None),
         "아직진행중": [x for x in 산것 if not x["끝났나"]],
     }
     io.open(OUT, "w", encoding="utf-8").write(

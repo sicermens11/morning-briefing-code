@@ -217,11 +217,11 @@ setTimeout(function(){
                 ⚠️ 「그 아래 **첫 글자**까지」로 재면 **각주를 침입물로 보게 된다.**
                    각주는 그 90px 안에 있는 **정상 요소**다 — 카드 패딩 80px
                    자리에 각주가 있는 건 설계대로다 (디자인 지시)
-                종목 블록은 바탕 #24201a 로 가른다. 없으면 빈 칸 */
+                종목 블록은 data-block="1" 표식으로 가른다 (2026-09-14: 밝은 판으로 바뀌어 바탕색으론 못 가른다). 없으면 빈 칸 */
              (function(){
                var 블=[];
                s.querySelectorAll("div").forEach(function(d){
-                 if(getComputedStyle(d).backgroundColor==="rgb(36, 32, 26)")
+                 if(d.dataset.block==="1")
                    블.push(d);});
                if(!블.length) return "";
                var 끝=블[블.length-1].getBoundingClientRect().bottom;
