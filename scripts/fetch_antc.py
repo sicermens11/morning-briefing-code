@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 r"""
 fetch_antc.py — **08:50 예상체결가를 NH API로 받아 자동 기록** (2026-09-07 신설)
 
@@ -31,6 +31,8 @@ import json
 import os
 import subprocess
 import sys
+
+import rule_def as R  # noqa: E402
 import time
 
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -75,7 +77,8 @@ def 예상체결가(code):
 #    종목에서 오차가 가장 크다.** 08:55 면 09:00 까지 주문 넣을 5분이 남는다.
 #    ⚠️ 표본이 하루뿐이라 정한 값이 아니다 — 08:50 기록을 계속 쌓아 두는 이유가
 #       이것이다. 20 거래일쯤 되면 **어느 시각이 시가를 잘 맞히나**를 판정한다
-판정시각 = "08:55"
+# ⭐ 값은 rule_def 에 있다 — 화면(quant_cards)과 같은 곳을 읽는다 (2026-09-14)
+판정시각 = R.판정시각
 
 
 def _이미쟀나(끝):
