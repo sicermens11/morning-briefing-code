@@ -315,3 +315,7 @@ K2에서 B(G절)·D 채움. ㉯ 관문 B도 K2에서 처음 제대로 찍힌다.
 | ⑥ | 체결 자동 확인 + 실패 가시화 | 설계됨: 08:02 `portfolio.json`(잔고) 스냅샷 vs 09:10 재조회 차이로 체결 종목·주수를 잡아 bought.py 기록 (주문 API 안 씀 · 조회만). 메일·게시 실패는 브리핑 보기 띠로. **내일** |
 | ⑦ | 신용·대차·공매도 잔고 수집 | 미착수. 공매도는 KRX 세션 문제(collect_evening 주석)라 KRX OpenAPI 쪽을 다시 봐야 한다. 신용잔고는 네이버 |
 | ⑧ | 문서 다이어트 | 미착수. AGENDA 898KB · DECISIONS 475KB · DECISIONS-code 91KB. 살아 있는 것은 MASTER-STATUS(21KB)·SELL-PLAN·시험번호. ⚠️ lab_ledger 가 AGENDA 언급을 세므로 옮길 때 같이 고친다 |
+⑦ 확정 (2026-09-14 19:05 · api_probe): KRX OpenAPI 주식 묶음엔 일별 시세·종목 기본정보뿐 —
+   sht_bydd_trd · shtsl_bydd_trd · bal_bydd_trd · ln_bydd_trd 전부 404. **공매도·대차·신용은 허용된 출처에서 못 받는다**
+   (KRX 웹 포털에만 있고 그건 두드리지 않는다 · 네이버 공매도 페이지도 그 포털 iframe). 뉴스 전 종목 백필은 사용자 「하라」 대기.
+밤 판 둘 걸어 둠 (21:30 뒤 자동): P_후보80_4060 · Q_후보120_4060 — `scripts/lab_picks_wide.ps1`
