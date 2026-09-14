@@ -64,6 +64,10 @@ _규칙크기상한 = float(os.environ.get("SIZE_HI") or R.시총상한억)
 _밑갭 = os.environ.get("BASE_GAP") or "후보+실전표본"
 _밑상대갭 = float(os.environ.get("BASE_RELGAP") or R.상대갭문턱)
 _밑후보수 = int(os.environ.get("BASE_PICKS") or R.후보수)
+# ⭐⭐ **기준선 규칙 자체**를 바꾼다 (2026-09-14 밤). 안 주면 Ⓗ — 지나간 판은 그대로.
+#    Ⓖ = 기존 OR 섹터 OR 시낙7 OR **120일선 −8%↓** (Ⓗ 는 지수 60일 ≤−10%)
+#    H2 자본 시뮬: Ⓗ 1.59억·낙폭 −4.5% / Ⓖ 1.52억·낙폭 **−3.6%** — 돈 4%↓ 낙폭 0.9%p↑
+_밑규칙 = (os.environ.get("BASE_RULE") or "H").strip().upper()
 _대조번 = int(os.environ.get("CTRL_N") or 20)     # 264차 무작위 대조
 
 
@@ -523,7 +527,9 @@ def main():
     # ⚠️ **이 판의 기준선**을 맨 위에 찍는다 — 안 찍으면 다른 판과 섞인다
     print(f"  ⭐ 이 판의 기준선 — 갭잣대 **{_밑갭}** · "
           f"상대갭 **{_밑상대갭:+.1f}%p** · 후보수 **{_밑후보수}** · "
-          f"크기상한 {_크기상한:,.0f}억 · 대조 {_대조번}번", flush=True)
+          f"크기상한 {_크기상한:,.0f}억 · 대조 {_대조번}번"
+          + (f" · **기준선 규칙 Ⓖ**(120일선 −8%↓)" if _밑규칙 in ("G", "Ⓖ") else ""),
+          flush=True)
     print("  ⭐ 매도 기준선 — "
           + (" / ".join(f"{z[0]:.0%} 목표 +{z[1]:g}% {z[2]}일" for z in _밑몫)
              if _밑몫 else
@@ -2096,10 +2102,13 @@ def main():
     def _H(x):
         if not 문통과(x):
             return False
+        # ⭐ BASE_RULE=G 면 마지막 갈래를 **120일선 −8%↓** 로 바꾼다 (2026-09-14 밤)
+        _끝갈래 = (_지평(x, 120, -8) if _밑규칙 in ("G", "Ⓖ")
+                  else _시낙(x, 60, -10))
         return ((x["볼린저"] <= R.볼린저문턱
                  and x["낙폭20"] <= R.낙폭20문턱)
                 or 섹터맞나(x)
-                or _시7(x) or _시낙(x, 60, -10))
+                or _시7(x) or _끝갈래)
 
     _H옛 = lambda x: 지금(x) or _시7(x) or _시낙(x, 60, -10)   # noqa: E731
 
