@@ -592,11 +592,24 @@ def main():
             continue
         낮 = 가[len(가) // 5]
         높 = 가[len(가) * 4 // 5]
-        아래 = {i2 for i2, z in enumerate(v) if z is not None and z <= 낮}
-        위 = {i2 for i2, z in enumerate(v) if z is not None and z >= 높}
-        if len(아래) > 500:
+        # ⭐⭐ **set → int 비트마스크** (2026-09-14 밤 · MemoryError 고침).
+        #    조건 110개 × set(108만) = 7GB 였다. 비트마스크면 110 × 136KB = 15MB.
+        #    담는 그릇만 바뀌고 **값은 하나도 안 바뀐다**
+        아래 = 0
+        위 = 0
+        _아래수 = _위수 = 0
+        for i2, z in enumerate(v):
+            if z is None:
+                continue
+            if z <= 낮:
+                아래 |= 1 << i2
+                _아래수 += 1
+            if z >= 높:
+                위 |= 1 << i2
+                _위수 += 1
+        if _아래수 > 500:
             조건[f"{재}↓"] = 아래
-        if len(위) > 500:
+        if _위수 > 500:
             조건[f"{재}↑"] = 위
         쓸재료.append(재)
     print(f"    쓸 재료 {len(쓸재료)}가지 · 조건 {len(조건)}개"
@@ -604,8 +617,23 @@ def main():
 
     수익 = {기: [x.get(f"_{기}") for x in 사건] for 기 in 기간들}
 
-    def 재기(자리들):
-        """(건수, {기간: (이김%, 평균)})"""
+    # ⭐ 비트마스크에서 자리를 뽑는 표 (바이트 하나에 8자리)
+    _비트표 = [[i for i in range(8) if (b >> i) & 1] for b in range(256)]
+    _자리수 = len(사건)
+
+    def _자리뽑기(m):
+        """비트마스크 → 사건 자리 목록. 통과한 것만 부르므로 이 값이면 충분하다"""
+        out = []
+        bs = m.to_bytes((_자리수 + 7) // 8, "little")
+        for bi, b in enumerate(bs):
+            if b:
+                base = bi * 8
+                out.extend(base + i for i in _비트표[b])
+        return out
+
+    def 재기(m):
+        """(건수, {기간: (이김%, 평균)}) — `m` 은 **비트마스크**다"""
+        자리들 = _자리뽑기(m) if isinstance(m, int) else m
         n = len(자리들)
         낸 = {}
         for 기 in 기간들:
@@ -653,12 +681,15 @@ def main():
             라1, 라2 = 이름들[a], 이름들[b]
             if 라1[:-1] == 라2[:-1]:
                 continue
+            # ⭐ 조건이 **비트마스크**다 (2026-09-14 밤) — 개수는 bit_count()
             s = 조건[라1] & 조건[라2]
-            if len(s) < 500:
+            if s.bit_count() < 500:
                 continue
             n, 낸 = 재기(s)
             if 낸.get(20):
-                쌍.append((낸[20][0], f"{라1} + {라2}", n, 낸, s))
+                # ⚠️ 마스크 `s` 를 담지 않는다 (2026-09-14 밤) — 통과한 쌍이 수천이면
+                #    136KB × 수천 = 수백 MB 다. C절이 쓰는 상위 40개만 **다시 계산**한다
+                쌍.append((낸[20][0], f"{라1} + {라2}", n, 낸, (라1, 라2)))
     쌍.sort(key=lambda z: -z[0])
     print(f"     쓸 만한 쌍 {len(쌍):,}개 · **위 30개**")
     print(머2)
@@ -672,13 +703,14 @@ def main():
     # ── C 셋씩 ──
     print("\n  ── C **셋씩** — 좋았던 쌍 40개에 세 번째를 붙인다 ──", flush=True)
     셋 = []
-    for _, 라, _n, _낸, s in 쌍[:40]:
+    for _, 라, _n, _낸, _짝 in 쌍[:40]:
+        s = 조건[_짝[0]] & 조건[_짝[1]]      # ⭐ 마스크는 여기서 다시 만든다
         쓴 = {p.rstrip("↑↓") for p in 라.split(" + ")}
         for 라3 in 이름들:
             if 라3.rstrip("↑↓") in 쓴:
                 continue
             s3 = s & 조건[라3]
-            if len(s3) < 400:
+            if s3.bit_count() < 400:
                 continue
             n3, 낸3 = 재기(s3)
             if 낸3.get(20):
@@ -692,13 +724,14 @@ def main():
     # ── D 지금 규칙과 견줌 ──
     print("\n  ── D **지금 규칙**과 견주면 ──")
     print(머2)
-    지금 = {i2 for i2, x in enumerate(사건)
+    # ⭐ 재기() 는 마스크(int)든 자리 목록이든 둘 다 받는다 (2026-09-14 밤)
+    지금 = [i2 for i2, x in enumerate(사건)
             if (x.get("재통과") == 1.0 and 500 <= x["시총억"] < 2000
                 and x["대금억"] >= 1.0 and x["볼린저"] <= -1.0
-                and x["낙폭20"] <= -10.0)}
+                and x["낙폭20"] <= -10.0)]
     n, 낸 = 재기(지금)
     print(줄내기("지금 규칙 (갭 조건 빼고)", n, 낸))
-    n2, 낸2 = 재기(set(range(len(사건))))
+    n2, 낸2 = 재기(list(range(len(사건))))
     print(줄내기("아무 종목·아무 날 (바탕)", n2, 낸2))
 
     print("\n" + "=" * 122)
