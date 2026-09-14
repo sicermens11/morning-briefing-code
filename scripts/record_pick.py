@@ -303,7 +303,7 @@ def 매도안내(낙, 시총억=None):
     return 줄
 
 
-def 동시호가기록(값들):
+def 동시호가기록(값들, 표본갭=None):
     """08:50에 사람이 본 예상체결가를 오늘 기록에 채워 넣는다.
 
     ⚠️⚠️ **왜 남기나** (2026-09-04)
@@ -330,6 +330,18 @@ def 동시호가기록(값들):
             표[c.strip().zfill(6)] = float(v.strip().replace(",", ""))
         except ValueError:
             print(f"⚠️ 숫자가 아니다: {조각}")
+    # ⭐⭐⭐ ㉯ — **시장 표본 30개의 중앙갭**으로 판정한다 (2026-09-14 저녁).
+    #    시험은 전부 이 잣대(표본만+실전표본)였는데 실전은 후보 중앙값(㉠)을 썼다.
+    #    9/12 A판 253차: ㉠ 13.4억 vs ㉯ 36.5억 · 앞뒤·해마다·무작위 전부 통과.
+    #    표본이 10개 미만이면 옛 방식으로 돌아가고 **그 사실을 기록**한다
+    _표본 = []
+    for _조각 in (표본갭 or "").split(","):
+        _조각 = _조각.strip()
+        if _조각:
+            try:
+                _표본.append(float(_조각))
+            except ValueError:
+                print(f"⚠️ 표본갭이 숫자가 아니다: {_조각}")
     if not 표:
         print("⚠️ 읽을 값이 없다. 꼴: --동시호가 \"005930=71000,000660=182000\"")
         return 1
@@ -360,7 +372,15 @@ def 동시호가기록(값들):
         if 갭 is not None:
             갭들.append(갭)
     if 갭들:
-        중 = st.median(갭들)
+        if len(_표본) >= 10:
+            중 = st.median(_표본)
+            동["잣대"] = "표본만+실전표본"
+        else:
+            중 = st.median(갭들)
+            동["잣대"] = "후보만"
+            print(f"  ⚠️ 표본갭이 {len(_표본)}개뿐이라 **후보 중앙값**으로 판정한다 (㉠)")
+        동["표본갭"] = [round(z, 2) for z in _표본]
+        동["표본수"] = len(_표본)
         동["예상시장갭"] = round(중, 2)
         동["잰시각"] = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"  예상체결가 {len(표)}종목 기록 · "
@@ -415,7 +435,12 @@ def main():
         if i2 + 1 >= len(sys.argv):
             print("⚠️ 값이 없다. 꼴: --동시호가 \"005930=71000,000660=182000\"")
             return 1
-        return 동시호가기록(sys.argv[i2 + 1])
+        _표본갭 = None
+        if "--표본갭" in sys.argv:
+            _i3 = sys.argv.index("--표본갭")
+            if _i3 + 1 < len(sys.argv):
+                _표본갭 = sys.argv[_i3 + 1]
+        return 동시호가기록(sys.argv[i2 + 1], 표본갭=_표본갭)
     오늘 = dt.date.today().strftime("%Y%m%d")
 
     주가 = O.수정주가(("시총", "거래대금"))

@@ -158,6 +158,29 @@ def main():
         return 1
     찍기(f"  받은 것 {len(모)}개 / 후보 {len(후보)}개")
 
+    # ── ⭐⭐⭐ ㉯ **시장 표본 30개** (2026-09-14 저녁) ──────────────
+    #    판정의 중앙갭을 후보가 아니라 **표본 30개**로 낸다(시험이 그랬다).
+    #    네이버 실시간(check_entry.fetch_quote · auto_0850 이 쓰던 경로)이라
+    #    NH 호출 예산을 안 쓴다. 30개 x 0.15초 ≈ 5초
+    표본갭 = []
+    try:
+        from auto_0850 import _시장표본
+        from check_entry import fetch_quote
+        for c2 in _시장표본:
+            try:
+                q2 = fetch_quote(c2)
+                if q2.get("now") and q2.get("prev_close"):
+                    표본갭.append((q2["now"] / q2["prev_close"] - 1) * 100)
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(0.15)
+        찍기(f"  시장 표본 {len(표본갭)}/{len(_시장표본)}개 · 중앙갭 "
+             + (f"{sorted(표본갭)[len(표본갭) // 2]:+.2f}%" if 표본갭 else "—"))
+        if len(표본갭) < 10:
+            찍기("  ⚠️ 표본이 10개 미만 — record_pick 이 후보 중앙값으로 판정한다(㉠)")
+    except Exception as e:  # noqa: BLE001
+        찍기(f"  ⚠️ 표본을 못 받았다 {type(e).__name__} {str(e)[:60]} — 후보 중앙값으로 간다")
+
     if 보기만:
         찍기(f"  (--보기만 이라 기록하지 않는다)  {','.join(모)}")
         return 0
@@ -182,7 +205,8 @@ def main():
     env["PYTHONIOENCODING"] = "utf-8"
     r = subprocess.run(
         [sys.executable, os.path.join(_BASE, "scripts", "record_pick.py"),
-         "--동시호가", ",".join(모)],
+         "--동시호가", ",".join(모),
+         "--표본갭", ",".join(f"{z:.3f}" for z in 표본갭)],
         capture_output=True, env=env, cwd=_BASE)
     나 = r.stdout.decode("utf-8", errors="replace")
     for L in 나.splitlines()[-14:]:
