@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 r"""
 gap_error.py — **08:50 예상체결가가 실제 시가와 얼마나 어긋나나** (2026-09-07 신설)
 
@@ -31,6 +31,7 @@ import glob
 import io
 import json
 import os
+import re
 import statistics as st
 import sys
 
@@ -165,5 +166,67 @@ def main():
     return 0
 
 
+# ══ ⭐ 회차별 — _antc.log 의 08:50 · 08:55 · 09:00 값을 그날 시가와 (2026-09-14 저녁) ══
+#    위 main() 은 판정 한 회차(하루 1줄)만 본다. 예약이 08:50·08:55·08:58 세 번 받으니
+#    회차마다 **어느 시각이 시가를 잘 맞히나**가 쌓인다. 판정 시각 08:55 는 2026-09-14
+#    하루치(21종목)로 정한 잠정값이라, 여기 표본이 20건을 넘으면 다시 판정한다
+_안틱 = os.path.join(_BASE, "data", "_antc.log")
+_줄꼴 = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2}):\d{2}\s+· (.+?)\((\d{6})\) 전날 ([\d,]+)원 → 예상 ([\d,]+)원")
+
+
+def 회차별():
+    if not os.path.exists(_안틱):
+        return
+    묶 = {}          # (날짜, 회차) -> {code: (이름, 예상)}
+    for L in io.open(_안틱, encoding="utf-8", errors="replace"):
+        m = _줄꼴.match(L.strip())
+        if not m:
+            continue
+        날, hh, mm, 이름, code, _전, 예 = m.groups()
+        if not ("08:30" <= f"{hh}:{mm}" <= "09:00"):
+            continue
+        # 회차 = 5분 단위로 묶는다 (08:50:23 → 08:50 · 08:58 → 08:55 묶음이 아니라 08:58 그대로)
+        회 = f"{hh}:{mm}" if mm in ("50", "55", "58", "00") else f"{hh}:{int(mm) // 5 * 5:02d}"
+        묶.setdefault((날, 회), {})[code] = (이름, float(예.replace(",", "")))
+    if not 묶:
+        return
+    print("\n" + "=" * 78)
+    print("  회차별 — _antc.log 의 예상체결가 vs **그날** 시가 (판정 시각을 정하는 근거)")
+    print("=" * 78)
+    시가캐시 = {}
+    회차별오차 = {}
+    없는날 = set()
+    for (날, 회), 표 in sorted(묶.items()):
+        d8 = 날.replace("-", "")
+        if d8 not in 시가캐시:
+            시가캐시[d8] = 시가들(d8)
+        시 = 시가캐시[d8]
+        if not 시:
+            없는날.add(날)
+            continue
+        for code, (이름, 예) in 표.items():
+            실 = 시.get(code)
+            if 실:
+                회차별오차.setdefault(회, []).append((예 / 실 - 1) * 100)
+    if 없는날:
+        print(f"  (시가가 아직 없는 날 {len(없는날)}일: {', '.join(sorted(없는날)[-3:])} — 저녁 수집 뒤에 잡힌다)")
+    if not 회차별오차:
+        print("  아직 맞춘 것이 없다")
+        return
+    print(f"\n    {'회차':<8}{'건수':>6}{'평균':>9}{'표준편차':>9}{'|오차| 중앙':>11}{'최대':>9}   판정")
+    for 회 in sorted(회차별오차):
+        v = 회차별오차[회]
+        표 = st.pstdev(v) if len(v) > 1 else 0.0
+        판 = ("표본 20 미만" if len(v) < 20 else
+              ("σ ≤ 0.5 — 이 회차면 문턱 -3.0 검토" if 표 <= 0.5 else
+               "σ ≥ 1.0 — 이 회차는 못 믿는다" if 표 >= 1.0 else "0.5~1.0 · 더 모은다"))
+        print(f"    {회:<8}{len(v):>6}{st.mean(v):>+9.2f}{표:>9.2f}"
+              f"{st.median([abs(z) for z in v]):>11.2f}{max(v, key=abs):>+9.2f}   {판}")
+    print("\n  ⇒ 09:00 회차는 이미 시가라 오차 0 에 가깝다 — **그때는 못 산다.** 08:50 vs 08:55 를 본다")
+    print("=" * 78)
+
 if __name__ == "__main__":
-    sys.exit(main())
+    _rc = main()
+    회차별()
+    sys.exit(_rc)
