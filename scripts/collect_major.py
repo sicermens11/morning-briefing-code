@@ -93,6 +93,16 @@ def main():
             잘 = [{"접수일": r.get("rcept_dt"), "보고자": r.get("repror"),
                    "보고구분": r.get("report_tp"),
                    "주식수": r.get("stkqy"), "지분율": r.get("stkrt"),
+                   # ⚠️⚠️ **이름이 셋 다 틀렸었다** (2026-09-14 밤 발견).
+                   #    `_irds` 는 increase/decrease = **증감**이지 「직전」이 아니다.
+                   #    삼성물산이 11억 주를 들고 있는데 「직전주식수 6,317」로 찍혀
+                   #    있었고, 그걸 「지분율 − 직전지분율」로 읽으면 20.08%p 가
+                   #    매번 더해져 **대주주 변화가 141%p** 로 나왔다.
+                   #    ⇒ 바른 이름을 새로 넣고, 옛 이름은 **이미 받은 2,653개 파일과
+                   #      호환**을 위해 같은 값으로 남긴다 (읽는 쪽은 새 이름을 먼저 본다)
+                   "증감주식수": r.get("stkqy_irds"),
+                   "증감지분율": r.get("stkrt_irds"),
+                   "주요체결주식수": r.get("ctr_stkqy"),
                    "직전주식수": r.get("stkqy_irds"), "직전지분율": r.get("stkrt_irds"),
                    "보유목적": r.get("ctr_stkqy")} for r in rows]
             io.open(os.path.join(OUT, code + ".json"), "w", encoding="utf-8").write(
