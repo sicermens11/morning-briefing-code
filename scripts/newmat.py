@@ -282,6 +282,135 @@ def _ETF자금표(날들):
     return 표
 
 
+def _국내거시표(날들):
+    r"""날짜8 -> {이름: 값} — 국고채 금리 · 코스피200 선물 · 금 · 휘발유 (2010~2026)
+
+    ⚠️ 자료재고에 「krx-extra 2024~2026 · 649일」로 적혀 있었는데 **틀렸다** —
+       실제로는 국고채·선물 **4,109일**(2010~) · 일반상품 3,549일(2012~)이다
+       (2026-09-14 밤 실측). 기간이 짧아 못 잰다던 재료가 사실 16.7년 다 있었다.
+    ⚠️ 193차에서 잰 해외 재료(S&P500·구리·원달러·공포지수·반도체ETF)는 **전부 탈락**했다.
+       국내 거시는 아직 한 번도 안 쟀다 — 그래서 여기 넣는다.
+    """
+    필요 = set(날들)
+    표 = {}
+
+    def 숫(x, k):
+        return _숫((x or {}).get(k))
+
+    for d8 in sorted(필요):
+        하루 = {}
+        # 국고채 — 지표 종목의 만기별 종가(값이 오르면 금리가 내린 것)
+        p = os.path.join(_DATA, "krx-extra", "국고채", d8 + ".json")
+        if os.path.exists(p):
+            try:
+                벌 = (json.load(io.open(p, encoding="utf-8-sig"))
+                      .get("자료", {}).get("kts_bydd_trd") or [])
+            except ValueError:
+                벌 = []
+            for x in 벌:
+                if x.get("GOVBND_ISU_TP_NM") != "지표":
+                    continue
+                만기 = str(x.get("BND_EXP_TP_NM") or "")
+                v = 숫(x, "CLSPRC")
+                if 만기 in ("3", "10") and v:
+                    하루[f"국고{만기}년"] = v
+        # 선물 — 코스피200 정규장 종가
+        p = os.path.join(_DATA, "krx-extra", "선물", d8 + ".json")
+        if os.path.exists(p):
+            try:
+                벌 = (json.load(io.open(p, encoding="utf-8-sig"))
+                      .get("자료", {}).get("fut_bydd_trd") or [])
+            except ValueError:
+                벌 = []
+            for x in 벌:
+                if (x.get("PROD_NM") == "코스피200 선물"
+                        and x.get("MKT_NM") == "정규"):
+                    v = 숫(x, "TDD_CLSPRC")
+                    if v and "코스피200선물" not in 하루:
+                        하루["코스피200선물"] = v
+        # 일반상품 — 금 · 휘발유
+        p = os.path.join(_DATA, "krx-extra", "일반상품", d8 + ".json")
+        if os.path.exists(p):
+            try:
+                자 = json.load(io.open(p, encoding="utf-8-sig")).get("자료", {})
+            except ValueError:
+                자 = {}
+            for x in (자.get("gold_bydd_trd") or []):
+                v = 숫(x, "TDD_CLSPRC")
+                if v and "금값" not in 하루:
+                    하루["금값"] = v
+            for x in (자.get("oil_bydd_trd") or []):
+                if x.get("OIL_NM") == "휘발유":
+                    v = 숫(x, "WT_AVG_PRC")
+                    if v:
+                        하루["휘발유"] = v
+        if 하루:
+            표[d8] = 하루
+    return 표
+
+
+def _배당표():
+    r"""종목코드 -> (정렬된 해, 시가배당률) — dart-snap/배당 (2,651종목)
+
+    ⚠️ 배당은 **해마다 한 번**이라 사건의 신호일 기준 **가장 최근 확정 해**를 쓴다.
+    """
+    표 = {}
+    for f in glob.glob(os.path.join(_DATA, "dart-snap", "배당", "*.json")):
+        code = os.path.basename(f)[:-5]
+        try:
+            j = json.load(io.open(f, encoding="utf-8-sig"))
+        except ValueError:
+            continue
+        벌 = []
+        for 해, 항목들 in (j.get("해별") or {}).items():
+            for x in (항목들 or []):
+                # ⚠️ 항목 이름은 `se`, 값은 `thstrm`(당기) — 2026-09-14 밤 실측으로 확인
+                이름 = str(x.get("se") or "")
+                if "주당 현금배당금" in 이름 and x.get("stock_knd") == "보통주":
+                    v = _숫(x.get("thstrm"))
+                    if v is not None:
+                        벌.append((str(해), v))
+                        break
+        if 벌:
+            벌.sort()
+            표[code] = ([z[0] for z in 벌], [z[1] for z in 벌])
+    return 표
+
+
+def _소액주주표():
+    """종목코드 -> (정렬된 해, 소액주주 지분율) — 유통 물량이 많을수록 높다"""
+    표 = {}
+    for f in glob.glob(os.path.join(_DATA, "dart-snap", "소액주주", "*.json")):
+        code = os.path.basename(f)[:-5]
+        try:
+            j = json.load(io.open(f, encoding="utf-8-sig"))
+        except ValueError:
+            continue
+        벌 = []
+        for 해, 항목들 in (j.get("해별") or {}).items():
+            for x in (항목들 or []):
+                # `hold_stock_rate` 는 '66.04%' 꼴 — _숫 이 기호를 떼 준다
+                v = _숫(x.get("hold_stock_rate"))
+                if v is not None:
+                    벌.append((str(해), v))
+                    break
+        if 벌:
+            벌.sort()
+            표[code] = ([z[0] for z in 벌], [z[1] for z in 벌])
+    return 표
+
+
+def _해값(표, code, 날짜8):
+    """그 종목의 **신호일 이전 가장 최근 해** 값 — 없으면 None"""
+    t = 표.get(code)
+    if not t:
+        return None
+    해들, 값들 = t
+    해 = 날짜8[:4]
+    i = bisect.bisect_right(해들, 해) - 1
+    return 값들[i] if i >= 0 else None
+
+
 def _상장주식수():
     """종목코드 -> 상장주식수(float). 임원 매매를 종목 크기로 나누는 데 쓴다"""
     표 = {}
@@ -482,6 +611,48 @@ def 붙이기(사건, 날들, 뉴스포함=True, 찍기=print):
                 x["ETF시총20"] = (시총 / 순[j0][1] - 1) * 100
         붙은 += ["ETF대금배수", "ETF시총20"]
         찍기(f"      {len(etf):,}일")
+
+    # ⑧ 국내 거시 — 국고채 금리 · 코스피200 선물 · 금 · 휘발유 (2010~2026)
+    #    ⚠️ 193차가 잰 해외 재료(S&P500·구리·원달러·공포지수·반도체ETF)는 **전부 탈락**했다.
+    #       국내 거시는 한 번도 안 쟀다. 종목이 아니라 **그날 시장 전체** 재료다
+    찍기("    국내 거시(국고채·선물·금·휘발유) 붙이는 중...")
+    거시 = _국내거시표(날들)
+    if 거시:
+        벌 = [거시.get(d) or {} for d in 날들]
+        이름들 = ("국고3년", "국고10년", "코스피200선물", "금값", "휘발유")
+        for x in 사건:
+            i = x["인"] - 1
+            if not (0 <= i < len(날들)):
+                continue
+            이제, 전 = 벌[i], (벌[i - 20] if i >= 20 else {})
+            for 이 in 이름들:
+                a, b = 이제.get(이), 전.get(이)
+                if a and b and b > 0:
+                    x[f"{이}20"] = (a / b - 1) * 100     # 20 거래일 변화율
+        붙은 += [f"{이}20" for 이 in 이름들]
+        찍기(f"      {len(거시):,}일")
+
+    # ⑨ 배당 · 소액주주 — dart-snap (⚠️ **2024~2025 두 해뿐**)
+    #    10.4년 사건에 붙이면 19% 라 오분위(30% 문턱)가 건너뛴다 — `--최근N년` 판에서만 산다
+    찍기("    배당·소액주주(dart-snap) 붙이는 중...")
+    배당 = _배당표()
+    소액 = _소액주주표()
+    if 배당 or 소액:
+        for x in 사건:
+            i = x["인"] - 1
+            d8 = 날들[i] if 0 <= i < len(날들) else None
+            if not d8:
+                continue
+            v = _해값(배당, x["code"], d8)
+            if v is not None and x.get("주가"):
+                # 주당 배당금을 **주가로 나눠** 배당수익률(%)로 — 크기에 안 휘둘리게
+                x["배당수익률"] = v / x["주가"] * 100
+            v2 = _해값(소액, x["code"], d8)
+            if v2 is not None:
+                x["소액주주지분"] = v2
+        붙은 += ["배당수익률", "소액주주지분"]
+        찍기(f"      배당 {len(배당):,}종목 · 소액주주 {len(소액):,}종목 "
+             "(⚠️ 2024~2025 두 해뿐)")
     return 붙은
 
 
