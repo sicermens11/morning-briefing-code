@@ -16,6 +16,12 @@
 $ErrorActionPreference = "Continue"
 Set-Location "C:\Users\mrblue\Claude\morning breifing_code"
 $env:PYTHONIOENCODING = "utf-8"
+# ⚠️⚠️ **python 이 UTF-8 로 내는 한글을 PowerShell 이 cp949 로 읽는다** (2026-09-13 사고).
+#    `pick_base.py` 가 낸 "표본만+실전표본" 이 "?쒕낯留??ㅼ쟾?쒕낯" 이 되어
+#    gate7_lab 이 **조용히 「후보만」으로** 떨어졌고 판 셋이 헛돌았다.
+#    `PYTHONIOENCODING` 은 **보내는 쪽**만 맞춘 것이다 — 받는 쪽도 맞춘다
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+$OutputEncoding = [Text.Encoding]::UTF8
 $py = "C:\Users\mrblue\AppData\Local\Programs\Python\Python313\python.exe"
 $log = "run-logs\weekend_labs_$(Get-Date -f yyyyMMdd_HHmm).log"
 function 적기($s) { "$(Get-Date -f 'MM-dd HH:mm')  $s" | Tee-Object $log -Append }
