@@ -224,7 +224,9 @@ def main():
     #    (run-skill.ps1:162 -> publish_pages.ps1 -> _entry_band).
     #    이게 있어야 **사용자가 따로 확인할 것이 없다** — 브리핑만 보면 된다
     if r.returncode == 0:
-        찍기("  웹 재게시 중 (08:50 확정을 화면에 올린다)...")
+        # ⚠️ 「08:50」으로 박아 두면 판정 시각을 바꿔도 문구가 안 따라온다.
+        #    실제로 09-14 에 08:55 로 옮긴 뒤에도 「08:50 확정」이라 찍혔다
+        찍기(f"  웹 재게시 중 ({판정시각} 확정을 화면에 올린다)...")
         p2 = subprocess.run(
             ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
              "-File", os.path.join(_BASE, "scripts", "publish_pages.ps1")],
