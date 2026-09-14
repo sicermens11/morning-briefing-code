@@ -908,7 +908,10 @@ def quant_view(q):
            # ⭐ **디자인 답 B-4** — 전환을 **여기서 한 번에** 알린다.
            #    아래 종목 줄은 자리·라벨·크기가 그대로라 조용히 값만 바뀐다
            f'letter-spacing:.18em;font-weight:700">QUANT · '
-           + ("08:50 확정" if 확정 else "08:00 후보") + '</div>'
+           # ⭐ **08:50 -> 08:55** (2026-09-14). 판정 시각을 옮겼다 —
+           #    08:50 예상체결가는 호가가 얇아 시가를 잘 못 맞힌다
+           #    (21종목 실측 평균 오차 0.95%p vs 08:55 의 0.60%p)
+           + ("08:55 확정" if 확정 else "08:00 후보") + '</div>'
            f'<div style="font-size:62px;font-weight:800;letter-spacing:-.035em;'
            f'margin-top:16px;line-height:1.1">{_제목}</div>'
            + (f'<div style="font-size:31px;color:{QC["금"]};font-weight:700;'
@@ -1149,7 +1152,7 @@ def quant_view(q):
     # ⚠️ 매수 상한은 **시장 보합 기준**이다. 시장이 같이 빠지면 더 내려간다
     _상한말 = ((f'<div style="font-size:25px;color:#7fa6ff;line-height:1.5;'
                 f'margin-bottom:10px;padding:8px 14px;background:#1b2536;'
-                f'border-radius:11px"><b>매수 적정 범위</b>는 08:50에 정해질 '
+                f'border-radius:11px"><b>매수 적정 범위</b>는 08:55에 정해질 '
                 f'값이 들어올 자리입니다 (열에 아홉 날 기준). 시장이 더 많이 '
                 f'빠져 있으면 <b>이보다 낮아집니다.</b> 반은 +15%, 반은 +40%에 '
                 f'팝니다.</div>')
@@ -1180,7 +1183,7 @@ def quant_view(q):
             #    범위는 **08:50 전**에 미리 보여 주는 것이고, 08:50이 되면
             #    범위가 사라지고 **정확한 지정가 한 값**으로 바뀐다 (2026-09-11)
             f'⚠️ 아직 <b>「살 종목」이 아닙니다</b> · '
-            f'<b>08:50</b>에 살지와 지정가가 정해집니다</div>') if 후보 else
+            f'<b>08:55</b>에 살지와 지정가가 정해집니다</div>') if 후보 else
            (f'<div style="background:#1f1b16;border-left:9px solid {QC["선"]};'
             f'border-radius:20px;padding:22px 30px;'
             f'font-size:29px;line-height:1.6">'
@@ -1407,7 +1410,7 @@ def quant_view(q):
     #    바닥에 붙이므로** 여기에 margin 을 줘도 ❷ 는 안 움직인다
     가2b = ['<div style="margin-top:74px">'
             + _머리표(1, '어떻게 <b>사나</b>', 색="#d4ab45")
-            + 박스('<b>08:50에 5분, 여기서 살지 정해진다</b><br>'
+            + 박스('<b>08:55에 5분, 여기서 살지 정해진다</b><br>'
                    '후보들의 예상체결가를 보고, 그 값들의 <b>중앙값</b>보다 '
                    f'<b>{abs(R.상대갭문턱):g}%p 더 빠진 것</b>만 '
                    f'<b>최대 {R.하루최대종목}종목</b> 지정가로 삽니다.<br>'
