@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 r"""
 rebound_lab.py — **「반등이 시작된 뒤 산다」가 나은가** (2026-09-15 신설)
 
@@ -50,6 +50,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import omni_lab as O  # noqa: E402
 import rule_def as R  # noqa: E402
+# ⭐ 공시·컨센서스·뉴스 표는 `newmat` 이 이미 읽는다 — 다시 안 쓴다
+import newmat  # noqa: E402
 from day_lab import 연간재무  # noqa: E402
 
 _시작 = "20160401"
@@ -139,6 +141,15 @@ def main():
                 continue
             사건.append({"i": i, "code": code, "kk": kk})
     print(f"  사건 {len(사건):,}건", flush=True)
+
+    # ── 사건 재료 (공시·컨센서스·뉴스) ──────────────────────────
+    #    ⚠️ 어젯밤 재료는 **신호일까지** 봤다. 여기는 **빠진 뒤**를 본다
+    print("  공시·컨센서스·뉴스 읽는 중...", flush=True)
+    _공시 = newmat._공시시각표(날)
+    _컨 = newmat._컨센서스표()
+    _뉴 = newmat._뉴스표()
+    print(f"    공시 {len(_공시):,}일 · 컨센서스 {len(_컨):,}종목 · "
+          f"뉴스 {len(_뉴):,}종목", flush=True)
     해수 = max(len([d for d in 날 if d >= _시작]) / 245, 0.1)
 
     # ── 반등 신호 ───────────────────────────────────────────────
@@ -169,6 +180,40 @@ def main():
         if 방식 == "양봉":
             o = (시계.get(code) or {}).get(d8)
             return bool(o and sq[k] > o)
+        # ── 여기부터 **사건 신호** (사용자 지적) ──────────────
+        if 방식 == "공시":
+            중, 후, 챙 = (_공시.get(d8) or {}).get(code, (0, 0, 0))
+            return (중 + 후) >= 1
+        if 방식 == "챙길공시":
+            중, 후, 챙 = (_공시.get(d8) or {}).get(code, (0, 0, 0))
+            return 챙 >= 1
+        if 방식 == "장중공시":
+            중, 후, 챙 = (_공시.get(d8) or {}).get(code, (0, 0, 0))
+            return 중 >= 1
+        if 방식 in ("새리포트", "목표주가올림"):
+            t = _컨.get(code)
+            if not t:
+                return False
+            ds, 목, 의 = t
+            # 그날 나온 리포트가 있나 (이분 탐색 대신 간단히 — 종목당 몇십 건)
+            _자 = [q for q, z in enumerate(ds) if z == d8]
+            if not _자:
+                return False
+            if 방식 == "새리포트":
+                return True
+            # 목표주가올림 — 그 전 리포트보다 높은 목표가
+            q = _자[-1]
+            앞 = [목[w] for w in range(q) if 목[w]]
+            return bool(목[q] and 앞 and 목[q] > 앞[-1])
+        if 방식 in ("뉴스", "호재뉴스"):
+            t = _뉴.get(code)
+            if not t:
+                return False
+            ds, 호, 악 = t
+            _자 = [q for q, z in enumerate(ds) if z == d8]
+            if not _자:
+                return False
+            return True if 방식 == "뉴스" else any(호[w] > 0 for w in _자)
         if 방식 == "양봉+거래량":
             o = (시계.get(code) or {}).get(d8)
             if not (o and sq[k] > o) or k < 20:
@@ -196,12 +241,14 @@ def main():
             return None
         return (sq[k2] / o - 1) * 100 - _비용
 
-    def 재기(라, 사는자리):
-        """사는자리(x) -> 산 날 자리 또는 None"""
+    def 재기(라, 사는자리, 시작="00000000"):
+        """사는자리(x) -> 산 날 자리 또는 None. `시작` 부터의 사건만 센다"""
         벌 = {n: [] for n in _기간들}
         산것 = 0
         늦음 = []
-        for x in 사건:
+        _대상 = [x for x in 사건 if 날[x["i"]] >= 시작]
+        _해 = max(len([d for d in 날 if d >= max(시작, _시작)]) / 245, 0.1)
+        for x in _대상:
             j = 사는자리(x)
             if j is None:
                 continue
@@ -211,7 +258,7 @@ def main():
                 v = 수익(x["code"], j, n)
                 if v is not None:
                     벌[n].append(v)
-        줄 = f"  {라:<26}{산것:>9,}{산것 / 해수:>8,.0f}"
+        줄 = f"  {라:<26}{산것:>9,}{산것 / _해:>8,.0f}"
         for n in _기간들:
             a = 벌[n]
             if len(a) < 80:
@@ -233,18 +280,37 @@ def main():
           f"{'40일 이김':>9}{'평균':>9}{'늦음':>9}")
     print(머)
 
-    재기("지금 (다음 날 시가)", lambda x: x["i"] + 1)
-    for 방식 in ("볼린저재진입", "5일선회복", "전일고가돌파", "양봉", "양봉+거래량"):
-        def _사는자리(x, _방=방식):
+    def _사는자리만들기(방식):
+        def _f(x):
             for h in range(0, _최대):
                 k = x["kk"] + h
                 j = x["i"] + h
                 if j + 1 >= len(날) or k >= len(종계[x["code"]]):
                     return None
-                if 신호(_방, x["code"], k, 날[j], 날[j - 1] if j else 날[0]):
+                if 신호(방식, x["code"], k, 날[j], 날[j - 1] if j else 날[0]):
                     return j + 1
             return None
-        재기(방식, _사는자리)
+        return _f
+
+    # ⚠️⚠️ **기간을 맞춰 견딘다** — 자료가 있는 기간이 제각각이다.
+    #    공시 2010~ · 컨센서스 2020~ · 뉴스 **2025-09~ (1년뿐)**.
+    #    그냥 한 표에 놓으면 **기간 차이를 신호 차이로 읽는다.**
+    #    묶음마다 「지금」을 **같은 기간으로 잘라** 맨 위에 다시 찍는다
+    묶음들 = (("기술적 신호 (전 기간)", "00000000",
+               ("볼린저재진입", "5일선회복", "전일고가돌파", "양봉", "양봉+거래량")),
+              ("⭐ 공시 (2010~ · 전 기간)", "00000000",
+               ("공시", "챙길공시", "장중공시")),
+              ("⭐ 컨센서스 (2020~ 만)", "20200101",
+               ("새리포트", "목표주가올림")),
+              ("⭐ 뉴스 (2025-09~ · 1년뿐)", "20250903",
+               ("뉴스", "호재뉴스")))
+    for 제목, 시작, 방식들 in 묶음들:
+        print(f"\n  ── {제목} ──")
+        if 시작 > "00000000":
+            print(머)
+        재기(f"[견줌] 지금", lambda x: x["i"] + 1, 시작)
+        for 방식 in 방식들:
+            재기(방식, _사는자리만들기(방식), 시작)
 
     print("\n  읽는 법")
     print("    - **산 것**이 줄면 그만큼 **기회를 버린 것**이다 (사용자 1순위)")
