@@ -271,9 +271,26 @@ def main():
                     _실적일.setdefault(_c, []).append(_d8)
     for _c in _실적일:
         _실적일[_c] = sorted(set(_실적일[_c]))
+    # ⭐ collect_earnings_dates.py 가 만든 표(2010~ 촘촘)가 있으면 **그것을 우선** 쓴다 (2026-09-15 23:10)
+    _손익일 = {}
+    try:
+        _ej = json.load(io.open(os.path.join(O._DATA, "earnings-dates.json"), encoding="utf-8-sig"))
+        _n0 = sum(len(v) for v in _실적일.values())
+        for _c, _벌 in (_ej.get("종목") or {}).items():
+            for _d8, _종 in _벌:
+                if _d8 not in 자리_날:
+                    continue
+                (_실적일 if _종 == "잠정실적" else _손익일).setdefault(_c, []).append(_d8)
+        for _표 in (_실적일, _손익일):
+            for _c in _표:
+                _표[_c] = sorted(set(_표[_c]))
+        print(f"    earnings-dates.json: 잠정실적 {sum(len(v) for v in _실적일.values()):,}건 "
+              f"(파일 훑기 {_n0:,}) · 손익구조 {sum(len(v) for v in _손익일.values()):,}건", flush=True)
+    except Exception as _e:  # noqa: BLE001
+        print(f"    earnings-dates.json 없음/못 읽음 ({type(_e).__name__}) — dart-daily 훑기만 쓴다", flush=True)
 
-    def _실적후(code, i, n=5):
-        ds = _실적일.get(code)
+    def _실적후(code, i, n=5, 표=None):
+        ds = (표 if 표 is not None else _실적일).get(code)
         if not ds:
             return 0.0
         시작 = 날[max(0, i - n)]
@@ -388,6 +405,8 @@ def main():
                 "미국10년20": _변화20(_us10, i), "미국금리차": _금리차[i],
                 "미국금리차20": _변화20(_금리차, i),
                 "실적공시후5": _실적후(code, i, 5), "실적시즌": _실적시즌(d1),
+                "실적공시후1": _실적후(code, i, 1), "실적공시후20": _실적후(code, i, 20),
+                "손익구조후5": _실적후(code, i, 5, _손익일),
                 "FOMC변경후5": _fomc후(i, 5), "FOMC변경후20": _fomc후(i, 20),
                 "FOMC회의후5": _뒤N(_fomc회의자리, i, 5), "미국CPI후3": _뒤N(_cpi자리, i, 3),
                 "금통위변경후5": _뒤N(_금통자리, i, 5),
@@ -823,6 +842,7 @@ def main():
               "진폭14", "당일진폭", "시가위치",                                # ⭐ 저가 (안 쓰던 필드)
               "미국10년20", "미국금리차", "미국금리차20",                      # ⭐ fred (안 쓰던 폴더)
               "실적공시후5", "실적시즌", "FOMC변경후5", "FOMC변경후20",         # ⭐ 사건 전후 (처음)
+              "실적공시후1", "실적공시후20", "손익구조후5",                        # ⭐ earnings-dates.json
               "FOMC회의후5", "미국CPI후3", "금통위변경후5",                       # ⭐ 실제 일정 (event-calendar)
               "시총억", "대금억", "거래량", "회전율",
               "잉여금", "부채", "ROE", "영업이익률", "순이익률", "유동비율",
