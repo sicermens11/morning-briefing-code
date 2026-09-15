@@ -304,7 +304,31 @@ def main():
         import bisect as _b2
         p = _b2.bisect_right(_fomc자리, i) - 1
         return 1.0 if (p >= 0 and i - _fomc자리[p] <= n) else 0.0
-    print(f"    실적 공시 있는 종목 {len(_실적일):,} · FOMC 변경일(대용) {len(_fomc자리)}일", flush=True)
+    # ⭐ 실제 일정 (data/event-calendar.json · 2026-09-15 수집) — FOMC 회의 · 미국 CPI · 금통위 변경일
+    #    미국 날짜는 현지 발표일 → 한국 시장엔 **다음 거래일** 반영 (+1)
+    def _달력자리(날짜들, 미국=True):
+        import bisect as _b2
+        out = []
+        for d in 날짜들:
+            p = _b2.bisect_right(날, d) if 미국 else _b2.bisect_left(날, d)   # 미국: d 다음 거래일
+            if p < len(날):
+                out.append(p)
+        return sorted(set(out))
+    _달력 = {}
+    try:
+        _달력 = json.load(io.open(os.path.join(O._DATA, "event-calendar.json"), encoding="utf-8-sig"))
+    except Exception:  # noqa: BLE001
+        _달력 = {}
+    _fomc회의자리 = _달력자리(_달력.get("FOMC") or [], 미국=True)
+    _cpi자리 = _달력자리(_달력.get("미국CPI") or [], 미국=True)
+    _금통자리 = _달력자리(sorted((_달력.get("금통위변경") or {}).keys()), 미국=False)
+
+    def _뒤N(자리들, i, n):
+        import bisect as _b2
+        p = _b2.bisect_right(자리들, i) - 1
+        return 1.0 if (p >= 0 and i - 자리들[p] <= n) else 0.0
+    print(f"    실적 공시 있는 종목 {len(_실적일):,} · FOMC 변경일(대용) {len(_fomc자리)}일 · "
+          f"달력: FOMC 회의 {len(_fomc회의자리)} · CPI {len(_cpi자리)} · 금통위 변경 {len(_금통자리)}", flush=True)
 
     사건 = []
     for i, d1 in enumerate(날):
@@ -365,6 +389,8 @@ def main():
                 "미국금리차20": _변화20(_금리차, i),
                 "실적공시후5": _실적후(code, i, 5), "실적시즌": _실적시즌(d1),
                 "FOMC변경후5": _fomc후(i, 5), "FOMC변경후20": _fomc후(i, 20),
+                "FOMC회의후5": _뒤N(_fomc회의자리, i, 5), "미국CPI후3": _뒤N(_cpi자리, i, 3),
+                "금통위변경후5": _뒤N(_금통자리, i, 5),
                 "시총억": 시총 / 1e8, "대금억": 대금 / 1e8, "거래량": 량,
                 "회전율": (대금 / 시총 * 100) if 시총 > 0 else 0,
                 "갭": g, "매수": 매수, "재통과": 재통과, "낙폭60": 낙60,
@@ -797,6 +823,7 @@ def main():
               "진폭14", "당일진폭", "시가위치",                                # ⭐ 저가 (안 쓰던 필드)
               "미국10년20", "미국금리차", "미국금리차20",                      # ⭐ fred (안 쓰던 폴더)
               "실적공시후5", "실적시즌", "FOMC변경후5", "FOMC변경후20",         # ⭐ 사건 전후 (처음)
+              "FOMC회의후5", "미국CPI후3", "금통위변경후5",                       # ⭐ 실제 일정 (event-calendar)
               "시총억", "대금억", "거래량", "회전율",
               "잉여금", "부채", "ROE", "영업이익률", "순이익률", "유동비율",
               "시장낙폭", "상대강도", "시장변동성", "소형우위",
