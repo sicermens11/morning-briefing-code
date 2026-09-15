@@ -42,9 +42,13 @@ function 큰파이썬 {
     @(Get-Process python -ErrorAction SilentlyContinue |
       Where-Object { $_.WorkingSet64 -gt 1GB }).Count
 }
+# ⚠️ **막을 구간은 브리핑·판정이 도는 07:20~09:10 이다** (2026-09-15 좁힘).
+#    전에는 `8 <= h < 10` 이라 **10시까지 통째로** 막았다. 브리핑은 08:02,
+#    마지막 판정 회차는 08:58 에 끝나는데 09:00~09:59 를 왜 막나.
+#    (09:10 까지 두는 건 08:58 회차의 웹 재게시가 끝나도록 여유를 준 것이다)
 function 아침인가 {
     $h = (Get-Date).Hour; $m = (Get-Date).Minute
-    return (($h -eq 7 -and $m -ge 20) -or ($h -ge 8 -and $h -lt 10))
+    return (($h -eq 7 -and $m -ge 20) -or ($h -eq 8) -or ($h -eq 9 -and $m -lt 10))
 }
 
 function 판돌리기($이름, $설명, $스크립트, $환경, $인자, $작으면) {
