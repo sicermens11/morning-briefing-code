@@ -191,20 +191,23 @@ def main():
             중, 후, 챙 = (_공시.get(d8) or {}).get(code, (0, 0, 0))
             return 중 >= 1
         if 방식 in ("새리포트", "목표주가올림"):
-            t = _컨.get(code)
-            if not t:
+            # ⚠️⚠️ `_컨센서스표` 는 종목 -> **[(날짜8, 목표주가, 의견점수), …] 리스트**다.
+            #    `_뉴스표`(3벌 묶음)와 **모양이 다르다** — 2026-09-15 에
+            #    `ds, 목, 의 = t` 로 풀다 `ValueError: too many values to unpack` 로
+            #    판이 죽었다. 같은 파일에서 온 표라도 **모양을 확인하고 쓴다**
+            벌 = _컨.get(code)
+            if not 벌:
                 return False
-            ds, 목, 의 = t
-            # 그날 나온 리포트가 있나 (이분 탐색 대신 간단히 — 종목당 몇십 건)
-            _자 = [q for q, z in enumerate(ds) if z == d8]
+            _자 = [q for q, z in enumerate(벌) if z[0] == d8]
             if not _자:
                 return False
             if 방식 == "새리포트":
                 return True
             # 목표주가올림 — 그 전 리포트보다 높은 목표가
             q = _자[-1]
-            앞 = [목[w] for w in range(q) if 목[w]]
-            return bool(목[q] and 앞 and 목[q] > 앞[-1])
+            이번 = 벌[q][1]
+            앞 = [벌[w][1] for w in range(q) if 벌[w][1]]
+            return bool(이번 and 앞 and 이번 > 앞[-1])
         if 방식 in ("뉴스", "호재뉴스"):
             t = _뉴.get(code)
             if not t:
