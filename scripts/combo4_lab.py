@@ -250,6 +250,62 @@ def main():
         return 열[i] - 열[i - 20]
     print(f"    진폭·시가위치 {len(_진폭):,}종목 · 미국 금리 {sum(1 for z in _us10 if z is not None):,}일", flush=True)
 
+    # ⭐ **사건 전후 재료** (2026-09-15 22:45 · 사용자 「실적발표 정책발표 경제지표 전후 테스트한 적 있나?」)
+    #    한 번도 안 쟀다. 자료 한계: 실적 공시는 dart-daily 에 걸러져 있고(있는 것만),
+    #    금통위·FOMC·CPI 일정은 없다 → FOMC 는 FEDFUNDS 0.10%p 변경일을 대용으로. 「발표 전」은 고정 달력만
+    print("  사건 전후(실적 공시 · 실적 시즌 · FOMC 변경) 표 만드는 중...", flush=True)
+    _실적일 = {}                                   # code -> 정렬된 날짜8 목록
+    for _f in sorted(glob.glob(os.path.join(O._DATA, "dart-daily", "*.json"))):
+        _d8 = os.path.basename(_f)[:8]
+        if _d8 not in 자리_날:
+            continue
+        try:
+            _j = json.load(io.open(_f, encoding="utf-8-sig"))
+        except Exception:  # noqa: BLE001
+            continue
+        for _k in ("챙길공시", "그밖의공시"):
+            for _x in (_j.get(_k) or []):
+                _c = str(_x.get("종목코드") or "")
+                # ⚠️ "실적" 만 보면 「증권발행실적보고서」(21,404건) 가 다 잡힌다 — **「(잠정)실적」** 만
+                if _c and "(잠정)실적" in str(_x.get("공시명") or ""):
+                    _실적일.setdefault(_c, []).append(_d8)
+    for _c in _실적일:
+        _실적일[_c] = sorted(set(_실적일[_c]))
+
+    def _실적후(code, i, n=5):
+        ds = _실적일.get(code)
+        if not ds:
+            return 0.0
+        시작 = 날[max(0, i - n)]
+        import bisect as _b2
+        return 1.0 if _b2.bisect_right(ds, 날[i]) - _b2.bisect_left(ds, 시작) >= 1 else 0.0
+
+    def _실적시즌(d8):
+        """정기공시 마감(3/31 · 5/15 · 8/14 · 11/14) 앞 10 달력일 — 고정 달력이라 앞을 안 본다"""
+        md = d8[4:]
+        return 1.0 if (("0321" <= md <= "0331") or ("0505" <= md <= "0515")
+                       or ("0804" <= md <= "0814") or ("1104" <= md <= "1114")) else 0.0
+
+    _fomc = set()
+    try:
+        _jf = json.load(io.open(os.path.join(O._DATA, "fred", "AV_FEDFUNDS.json"), encoding="utf-8-sig"))
+        _vf = _jf.get("값") or {}
+        _kf = sorted(k for k in _vf if isinstance(_vf.get(k), (int, float)))
+        _pv = None
+        for _k in _kf:
+            if _pv is not None and abs(_vf[_k] - _pv) >= 0.10:
+                _fomc.add(_k)
+            _pv = _vf[_k]
+    except Exception:  # noqa: BLE001
+        pass
+    _fomc자리 = sorted(자리_날[d] for d in _fomc if d in 자리_날)
+
+    def _fomc후(i, n):
+        import bisect as _b2
+        p = _b2.bisect_right(_fomc자리, i) - 1
+        return 1.0 if (p >= 0 and i - _fomc자리[p] <= n) else 0.0
+    print(f"    실적 공시 있는 종목 {len(_실적일):,} · FOMC 변경일(대용) {len(_fomc자리)}일", flush=True)
+
     사건 = []
     for i, d1 in enumerate(날):
         if i < 260 or i + 1 >= len(날):
@@ -307,6 +363,8 @@ def main():
                 "시가위치": _당일(_시위, code, kk),
                 "미국10년20": _변화20(_us10, i), "미국금리차": _금리차[i],
                 "미국금리차20": _변화20(_금리차, i),
+                "실적공시후5": _실적후(code, i, 5), "실적시즌": _실적시즌(d1),
+                "FOMC변경후5": _fomc후(i, 5), "FOMC변경후20": _fomc후(i, 20),
                 "시총억": 시총 / 1e8, "대금억": 대금 / 1e8, "거래량": 량,
                 "회전율": (대금 / 시총 * 100) if 시총 > 0 else 0,
                 "갭": g, "매수": 매수, "재통과": 재통과, "낙폭60": 낙60,
@@ -738,6 +796,7 @@ def main():
               "RSI14", "RSI변화5", "MACD히스토", "MACD골든5", "스토K14",     # ⭐ 기술지표 (2026-09-15)
               "진폭14", "당일진폭", "시가위치",                                # ⭐ 저가 (안 쓰던 필드)
               "미국10년20", "미국금리차", "미국금리차20",                      # ⭐ fred (안 쓰던 폴더)
+              "실적공시후5", "실적시즌", "FOMC변경후5", "FOMC변경후20",         # ⭐ 사건 전후 (처음)
               "시총억", "대금억", "거래량", "회전율",
               "잉여금", "부채", "ROE", "영업이익률", "순이익률", "유동비율",
               "시장낙폭", "상대강도", "시장변동성", "소형우위",
