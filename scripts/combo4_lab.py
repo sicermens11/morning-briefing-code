@@ -116,6 +116,7 @@ def main():
     # ⭐ **기술지표 다섯** — 종가만으로 계산 (2026-09-15 · 사용자 「RSI MACD 는 반영됐어?」)
     #    9/2 combo3 에서 RSI≤30 을 옛 기준선에 AND 로만 봤고(68.0% · 16/16) 지금 판엔 없었다.
     #    MACD 는 한 번도 없었다. 종목마다 한 번 계산해 array('f') 에 둔다 — 신호일 kk 까지만 본다
+    자리_날 = {d: i for i, d in enumerate(날)}
     print("  기술지표(RSI·MACD·스토캐스틱) 계산 중...", flush=True)
     _TA = {"RSI14": {}, "RSI변화5": {}, "MACD히스토": {}, "MACD골든5": {}, "스토K14": {}}
     _nan = float("nan")
@@ -183,6 +184,71 @@ def main():
         v = a[kk]
         return None if v != v else float(v)
 
+    # ⭐ **수집됐는데 안 쓴 재료** (2026-09-15 22:00 · 사용자 물음)
+    #    krx-daily 「저가」 는 16년치가 있는데 시험 어디에도 안 썼다(비 = 시가/종가·고가/종가만).
+    #    fred 미국 금리 셋은 실전 국면에만 쓰고 시험엔 없었다. 여기서 여섯을 만든다
+    import bisect as _bs
+    print("  저가·고가·시가(krx-daily 원본) 다시 읽는 중 — 진폭·시가 위치...", flush=True)
+    _진폭 = {c: _array("f", [float("nan")] * len(q)) for c, q in 종계.items()}
+    _시위 = {c: _array("f", [float("nan")] * len(q)) for c, q in 종계.items()}
+    for _f in sorted(glob.glob(os.path.join(O._DATA, "krx-daily", "*.json"))):
+        _d8 = os.path.basename(_f)[:8]
+        if _d8 not in 자리_날:
+            continue
+        try:
+            _j = json.load(io.open(_f, encoding="utf-8-sig"))
+        except Exception:  # noqa: BLE001
+            continue
+        for _c, _v in (_j.get("종목") or {}).items():
+            _k = (자리.get(_c) or {}).get(_d8)
+            if _k is None:
+                continue
+            try:
+                _hi, _lo, _op, _cl = (float(_v.get("고가") or 0), float(_v.get("저가") or 0),
+                                      float(_v.get("시가") or 0), float(_v.get("종가") or 0))
+            except (TypeError, ValueError):
+                continue
+            if _cl > 0 and _hi >= _lo > 0:
+                _진폭[_c][_k] = (_hi - _lo) / _cl * 100.0
+                if _hi > _lo and _op > 0:
+                    _시위[_c][_k] = (_op - _lo) / (_hi - _lo)
+
+    def _진폭14(code, kk):
+        a = _진폭.get(code)
+        if a is None or kk < 13:
+            return None
+        w = [z for z in a[kk - 13:kk + 1] if z == z]
+        return (sum(w) / len(w)) if len(w) >= 10 else None
+
+    def _당일(표, code, kk):
+        a = 표.get(code)
+        if a is None or kk >= len(a):
+            return None
+        v = a[kk]
+        return None if v != v else float(v)
+
+    # 미국 금리 (fred · 일별 · 1954~) — 날짜 자리마다 「그날 또는 그 전 마지막 값」
+    def _fred(이름):
+        try:
+            j = json.load(io.open(os.path.join(O._DATA, "fred", f"AV_{이름}.json"), encoding="utf-8-sig"))
+        except Exception:  # noqa: BLE001
+            return [None] * len(날)
+        v = j.get("값") or {}
+        ks = sorted(k for k in v if isinstance(v.get(k), (int, float)))
+        out = []
+        for d in 날:
+            p = _bs.bisect_right(ks, d) - 1
+            out.append(float(v[ks[p]]) if p >= 0 else None)
+        return out
+    _us10, _us2 = _fred("DGS10"), _fred("DGS2")
+    _금리차 = [(a - b) if (a is not None and b is not None) else None for a, b in zip(_us10, _us2)]
+
+    def _변화20(열, i):
+        if i < 20 or 열[i] is None or 열[i - 20] is None:
+            return None
+        return 열[i] - 열[i - 20]
+    print(f"    진폭·시가위치 {len(_진폭):,}종목 · 미국 금리 {sum(1 for z in _us10 if z is not None):,}일", flush=True)
+
     사건 = []
     for i, d1 in enumerate(날):
         if i < 260 or i + 1 >= len(날):
@@ -236,6 +302,10 @@ def main():
                 "RSI14": _ta("RSI14", code, kk), "RSI변화5": _ta("RSI변화5", code, kk),
                 "MACD히스토": _ta("MACD히스토", code, kk), "MACD골든5": _ta("MACD골든5", code, kk),
                 "스토K14": _ta("스토K14", code, kk),
+                "진폭14": _진폭14(code, kk), "당일진폭": _당일(_진폭, code, kk),
+                "시가위치": _당일(_시위, code, kk),
+                "미국10년20": _변화20(_us10, i), "미국금리차": _금리차[i],
+                "미국금리차20": _변화20(_금리차, i),
                 "시총억": 시총 / 1e8, "대금억": 대금 / 1e8, "거래량": 량,
                 "회전율": (대금 / 시총 * 100) if 시총 > 0 else 0,
                 "갭": g, "매수": 매수, "재통과": 재통과, "낙폭60": 낙60,
@@ -664,6 +734,8 @@ def main():
     # ══ 재료 목록 ══
     재료들 = ("볼린저", "낙폭20", "낙폭60", "60일선대비", "갭",
               "RSI14", "RSI변화5", "MACD히스토", "MACD골든5", "스토K14",     # ⭐ 기술지표 (2026-09-15)
+              "진폭14", "당일진폭", "시가위치",                                # ⭐ 저가 (안 쓰던 필드)
+              "미국10년20", "미국금리차", "미국금리차20",                      # ⭐ fred (안 쓰던 폴더)
               "시총억", "대금억", "거래량", "회전율",
               "잉여금", "부채", "ROE", "영업이익률", "순이익률", "유동비율",
               "시장낙폭", "상대강도", "시장변동성", "소형우위",
