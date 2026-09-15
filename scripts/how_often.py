@@ -98,20 +98,13 @@ def main():
                 _지수계.setdefault(
                     "KOSDAQ" if _이름2 == "코스닥" else "KOSPI",
                     []).append((_날2, _c2))
-    # ⭐ Ⓖ (2026-09-15) — 셋째 칸이 **120일선 대비 %** 다
-    지수낙 = {}          # {날짜: {"KOSPI": (20일, 60일, 120일선대비), ...}}
+    지수낙 = {}          # {날짜: {"KOSPI": (20일, 60일), ...}}
     for _키2, _벌2 in _지수계.items():
         _벌2.sort()
         for _j, (_날3, _c3) in enumerate(_벌2):
             _n20 = ((_c3 / _벌2[_j - 20][1] - 1) * 100) if _j >= 20 else None
             _n60 = ((_c3 / _벌2[_j - 60][1] - 1) * 100) if _j >= 60 else None
-            # ⭐ 120일선 대비 — ⚠️ **당일을 평균에서 뺀다** (시험과 같게)
-            _n120 = None
-            if _j >= R.지수120평창:
-                _창 = [z[1] for z in _벌2[_j - R.지수120평창:_j] if z[1] > 0]
-                if _창:
-                    _n120 = (_c3 / (sum(_창) / len(_창)) - 1) * 100
-            지수낙.setdefault(_날3, {})[_키2] = (_n20, _n60, _n120)
+            지수낙.setdefault(_날3, {})[_키2] = (_n20, _n60)
     print(f"  지수 {len(지수낙):,}일 · 섹터 규칙 {len(R.섹터규칙)}업종")
     섹터맵 = _섹터표()
 
@@ -175,10 +168,9 @@ def main():
             _키2 = ("KOSDAQ" if ("닥" in str(bb.get("시장") or "")
                                  or "KOSDAQ" in str(bb.get("시장") or ""))
                     else "KOSPI")
-            _z20, _z60, _z120 = _지낙.get(_키2, (None, None, None))
-            # ⭐ Ⓖ — 60일 낙폭이 아니라 **120일선 대비** (2026-09-15)
+            _z20, _z60 = _지낙.get(_키2, (None, None))
             _시장 = (((_z20 is not None and _z20 <= R.지수낙20문턱)
-                      or (_z120 is not None and _z120 <= R.지수120평문턱))
+                      or (_z60 is not None and _z60 <= R.지수낙60문턱))
                      and (볼 <= R.시장볼문턱 or 낙 <= R.시장낙20문턱
                           or (낙60 is not None and 낙60 <= R.시장낙60문턱)))
             if not (_기존 or _섹 or _시장):
