@@ -72,9 +72,16 @@ def main():
         for c, v in 주가[d].items():
             종계.setdefault(c, []).append(v[0])
             자리.setdefault(c, {})[d] = len(종계[c]) - 1
+    # ⚠️⚠️ **원본 시가를 그대로 쓰면 안 된다** (2026-09-15 첫 판이 이걸로 망했다).
+    #    `종계` 는 **수정주가**(액면분할·배당 반영)인데 krx-daily 의 시가·고가는
+    #    **원본**이다. 둘을 나누면 분할이 있던 종목에서 값이 10배씩 튄다 —
+    #    첫 판이 「20일 평균 수익 **+110%**」라는 말도 안 되는 값을 냈다.
+    #    ⇒ `gate7_lab` 처럼 **비율(시/종)로 받아 수정 종가에 곱한다.**
+    #    [[suspect-data-first]] 말이 안 되는 결과면 전략이 아니라 원자료를 의심한다
     시계, 고계, 량계 = {}, {}, {}
     for f in sorted(glob.glob(os.path.join(O._DATA, "krx-daily", "*.json"))):
         d = json.load(io.open(f, encoding="utf-8-sig"))
+        d8 = d["기준일"]
         for c, v in d["종목"].items():
             try:
                 종c = float(v["종가"])
@@ -85,9 +92,13 @@ def main():
                 continue
             if 종c <= 0:
                 continue
-            시계.setdefault(c, {})[d["기준일"]] = 시
-            고계.setdefault(c, {})[d["기준일"]] = 고
-            량계.setdefault(c, {})[d["기준일"]] = 량
+            k0 = (자리.get(c) or {}).get(d8)
+            if k0 is None:
+                continue
+            수정종 = 종계[c][k0]          # ⭐ 그날의 **수정** 종가
+            시계.setdefault(c, {})[d8] = 수정종 * (시 / 종c)
+            고계.setdefault(c, {})[d8] = 수정종 * (고 / 종c)
+            량계.setdefault(c, {})[d8] = 량
 
     def 재무값(code, d8):
         줄 = 재무.get(code)
