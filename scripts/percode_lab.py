@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 r"""
 percode_lab.py — **216차 · 개별 종목별 규칙** (2026-09-10 신설)
 
@@ -28,6 +28,7 @@ percode_lab.py — **216차 · 개별 종목별 규칙** (2026-09-10 신설)
     python scripts\percode_lab.py
 """
 import io
+import json
 import os
 import sys
 
@@ -112,6 +113,7 @@ def main():
     쓸종목, 이긴종목 = 0, 0
     앞모두, 뒤모두, 뒤공통 = [], [], []
     골랐던규칙 = {}
+    종목규칙 = {}          # ⭐ code -> 규 (gate7_lab 이 읽어 뒤 기간 자본 시뮬로 잰다 · 2026-09-15)
     for c, 줄 in 종목별.items():
         앞 = [x for x in 줄 if x["_날짜"] < 가]
         뒤 = [x for x in 줄 if x["_날짜"] >= 가]
@@ -132,6 +134,7 @@ def main():
             continue
         쓸종목 += 1
         골랐던규칙[규] = 골랐던규칙.get(규, 0) + 1
+        종목규칙[c] = list(규)
         앞모두.append(r앞[1])
         뒤모두.append(r뒤[1])
         뒤공통.append(r공[1])
@@ -162,6 +165,16 @@ def main():
             print(f"     {bk}일 {bt:+.1f}σ · {nk}일 {nt}%"
                   f"{n:>8}개 종목 ({n/쓸종목*100:>4.1f}%)")
         print(f"     서로 다른 규칙 **{len(골랐던규칙)}가지** / 격자 {len(격자)}칸")
+        # ⭐ 「몇 가지로 몰리나」 — 사용자 지적 (2026-09-15). 상위 5 규칙이 종목의 몇 % 를 덮나
+        _상위 = sorted(골랐던규칙.values(), reverse=True)
+        _덮 = sum(_상위[:5]) / max(쓸종목, 1) * 100
+        print(f"     ⭐ 상위 5 규칙이 종목의 **{_덮:.0f}%** 를 덮는다 "
+              f"(절반 넘으면 몰린 것 · 그 아래면 제각각)")
+        # ⭐ 표 저장 — gate7_lab 「종목마다 배운 규칙을 돈으로」 절이 읽는다
+        _밖 = os.path.join(O._DATA, "percode-rules.json")
+        json.dump({"앞끝": 가, "규칙": 종목규칙}, io.open(_밖, "w", encoding="utf-8"),
+                  ensure_ascii=False)
+        print(f"     ✅ 종목 {len(종목규칙):,}개 규칙 저장 → {_밖}")
         if len(골랐던규칙) > 쓸종목 * 0.3:
             print("     ⚠️ 규칙이 **제각각**이다 — 종목마다 다른 답이 나왔다는 것은")
             print("        **우연**일 가능성이 크다")
