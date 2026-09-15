@@ -113,6 +113,76 @@ def main():
         return m
 
     print("  후보 모으는 중 (크기 조건도 느슨하게)...", flush=True)
+    # ⭐ **기술지표 다섯** — 종가만으로 계산 (2026-09-15 · 사용자 「RSI MACD 는 반영됐어?」)
+    #    9/2 combo3 에서 RSI≤30 을 옛 기준선에 AND 로만 봤고(68.0% · 16/16) 지금 판엔 없었다.
+    #    MACD 는 한 번도 없었다. 종목마다 한 번 계산해 array('f') 에 둔다 — 신호일 kk 까지만 본다
+    print("  기술지표(RSI·MACD·스토캐스틱) 계산 중...", flush=True)
+    _TA = {"RSI14": {}, "RSI변화5": {}, "MACD히스토": {}, "MACD골든5": {}, "스토K14": {}}
+    _nan = float("nan")
+    for _c, _sq in 종계.items():
+        _n = len(_sq)
+        _rsi = _array("f", [_nan] * _n)
+        _hist = _array("f", [_nan] * _n)
+        _gold = _array("f", [0.0] * _n)
+        _sto = _array("f", [_nan] * _n)
+        _dr = _array("f", [_nan] * _n)
+        _au = _ad = None
+        _e12 = _e26 = _sig = None
+        _prev_diff = None
+        _cross = []                    # 골든크로스 난 자리들
+        for k in range(_n):
+            c = _sq[k]
+            if k >= 1 and _sq[k - 1] > 0:
+                ch = c - _sq[k - 1]
+                g, l = (ch if ch > 0 else 0.0), (-ch if ch < 0 else 0.0)
+                if _au is None:
+                    _au, _ad = g, l
+                else:
+                    _au += (g - _au) / 14.0
+                    _ad += (l - _ad) / 14.0
+                if k >= 14:
+                    _rsi[k] = 100.0 if _ad == 0 else 100.0 - 100.0 / (1.0 + _au / _ad)
+            # MACD
+            if _e12 is None:
+                _e12 = _e26 = c
+            else:
+                _e12 += (c - _e12) * (2.0 / 13.0)
+                _e26 += (c - _e26) * (2.0 / 27.0)
+            _m = _e12 - _e26
+            if _sig is None:
+                _sig = _m
+            else:
+                _sig += (_m - _sig) * (2.0 / 10.0)
+            _diff = _m - _sig
+            if k >= 33 and c > 0:
+                _hist[k] = _diff / c * 100.0
+                if _prev_diff is not None and _prev_diff <= 0 < _diff:
+                    _cross.append(k)
+                while _cross and _cross[0] < k - 4:
+                    _cross.pop(0)
+                _gold[k] = 1.0 if _cross else 0.0
+            _prev_diff = _diff
+            # 스토캐스틱 (종가로)
+            if k >= 13:
+                _w = _sq[k - 13:k + 1]
+                _hi, _lo = max(_w), min(_w)
+                _sto[k] = ((c - _lo) / (_hi - _lo) * 100.0) if _hi > _lo else 50.0
+            if k >= 19 and _rsi[k] == _rsi[k] and _rsi[k - 5] == _rsi[k - 5]:
+                _dr[k] = _rsi[k] - _rsi[k - 5]
+        _TA["RSI14"][_c] = _rsi
+        _TA["RSI변화5"][_c] = _dr
+        _TA["MACD히스토"][_c] = _hist
+        _TA["MACD골든5"][_c] = _gold
+        _TA["스토K14"][_c] = _sto
+    print(f"    {len(종계):,}종목 · 다섯 지표", flush=True)
+
+    def _ta(이름, code, kk):
+        a = _TA[이름].get(code)
+        if a is None or kk >= len(a):
+            return None
+        v = a[kk]
+        return None if v != v else float(v)
+
     사건 = []
     for i, d1 in enumerate(날):
         if i < 260 or i + 1 >= len(날):
@@ -163,6 +233,9 @@ def main():
             사건.append({
                 "인": i + 1, "code": code, "원시": o0, "대금": b0[2],
                 "볼린저": 볼, "낙폭20": 낙,
+                "RSI14": _ta("RSI14", code, kk), "RSI변화5": _ta("RSI변화5", code, kk),
+                "MACD히스토": _ta("MACD히스토", code, kk), "MACD골든5": _ta("MACD골든5", code, kk),
+                "스토K14": _ta("스토K14", code, kk),
                 "시총억": 시총 / 1e8, "대금억": 대금 / 1e8, "거래량": 량,
                 "회전율": (대금 / 시총 * 100) if 시총 > 0 else 0,
                 "갭": g, "매수": 매수, "재통과": 재통과, "낙폭60": 낙60,
@@ -590,6 +663,7 @@ def main():
 
     # ══ 재료 목록 ══
     재료들 = ("볼린저", "낙폭20", "낙폭60", "60일선대비", "갭",
+              "RSI14", "RSI변화5", "MACD히스토", "MACD골든5", "스토K14",     # ⭐ 기술지표 (2026-09-15)
               "시총억", "대금억", "거래량", "회전율",
               "잉여금", "부채", "ROE", "영업이익률", "순이익률", "유동비율",
               "시장낙폭", "상대강도", "시장변동성", "소형우위",
