@@ -34,6 +34,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import omni_lab as O  # noqa: E402
+import rule_def as R  # noqa: E402   ⭐ 2026-09-16 — 「지금 규칙」 값은 여기서만
 
 _시작 = "20100104"
 _앞최소 = 60          # 앞 기간에 이만큼은 걸려야 규칙을 고른다
@@ -102,7 +103,7 @@ def main():
                 sum(v) / len(v))
 
     # 모두 같은 규칙 = 지금 규칙
-    공통 = ("볼20", -1.0, "낙20", -10)
+    공통 = ("볼20", R.볼린저문턱, "낙20", R.낙폭20문턱)   # ⭐ 손으로 적힌 값이 얼어 있었다 (2026-09-16)
 
     print("\n" + "=" * 100)
     print("  216차 · **개별 종목별 규칙**")
