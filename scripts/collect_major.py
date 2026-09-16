@@ -104,7 +104,9 @@ def main():
                    "증감지분율": r.get("stkrt_irds"),
                    "주요체결주식수": r.get("ctr_stkqy"),
                    "직전주식수": r.get("stkqy_irds"), "직전지분율": r.get("stkrt_irds"),
-                   "보유목적": r.get("ctr_stkqy")} for r in rows]
+                   # ⚠️ 2026-09-16 전수점검: 여기 ctr_stkqy(주요체결 주식수)가 들어가 「보유목적」에
+                   #    숫자가 찍혔다(730/1,377건). DART 원본에 보유목적은 없고 **report_resn(보고사유)**가 있다
+                   "보유목적": r.get("report_resn")} for r in rows]
             io.open(os.path.join(OUT, code + ".json"), "w", encoding="utf-8").write(
                 json.dumps({"종목": code, "건수": len(잘), "이력": 잘}, ensure_ascii=False))
             ok += 1

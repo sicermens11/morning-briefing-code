@@ -99,7 +99,10 @@ def main():
                    "주요주주": r.get("isu_main_shrholdr"),
                    "변동후": r.get("sp_stock_lmp_cnt"),
                    "증감": r.get("sp_stock_lmp_irds_cnt"),
-                   "사유": r.get("sp_stock_lmp_irds_rson")} for r in rows]
+                   # ⚠️ 2026-09-16 전수점검: sp_stock_lmp_irds_rson 은 **DART 에 없는 필드**라 「사유」가
+                   #    3,245건 전부 None 이었다. 원본에 있는 비율 둘로 바꾼다 (임원 지분율 · 증감비율)
+                   "지분율": r.get("sp_stock_lmp_rate"),
+                   "증감비율": r.get("sp_stock_lmp_irds_rate")} for r in rows]
             io.open(os.path.join(OUT, code + ".json"), "w", encoding="utf-8").write(
                 json.dumps({"종목": code, "건수": len(잘), "이력": 잘}, ensure_ascii=False))
             ok += 1

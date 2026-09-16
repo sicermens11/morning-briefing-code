@@ -118,7 +118,11 @@ def main():
                                cwd=_BASE, env=env, # ⚠️ 시험 하나가 1시간을 넘기면 끊는다 — 08:00 브리핑을 침범하면 안 된다.
                                capture_output=True, timeout=3600)
             꼬리 = (r.stdout or b"").decode("utf-8", "replace").strip().split("\n")[-1]
-            찍기(f"[{i}/{len(할일)}] {이름} 끝 (exit={r.returncode}) {꼬리[:110]}")
+            if 이름 == "어제 주가" and r.returncode != 0:
+                # ⚠️ 새벽엔 KRX 일봉이 거의 늘 없다 — 설계된 시도다. RuntimeError 로 찍으면 전수점검이 매일 잡는다
+                찍기(f"[{i}/{len(할일)}] {이름} — 아직 안 올라옴 (예상대로 · 08:00 KrxFetchBeforeBriefing 이 받는다)")
+            else:
+                찍기(f"[{i}/{len(할일)}] {이름} 끝 (exit={r.returncode}) {꼬리[:110]}")
         except Exception as e:
             찍기(f"[{i}/{len(할일)}] ⚠️ {이름} 실패: {type(e).__name__} {e}")
     후 = 재료수()

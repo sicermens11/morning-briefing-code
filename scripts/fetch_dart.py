@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 r"""
 fetch_dart.py — DART OpenAPI 직접 수집 (2026-08-25 신설)
 
@@ -190,7 +190,8 @@ def executive_stock(corp_code: str, limit: int = 12):
         "직위": r.get("isu_exctv_ofcps"), "등기여부": r.get("isu_exctv_rgist_at"),
         "주요주주여부": r.get("isu_main_shrholdr"),
         "변동후수량": r.get("sp_stock_lmp_cnt"), "증감": r.get("sp_stock_lmp_irds_cnt"),
-        "사유": r.get("sp_stock_lmp_irds_rson"),
+        # ⚠️ 2026-09-16: sp_stock_lmp_irds_rson 은 DART 에 없다 — 늘 None 이었다. 비율 둘로
+        "지분율": r.get("sp_stock_lmp_rate"), "증감비율": r.get("sp_stock_lmp_irds_rate"),
     } for r in rows[:limit]]
 
 

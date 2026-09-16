@@ -216,9 +216,20 @@ def F절():
             줄들 = io.open(f, encoding="utf-8", errors="replace").read().splitlines()[-200:]
         except Exception:  # noqa: BLE001
             continue
-        나쁜줄 = [z for z in 줄들
-                  if ("실패" in z or "Timeout" in z or "Error" in z
-                      or "❌" in z or "코드 3221" in z)]
+        # ⚠️ 2026-09-16 — 「실패 0」「Error 0」까지 세어 40개 로그가 다 빨개졌다. 아무도 안 읽었다.
+        #    최근 3일 줄만, 진짜 나쁜 것만 센다
+        import re as _re
+        _오늘 = dt.date.today()
+        _날들 = {(_오늘 - dt.timedelta(days=k)).strftime(f) for k in range(3) for f in ("%Y-%m-%d", "%m-%d")}
+        _최근 = [z for z in 줄들 if any(d in z for d in _날들)]
+        if not _최근:
+            continue          # 3일 안에 안 바뀐 로그 — 옛 일이다
+        _나쁨패턴 = _re.compile(r"Traceback|MemoryError|\w+Error:|❌|Timeout|실패 [1-9]\d*|코드 [1-9]\d*|터졌다|죽었다|못 받았다")
+        # ⚠️ 는 안내에도 쓴다(「09:01에 미체결 주문을 취소한다」) — 실패 낱말이 같이 있을 때만 센다
+        _경고실패 = _re.compile(r"⚠️.*(실패|못 |없다|밀림|끊|죽|오류|Error|코드 [1-9])")
+        _가짜 = _re.compile(r"실패 0\b|Error 0\b|오류 0\b|경고 0\b|예상대로|이어받는다")
+        나쁜줄 = [z for z in _최근
+                  if (_나쁨패턴.search(z) or _경고실패.search(z)) and not _가짜.search(z)]
         if 나쁜줄:
             print(f"\n  [{나}]  나쁜 줄 {len(나쁜줄)}개 · 마지막 둘:")
             for z in 나쁜줄[-2:]:
@@ -227,6 +238,230 @@ def F절():
     if not 나쁨:
         print("  ✅ 최근 로그에 오류 없음")
     return 나쁨
+
+
+def H절():
+    """예약 작업 — 결과 코드 ≠ 0 · 매일 도는 것이 오래 안 돎"""
+    import subprocess
+    print("\n" + "=" * 96)
+    print("  H 예약 작업 — LastTaskResult ≠ 0 · 3일 넘게 안 돈 매일 작업")
+    print("=" * 96)
+    나쁨 = []
+    try:
+        out = subprocess.run(["powershell", "-NoProfile", "-Command",
+                              "Get-ScheduledTask | Where-Object { $_.TaskPath -eq '\\' } | Get-ScheduledTaskInfo | "
+                              "Select-Object TaskName, LastTaskResult, "
+                              "@{n='Last';e={$_.LastRunTime.ToString('yyyy-MM-dd HH:mm')}} | ConvertTo-Json"],
+                             capture_output=True, timeout=60)
+        rows = json.loads(out.stdout.decode("utf-8", errors="replace") or "[]")
+        if isinstance(rows, dict):
+            rows = [rows]
+    except Exception as e:  # noqa: BLE001
+        print(f"  ⚠️ 예약 작업을 못 읽었다: {type(e).__name__}")
+        return ["H: 예약 작업 못 읽음"]
+    _우리 = ("Collect", "Briefing", "Antc", "Entry", "Krx", "Dart", "Forward", "Consensus", "Gap", "Capital", "Industry", "Dividend")
+    _주간 = ("AutoSearch", "Weekly", "Verify", "Backfill", "Resume", "1220", "DividendCollect", "IndustryCollect", "CapitalCollect")
+    _오늘 = dt.date.today()
+    for r in rows:
+        n, rc, last = str(r.get("TaskName")), r.get("LastTaskResult"), str(r.get("Last") or "")
+        if not any(k in n for k in _우리):
+            continue
+        if rc not in (0, 267009, 267011, None):          # 267009=지금 도는 중 · 267011=아직 안 돎
+            뜻 = {267014: "사용자/재부팅이 끊음", 1: "스크립트 실패(1)", 2: "스크립트 실패(2)"}.get(rc, f"코드 {rc}")
+            print(f"  ❌ {n:<26} {last}  결과 {rc} — {뜻}")
+            나쁨.append(f"H 예약 {n}: 결과 {rc}")
+        try:
+            며칠 = (_오늘 - dt.datetime.strptime(last[:10], "%Y-%m-%d").date()).days
+        except ValueError:
+            며칠 = None
+        if 며칠 is not None and 며칠 > 3 and not any(k in n for k in _주간):
+            print(f"  ❌ {n:<26} 마지막 {last} — {며칠}일 전")
+            나쁨.append(f"H 예약 {n}: {며칠}일 안 돎")
+    if not 나쁨:
+        print("  ✅ 예약 작업 이상 없음")
+    return 나쁨
+
+
+def I절():
+    """밤 판(run-logs/queue_*.log) — 「끝」 없이 끝났거나 Traceback/MemoryError"""
+    print("\n" + "=" * 96)
+    print("  I 밤 판 — 끝 표시 없이 끝났거나 Traceback (최근 2일)")
+    print("=" * 96)
+    나쁨 = []
+    _컷 = (dt.datetime.now() - dt.timedelta(days=2)).timestamp()
+    _파일들 = sorted(glob.glob(os.path.join(_BASE, "run-logs", "queue_*.log")), key=os.path.getmtime)
+    _끝난판 = {}       # 판 이름 → 「끝」으로 끝난 가장 새 로그의 mtime
+    def _판이름(f):      # queue_news_2026… · nightly_news_2026… → "news"
+        _t = os.path.basename(f).split("_")
+        return _t[1] if len(_t) > 2 else _t[0]
+    for f in _파일들:
+        _판 = _판이름(f)
+        if "끝 =====" in io.open(f, encoding="utf-8", errors="replace").read():
+            _끝난판[_판] = max(_끝난판.get(_판, 0), os.path.getmtime(f))
+    for f in _파일들:
+        if os.path.getmtime(f) < _컷:
+            continue
+        t = io.open(f, encoding="utf-8", errors="replace").read()
+        나 = os.path.basename(f)
+        _판 = _판이름(f)
+        if "Traceback" in t or "MemoryError" in t or "Error:" in t:
+            마지막 = [z for z in t.splitlines() if "Error" in z][-1:]
+            if _끝난판.get(_판, 0) > os.path.getmtime(f):
+                print(f"  ✅ {나}: 죽었지만 **다시 돌려 끝났다** ({마지막[0].strip()[-50:] if 마지막 else ''})")
+                continue
+            print(f"  ❌ {나}: {마지막[0].strip()[:100] if 마지막 else '오류'}")
+            나쁨.append(f"I 밤 판 {나}: 죽음")
+        elif "끝 =====" not in t and (dt.datetime.now().timestamp() - os.path.getmtime(f)) > 3 * 3600:
+            print(f"  ❌ {나}: 3시간 넘게 「끝」 표시가 없다 (죽었거나 멈춤)")
+            나쁨.append(f"I 밤 판 {나}: 끝 없음")
+    if not 나쁨:
+        print("  ✅ 밤 판 이상 없음")
+    return 나쁨
+
+
+def J절():
+    """판정→게시 — _antc.log 재게시 실패 · 사이트 파일이 오늘 안 만들어짐"""
+    print("\n" + "=" * 96)
+    print("  J 판정 → 웹 게시 (오늘)")
+    print("=" * 96)
+    나쁨 = []
+    오늘 = dt.date.today().strftime("%Y-%m-%d")
+    try:
+        줄 = [z for z in io.open(os.path.join(_D, "_antc.log"), encoding="utf-8", errors="replace") if z.startswith(오늘)]
+    except OSError:
+        줄 = []
+    p = os.path.join(_D, "briefing-site.html")
+    _실패 = [z for z in 줄 if "재게시 실패" in z]
+    if _실패:
+        _실패시각 = _실패[-1][:19]
+        _사이트시각 = dt.datetime.fromtimestamp(os.path.getmtime(p)).strftime("%Y-%m-%d %H:%M:%S") if os.path.exists(p) else ""
+        if _사이트시각 > _실패시각:
+            print(f"  ✅ {_실패시각[11:16]} 재게시 실패 → {_사이트시각[11:16]} 다시 올라갔다 (복구됨)")
+        else:
+            print(f"  ❌ {_실패시각[11:16]} 판정 재게시 실패 — 판정은 됐는데 화면엔 **아직** 안 올라갔다")
+            나쁨.append("J 재게시 실패")
+    if os.path.exists(p) and dt.date.fromtimestamp(os.path.getmtime(p)) != dt.date.today() and dt.datetime.now().hour >= 9:
+        print("  ❌ briefing-site.html 이 오늘 안 만들어졌다 (게시가 막혔거나 안 돎)")
+        나쁨.append("J 사이트 오늘 안 만듦")
+    if not 나쁨:
+        print("  ✅ 판정·게시 이상 없음")
+    return 나쁨
+
+
+def K절():
+    """퀀트 판정 N개인데 09:05 진입확인 결과가 비었다"""
+    print("\n" + "=" * 96)
+    print("  K 퀀트 판정 vs 09:05 진입확인")
+    print("=" * 96)
+    나쁨 = []
+    오늘 = dt.date.today().strftime("%Y-%m-%d")
+    try:
+        줄 = [z for z in io.open(os.path.join(_D, "_antc.log"), encoding="utf-8", errors="replace") if z.startswith(오늘)]
+    except OSError:
+        줄 = []
+    import re as _re
+    n = 0
+    for z in 줄:
+        m = _re.search(r"오늘 살 것: (\d+)개", z)
+        if m:
+            n = int(m.group(1))
+    # 「살 것」은 forward-log 오늘 줄의 후보 중 규칙매수=True 로 남는다 (quant_cards 가 그걸 그린다)
+    기록 = None
+    try:
+        for ln in io.open(os.path.join(_D, "forward-log.jsonl"), encoding="utf-8"):
+            try:
+                o = json.loads(ln)
+            except ValueError:
+                continue
+            if str(o.get("기록시각", ""))[:10] == 오늘:
+                기록 = o
+    except OSError:
+        pass
+    if 기록 is None:
+        if dt.datetime.now().hour >= 9:
+            print("  ❌ forward-log 에 오늘 줄이 없다 — 08:00 기록(ForwardRecord)이 안 돌았다")
+            나쁨.append("K forward-log 오늘 줄 없음")
+        return 나쁨
+    _잰 = str((기록.get("동시호가") or {}).get("잰시각") or "")
+    m = sum(1 for x in (기록.get("후보") or []) if x.get("규칙매수"))
+    if dt.datetime.now().hour >= 9 and not _잰:
+        print("  ❌ 08:55 동시호가 판정이 forward-log 에 안 붙었다 (FetchAntc0850 이 record_pick 을 못 불렀다)")
+        나쁨.append("K 동시호가 판정 없음")
+    elif n != m:
+        print(f"  ❌ 로그는 「살 것 {n}개」인데 forward-log 규칙매수는 {m}개 — 기록과 화면이 다르다")
+        나쁨.append(f"K 살 것 {n}≠{m}")
+    else:
+        print(f"  ✅ 살 것 {n}개 = forward-log 규칙매수 {m}개 (잰 시각 {_잰[11:16]})")
+    print("     ※ 09:05 진입확인(check_entry)은 섹터 브리핑 픽만 본다 — 퀀트는 08:55 판정이 곧 진입 판정 (참고)")
+    return 나쁨
+
+
+def L절():
+    """수집기 열 밀림 — 값이 뜻과 안 맞는 필드"""
+    print("\n" + "=" * 96)
+    print("  L 수집기 열 밀림 (표본 200종목)")
+    print("=" * 96)
+    나쁨 = []
+    import re as _re
+    # 2026-09-16 12:00 수집기 둘을 고쳤다 (보유목적 ← report_resn · 사유 → 지분율/증감비율).
+    # 옛 파일은 매일 밤 --갱신일 6 으로 일주일 안에 다 바뀐다 → 고친 뒤 받은 파일만 검사한다
+    _고친때 = dt.datetime(2026, 9, 16, 12, 0).timestamp()
+    def _표본(폴더, 키, 새것만=True):
+        벌, 옛 = [], 0
+        for f in sorted(glob.glob(os.path.join(_D, 폴더, "*.json")), key=os.path.getmtime, reverse=True):
+            if os.path.getmtime(f) < _고친때:
+                옛 += 1
+                continue
+            if len(벌) >= 3000:
+                continue
+            try:
+                j = json.load(io.open(f, encoding="utf-8-sig"))
+            except Exception:  # noqa: BLE001
+                continue
+            for x in (j.get("이력") or []):
+                벌.append(x.get(키))
+        return 벌, 옛
+    v, 옛 = _표본("dart-major", "보유목적")
+    if not v:
+        print(f"  ⏳ dart-major — 고친 뒤 받은 파일이 아직 없다 (옛 파일 {옛:,} · 밤 수집이 바꾼다)")
+    else:
+        숫 = sum(1 for z in v if _re.fullmatch(r"[\d,]+", str(z or "")))
+        if 숫 / len(v) > 0.3:
+            print(f"  ❌ dart-major 「보유목적」 {숫}/{len(v)} 가 숫자 — 고친 뒤에도 열이 밀렸다")
+            나쁨.append("L dart-major 보유목적 열 밀림")
+        else:
+            print(f"  ✅ dart-major 보유목적 글자 ({len(v):,}건) · 옛 파일 {옛:,} 남음")
+    v, 옛 = _표본("dart-exec", "지분율")
+    if not v:
+        print(f"  ⏳ dart-exec — 고친 뒤 받은 파일이 아직 없다 (옛 파일 {옛:,} · 밤 수집이 바꾼다)")
+    elif sum(1 for z in v if z in (None, "", "None")) / len(v) > 0.9:
+        print(f"  ❌ dart-exec 「지분율」 {len(v)}건 중 90% 넘게 비어 있다 — 수집기가 안 받는다")
+        나쁨.append("L dart-exec 지분율 비어 있음")
+    else:
+        print(f"  ✅ dart-exec 지분율 참 ({len(v):,}건) · 옛 파일 {옛:,} 남음")
+    return 나쁨
+
+
+def M절():
+    """rule_align ❌"""
+    import subprocess
+    print("\n" + "=" * 96)
+    print("  M 규칙 정합 (rule_align)")
+    print("=" * 96)
+    try:
+        out = subprocess.run([sys.executable, "-X", "utf8", os.path.join(_BASE, "scripts", "rule_align.py")],
+                             capture_output=True, timeout=120, cwd=_BASE)
+        t = out.stdout.decode("utf-8", errors="replace")
+        나쁜 = [z.strip() for z in t.splitlines() if "❌" in z]
+        for z in 나쁜[:6]:
+            print(f"  {z[:110]}")
+        if 나쁜:
+            return [f"M rule_align 어긋남 {len(나쁜)}"]
+        print("  ✅ 규칙이 한 곳에서만 나온다")
+    except Exception as e:  # noqa: BLE001
+        print(f"  ⚠️ rule_align 못 돌림: {type(e).__name__}")
+        return ["M rule_align 못 돌림"]
+    return []
 
 
 def G절():
@@ -262,7 +497,7 @@ def main():
     print(f"  {dt.datetime.now():%Y-%m-%d %H:%M}")
     print("=" * 96)
     모 = []
-    for 절 in (A절, B절, C절, D절, E절, F절, G절):
+    for 절 in (A절, B절, C절, D절, E절, F절, G절, H절, I절, J절, K절, L절, M절):
         try:
             모 += 절() or []
         except Exception as e:  # noqa: BLE001

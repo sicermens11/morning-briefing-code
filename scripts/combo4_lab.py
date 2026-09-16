@@ -1384,7 +1384,11 @@ def main():
 
     def _마스크거름(m):
         바 = m.to_bytes((_자리수 + 7) // 8, "little")
-        return lambda x: (바[x["_i"] >> 3] >> (x["_i"] & 7)) & 1
+        # ⚠️ 2026-09-15 NEWS 판: 기간을 자른 밖의 사건엔 `_i` 가 없어 KeyError 로 죽었다 → 그런 사건은 안 고른다
+        def _f(x):
+            _k = x.get("_i")
+            return 0 if _k is None else (바[_k >> 3] >> (_k & 7)) & 1
+        return _f
 
     def _지금E(x):
         """지금 규칙 = 문 + (기존 OR 시장 갈래). ⚠️ **섹터 갈래는 없다** — 볼60·볼120·낙60·낙120
