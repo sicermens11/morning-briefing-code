@@ -3432,11 +3432,49 @@ def main():
     # ⚠️ 금통위는 그날 10시에 정한다 — 08:55 판정은 모른다 → **다음 거래일**부터 (bisect_right)
     _금통자리P = sorted({_bsP.bisect_right(날, d) for d in (_달력P.get("금통위변경") or {}) if _bsP.bisect_right(날, d) < len(날)})
 
+    # ⭐ ECOS 둘 (2026-09-16 · combo4_lab 과 같은 정의) — pairs3 가 「못 만드는 재료」로 건너뛴 조합을 재려고
+    def _ecosP(이름):
+        try:
+            return (json.load(io.open(os.path.join(O._DATA, "ecos", f"{이름}.json"), encoding="utf-8")).get("값") or {})
+        except Exception:  # noqa: BLE001
+            return {}
+    _수출P, _수입P, _기준P = _ecosP("수출금액"), _ecosP("수입금액"), _ecosP("기준금리")
+    _기준일P = sorted(_기준P)
+
+    def _알수있는달P(d8, 늦춤일):
+        y, m = int(d8[:4]), int(d8[4:6])
+        if int(d8[6:8]) < 늦춤일:
+            m -= 1
+        m -= 1
+        while m <= 0:
+            m += 12
+            y -= 1
+        return f"{y}{m:02d}"
+
+    def _무역수지비P(i):
+        ym = _알수있는달P(날[i], 2)
+        a, b = _수출P.get(ym), _수입P.get(ym)
+        return ((a - b) / a * 100) if (a and b and a > 0) else None
+
+    def _기준금리20P(i):
+        if i < 21 or not _기준일P:
+            return None
+        def _v(dd):
+            p = _bsP.bisect_right(_기준일P, dd) - 1
+            return _기준P[_기준일P[p]] if p >= 0 else None
+        a, b = _v(날[i - 1]), _v(날[i - 21])
+        return (a - b) if (a is not None and b is not None) else None
+    print(f"     ECOS: 수출 {len(_수출P)}달 · 수입 {len(_수입P)}달 · 기준금리 {len(_기준P)}일")
+
     def _뒤NP(자리들, i, n):
         p = _bsP.bisect_right(자리들, i) - 1
         return 1.0 if (p >= 0 and i - 자리들[p] <= n) else 0.0
 
     def _값P(x, 재):
+        if 재 == "기준금리20":
+            return _기준금리20P(x["인"] - 1)
+        if 재 == "무역수지비":
+            return _무역수지비P(x["인"] - 1)
         if 재 == "금통위변경후5":
             return _뒤NP(_금통자리P, x["인"] - 1, 5)
         if 재 == "ETF시총20":
@@ -3494,7 +3532,8 @@ def main():
     _재료P = sorted({p[0] for 조 in _쌍들P for p in 조})
     _문턱P = {}
     _못만듦P = [재 for 재 in _재료P if _값P(사건[0], 재) is None and all(_값P(x, 재) is None for x in 사건[:2000])
-               and 재 not in ("금통위변경후5", "ETF시총20", "금값20", "공시장중", "코스피200선물20", "자사주60")
+               and 재 not in ("금통위변경후5", "ETF시총20", "금값20", "공시장중", "코스피200선물20", "자사주60",
+                              "기준금리20", "무역수지비")
                and 재 not in (사건[0].keys())]
     if _못만듦P:
         print(f"     ⚠️ gate7 이 못 만드는 재료 {len(_못만듦P)}개 — 그 재료가 든 조합은 건너뛴다: {', '.join(_못만듦P)}")
