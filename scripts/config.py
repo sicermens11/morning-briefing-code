@@ -65,7 +65,7 @@ def require(name: str) -> str:
 
 if __name__ == "__main__":
     # 진단용: 어떤 키가 잡히는지 확인한다. 값은 절대 출력하지 않고 존재 여부와 길이만 보여준다.
-    names = ["DART_API_KEY"]
+    names = ["DART_API_KEY", "ECOS_API_KEY"]   # ⭐ ECOS: 한국은행 경제통계 (수출입·물가·기준금리) · 2026-09-16
     out = {}
     for n in names:
         v = get(n)
