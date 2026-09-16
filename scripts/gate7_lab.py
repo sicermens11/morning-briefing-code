@@ -3411,8 +3411,41 @@ def main():
     print(f"     자사주 표 {len(_증자P):,}종목 · 코스피200선물 20일 {len(_선물20):,}일", flush=True)
 
     _자사캐시 = {}
+    # ⭐ combo 와 같은 정의로 재료를 더 만든다 (2026-09-16) — 통과 조합을 자동으로 재판정하려고
+    _금값열 = [(_거시P.get(d) or {}).get("금값") for d in 날]
+    _금값20 = {}
+    for _iP in range(20, len(날)):
+        _aP, _bP = _금값열[_iP], _금값열[_iP - 20]
+        if _aP and _bP and _bP > 0:
+            _금값20[_iP] = (_aP / _bP - 1) * 100
+    _ETFX = _NM._ETF자금표(날)
+    _ETF순 = [_ETFX.get(d) for d in 날]
+    _ETF시총20 = {}
+    for _iP in range(20, len(날)):
+        if _ETF순[_iP] and _ETF순[_iP - 20] and _ETF순[_iP - 20][1] > 0:
+            _ETF시총20[_iP] = (_ETF순[_iP][1] / _ETF순[_iP - 20][1] - 1) * 100
+    import bisect as _bsP
+    try:
+        _달력P = json.load(io.open(os.path.join(O._DATA, "event-calendar.json"), encoding="utf-8-sig"))
+    except Exception:  # noqa: BLE001
+        _달력P = {}
+    # ⚠️ 금통위는 그날 10시에 정한다 — 08:55 판정은 모른다 → **다음 거래일**부터 (bisect_right)
+    _금통자리P = sorted({_bsP.bisect_right(날, d) for d in (_달력P.get("금통위변경") or {}) if _bsP.bisect_right(날, d) < len(날)})
+
+    def _뒤NP(자리들, i, n):
+        p = _bsP.bisect_right(자리들, i) - 1
+        return 1.0 if (p >= 0 and i - 자리들[p] <= n) else 0.0
 
     def _값P(x, 재):
+        if 재 == "금통위변경후5":
+            return _뒤NP(_금통자리P, x["인"] - 1, 5)
+        if 재 == "ETF시총20":
+            return _ETF시총20.get(x["인"] - 1)
+        if 재 == "금값20":
+            return _금값20.get(x["인"] - 1)
+        if 재 == "공시장중":
+            중9, _후9, _챙9 = (_공시표X.get(날[x["인"] - 1]) or {}).get(x["code"], (0, 0, 0))
+            return float(중9)
         if 재 == "코스피200선물20":
             return _선물20.get(x["인"] - 1)
         if 재 == "자사주60":
@@ -3423,15 +3456,44 @@ def main():
             return _자사캐시[k]
         return x.get(재)
 
-    _쌍들P = (("낙폭20", "↓", "상대강도", "↑"), ("낙폭20", "↓", "섹터대비", "↑"),
-              ("낙폭20", "↓", "자사주60", "↑"), ("낙폭60", "↓", "자사주60", "↑"),
-              ("볼린저", "↓", "상대강도", "↑"), ("소형우위", "↓", "시장낙폭", "↓"),
-              ("소형우위", "↓", "코스피200선물20", "↓"), ("순이익률", "↑", "코스피200선물20", "↓"),
-              ("시장낙폭", "↓", "자사주60", "↑"), ("시총억", "↓", "자사주60", "↑"),
-              ("자사주60", "↑", "코스피200선물20", "↓"))
-    _재료P = sorted({z[0] for z in _쌍들P} | {z[2] for z in _쌍들P})
+    # ⭐ 최신 COMBO*.txt E절 판정표의 「✅ **셋 다**」 조합을 읽는다 (2026-09-16). 손으로 옮기다 빠뜨리지 않게
+    _조합들P = []
+    try:
+        import re as _reP
+        _cf = sorted(glob.glob(os.path.join(O._DATA, "_labs", "2026-*COMBO*.txt")), key=os.path.getmtime, reverse=True)
+        for _f in _cf:
+            _t = io.open(_f, encoding="utf-8", errors="replace").read()
+            if "── 판정 (기존 OR 쌍" not in _t:
+                continue
+            _seg = _t.split("── 판정 (기존 OR 쌍", 1)[1].split("── F", 1)[0]
+            for _ln in _seg.splitlines():
+                if "✅ **셋 다**" in _ln:
+                    _라 = _ln.strip().split("  ")[0].strip()
+                    _부 = [p.strip() for p in _라.split(" + ") if p.strip()]
+                    if 2 <= len(_부) <= 4 and all(p[-1] in "↑↓" for p in _부):
+                        _조합들P.append(tuple((p[:-1], p[-1]) for p in _부))
+            print(f"     통과 조합 {len(_조합들P)}개 ← {os.path.basename(_f)}")
+            break
+    except Exception as _e:  # noqa: BLE001
+        print(f"     ⚠️ combo 판정표를 못 읽었다 ({type(_e).__name__}) — 손으로 적은 11쌍으로")
+    if not _조합들P:
+        _조합들P = [(("낙폭20", "↓"), ("상대강도", "↑")), (("낙폭20", "↓"), ("섹터대비", "↑")),
+                    (("낙폭20", "↓"), ("자사주60", "↑")), (("낙폭60", "↓"), ("자사주60", "↑")),
+                    (("볼린저", "↓"), ("상대강도", "↑")), (("소형우위", "↓"), ("시장낙폭", "↓")),
+                    (("소형우위", "↓"), ("코스피200선물20", "↓")), (("순이익률", "↑"), ("코스피200선물20", "↓")),
+                    (("시장낙폭", "↓"), ("자사주60", "↑")), (("시총억", "↓"), ("자사주60", "↑")),
+                    (("자사주60", "↑"), ("코스피200선물20", "↓"))]
+    _쌍들P = _조합들P
+    _재료P = sorted({p[0] for 조 in _쌍들P for p in 조})
     _문턱P = {}
+    _못만듦P = [재 for 재 in _재료P if _값P(사건[0], 재) is None and all(_값P(x, 재) is None for x in 사건[:2000])
+               and 재 not in ("금통위변경후5", "ETF시총20", "금값20", "공시장중", "코스피200선물20", "자사주60")
+               and 재 not in (사건[0].keys())]
+    if _못만듦P:
+        print(f"     ⚠️ gate7 이 못 만드는 재료 {len(_못만듦P)}개 — 그 재료가 든 조합은 건너뛴다: {', '.join(_못만듦P)}")
     for 재 in _재료P:
+        if 재 in _못만듦P:
+            continue
         v = sorted(z for z in (_값P(x, 재) for x in 사건) if z is not None)
         if len(v) < len(사건) * 0.3:
             print(f"     {재:<14} 값이 {len(v):,}개뿐 — 건너뜀")
@@ -3450,26 +3512,27 @@ def main():
         낮, 높, 몰 = _문턱P[재]
         return ((v < 낮) if 몰 else (v <= 낮)) if 방 == "↓" else ((v > 높) if 몰 else (v >= 높))
 
-    def _쌍거름(a, da, b, db):
-        return lambda x: 문통과(x) and _조건P(x, a, da) and _조건P(x, b, db)
+    def _쌍거름(조):
+        return lambda x: 문통과(x) and all(_조건P(x, a, da) for a, da in 조)
 
     print("\n  ── A ⭐⭐⭐ **Ⓗ OR 쌍** (셋 다여야 ✅) ──")
     print(머239)
     _기P = _둘(f"{_밑글자} (지금 · 견줌)", _c(_H))
     _기P1 = _둘.r1
     _결P = []
-    for a, da, b, db in _쌍들P:
-        if a not in _문턱P or b not in _문턱P:
+    for 조 in _쌍들P:
+        if any(a not in _문턱P for a, _ in 조):
             continue
-        _g = _쌍거름(a, da, b, db)
+        _라조 = "+".join(f"{a}{da}" for a, da in 조)
+        _g = _쌍거름(조)
         _n = sum(1 for x in 사건 if _g(x) and not _H(x))
         _f = (lambda x, g=_g: _H(x) or g(x))
-        _r = _둘(f"OR {a}{da}+{b}{db} (+{_n:,})", _c(_f))
+        _r = _둘(f"OR {_라조[:30]} (+{_n:,})", _c(_f))
         _r1 = _둘.r1
         # ⭐ 판정은 **제약 있는 칸**(실전에 가까움)으로. 제약 없는 칸은 참고로 같이 찍는다 (2026-09-15 고침)
         _ok1 = (_r1["산"] > _기P1["산"], _r1["끝"] > _기P1["끝"], _r1["낙"] > -10.0)
         _ok2 = (_r["산"] > _기P["산"], _r["끝"] > _기P["끝"], _r["낙"] > -10.0)
-        _결P.append((_r1["끝"], f"{a}{da}+{b}{db}", _f, all(_ok1), all(_ok2),
+        _결P.append((_r1["끝"], _라조, _f, all(_ok1), all(_ok2),
                      _r1["끝"] / _기P1["끝"] * 100))
     print(f"\n     {'쌍':<34}{'제약 있음':>12}{'돈(지금의%)':>12}{'제약 없음':>12}")
     # ⚠️⚠️ 루프 변수를 `비` 로 썼다가 **시가/종가 비율표 `비`** 를 덮어써 big6 가 그 뒤 결과() 에서
