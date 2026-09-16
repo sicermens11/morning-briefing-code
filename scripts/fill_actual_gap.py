@@ -41,7 +41,11 @@ def _시가표(d8):
     if not os.path.exists(p):
         return None
     j = json.load(io.open(p, encoding="utf-8-sig"))
-    return {k: v for k, v in j.items() if isinstance(v, dict) and v.get("시가")}
+    # ⚠️ 파일 모양: {"기준일", "받은시각", "종목수", "<종목들>": {code: {시가…}}} — 종목 표는 **한 겹 안**에 있다 (09-16 첫 실행에서 0건)
+    for v in j.values():
+        if isinstance(v, dict) and any(isinstance(x, dict) and x.get("시가") for x in list(v.values())[:5]):
+            return {k: x for k, x in v.items() if isinstance(x, dict) and x.get("시가")}
+    return {}
 
 
 def main():

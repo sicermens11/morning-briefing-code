@@ -120,6 +120,9 @@ if (Test-Path $A판) {
 적기 "[H] 빈도 재생성"
 & $py "scripts\how_often.py" 2>&1 | Select-Object -Last 4 | Tee-Object $log -Append
 
+적기 "[H2] 08:55 예상체결가 vs 진짜 시가 오차 (gap_error · 2026-09-16 사용자 결정)"
+& $py "scripts\gap_error.py" 2>&1 | Tee-Object "data\_labs\$(Get-Date -f yyyy-MM-dd)_오차.txt" | Select-Object -Last 12 | Tee-Object $log -Append
+
 적기 "[I] 규칙 대조"
 & $py "scripts\rule_align.py" 2>&1 | Select-Object -Last 6 | Tee-Object $log -Append
 
