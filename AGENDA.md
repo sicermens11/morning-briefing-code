@@ -34,7 +34,7 @@ J 08:55 판정 재게시 실패(복구됐나) · K 로그 「살 것 N」 = forw
 | **2026-10 중순** | 08:55 예상체결가 오차로 **문턱 −3.5 → −3.0** 판단 | 걸러낸 σ 1.03(사흘) → 한 달 표본이면 판단 가능 · 09-07 시뮬에선 돈 +38% |
 | **2027-03** | 분봉·호가로 「몇 시에 사나 · 장중 손절」 | 09-17 부터 모으면 반년치 |
 
-**결정 (09-16 19:40 · 사용자 원문):** 「끄자고 하는 셋과 돌지는 않지만 목록만 어지럽히는 지난 일회성 열 개는 정리하자.」 → 껐다: ConsensusSlowFill · KrxArrivalFine. 지웠다: AutoSearch 5 · RedoLabs · EveningCollectVerify · CapitalResume0905 · DartOldBackfill · SundayLabs. ⚠️ **NightlyNews 는 Access denied** — 관리자 창에서 `Disable-ScheduledTask NightlyNews` 한 줄 (cleanup_tasks.ps1 을 관리자로 다시 돌려도 된다).
+**결정 (09-16 19:40 · 사용자 원문):** 「끄자고 하는 셋과 돌지는 않지만 목록만 어지럽히는 지난 일회성 열 개는 정리하자.」 → 껐다: ConsensusSlowFill · KrxArrivalFine. 지웠다: AutoSearch 5 · RedoLabs · EveningCollectVerify · CapitalResume0905 · DartOldBackfill · SundayLabs. NightlyNews 는 사용자가 관리자 창에서 껐다(19:45 · Disabled 확인). **예약 정리 끝 — 셋 끔 · 열 지움.**
 
 ### ⭐ 첫 마디 — 결과가 **19:21에 이미 나왔다** (사용자 지시: 「VANISH_KIND 켤지는 9/16 시작할 때 얘기해줘」)
 
