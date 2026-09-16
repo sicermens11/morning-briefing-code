@@ -68,7 +68,8 @@ def main():
             continue
         동 = r.get("동시호가") or {}
         잰 = str(동.get("잰시각") or "")
-        if not 잰 or 동.get("실제시장갭") is not None:
+        # 표본(자동)이 없던 옛 줄은 실제시장갭을 못 내므로 「채움 표시」로 다시 안 건드린다 (멱등)
+        if not 잰 or 동.get("실제시장갭") is not None or 동.get("실제채움"):
             새줄.append(z)
             continue
         d8 = 잰[:10].replace("-", "")
@@ -100,6 +101,7 @@ def main():
         if 갭들:
             동["실제시장갭"] = round(st.median(갭들), 2)
             동["실제표본수"] = len(갭들)
+        동["실제채움"] = d8
         r["동시호가"] = 동
         새줄.append(json.dumps(r, ensure_ascii=False))
         바뀜 += 1
