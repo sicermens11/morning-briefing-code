@@ -3461,22 +3461,29 @@ def main():
     try:
         import re as _reP
         _cf = sorted(glob.glob(os.path.join(O._DATA, "_labs", "2026-*COMBO*.txt")), key=os.path.getmtime, reverse=True)
+        # ⚠️ 첫 파일만 읽고 break 하면 combo3(ECOS)가 새로 생긴 뒤엔 combo2 의 18개를 놓친다 (2026-09-16 11:50)
+        #    → 최근 3일 안의 COMBO 파일을 **전부 합친다** (겹치면 하나로)
+        import time as _tmP
+        _cf = [f for f in _cf if _tmP.time() - os.path.getmtime(f) < 3 * 86400]
         for _f in _cf:
             _t = io.open(_f, encoding="utf-8", errors="replace").read()
             if "── 판정 (기존 OR 쌍" not in _t:
                 continue
+            _앞 = len(_조합들P)
             _seg = _t.split("── 판정 (기존 OR 쌍", 1)[1].split("── F", 1)[0]
             for _ln in _seg.splitlines():
                 if "✅ **셋 다**" in _ln:
                     _라 = _ln.strip().split("  ")[0].strip()
                     _부 = [p.strip() for p in _라.split(" + ") if p.strip()]
                     if 2 <= len(_부) <= 4 and all(p[-1] in "↑↓" for p in _부):
-                        _조합들P.append(tuple((p[:-1], p[-1]) for p in _부))
-            print(f"     통과 조합 {len(_조합들P)}개 ← {os.path.basename(_f)}")
-            break
+                        _조 = tuple((p[:-1], p[-1]) for p in _부)
+                        if _조 not in _조합들P:
+                            _조합들P.append(_조)
+            print(f"     통과 조합 +{len(_조합들P) - _앞}개 ← {os.path.basename(_f)} (누계 {len(_조합들P)})")
     except Exception as _e:  # noqa: BLE001
         print(f"     ⚠️ combo 판정표를 못 읽었다 ({type(_e).__name__}) — 손으로 적은 11쌍으로")
     if not _조합들P:
+        print("     ⚠️ COMBO 판정표에서 「셋 다」 조합을 못 찾았다 — **손으로 적은 11쌍으로** (조용히 넘어가지 않게 찍는다)")
         _조합들P = [(("낙폭20", "↓"), ("상대강도", "↑")), (("낙폭20", "↓"), ("섹터대비", "↑")),
                     (("낙폭20", "↓"), ("자사주60", "↑")), (("낙폭60", "↓"), ("자사주60", "↑")),
                     (("볼린저", "↓"), ("상대강도", "↑")), (("소형우위", "↓"), ("시장낙폭", "↓")),
