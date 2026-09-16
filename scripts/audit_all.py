@@ -476,6 +476,39 @@ def M절():
     return []
 
 
+def N절():
+    """금지 호스트(data.krx.co.kr · short.krx.co.kr)를 **주석이 아닌 코드**에서 부르는 곳"""
+    print("\n" + "=" * 96)
+    print("  N 금지 호스트 — KRX 웹 포털을 부르는 살아 있는 코드 (규칙 2026-08-28)")
+    print("=" * 96)
+    나쁨 = []
+    import re as _re
+    _금지 = _re.compile(r"https?://(data|short)\.krx\.co\.kr")
+    for f in sorted(glob.glob(os.path.join(_S, "*.py"))):
+        if os.path.basename(f) in ("audit_all.py", "api_probe.py"):
+            continue
+        try:
+            src = io.open(f, encoding="utf-8-sig").read()
+            tree = ast.parse(src)
+        except Exception:  # noqa: BLE001
+            continue
+        # 문자열 상수 안에 든 금지 URL 중, 독스트링이 아닌 것
+        독스트링 = set()
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module)):
+                if node.body and isinstance(node.body[0], ast.Expr) and isinstance(getattr(node.body[0], "value", None), ast.Constant):
+                    독스트링.add(id(node.body[0].value))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and _금지.search(node.value) and id(node) not in 독스트링:
+                print(f"  ❌ {os.path.basename(f)}:{node.lineno}  {node.value[:70]}")
+                나쁨.append(f"N 금지 호스트 {os.path.basename(f)}:{node.lineno}")
+    if not 나쁨:
+        print("  ✅ 코드에 KRX 웹 포털 URL 없음")
+    else:
+        print("     ※ 문자열이 남아 있어도 안 부르면 되지만, 부르는지 아닌지는 사람이 봐야 한다")
+    return 나쁨
+
+
 def G절():
     print("\n" + "=" * 96)
     print("  G ⭐⭐ **판정에 「기회 수」를 안 보는 시험**")
@@ -509,7 +542,7 @@ def main():
     print(f"  {dt.datetime.now():%Y-%m-%d %H:%M}")
     print("=" * 96)
     모 = []
-    for 절 in (A절, B절, C절, D절, E절, F절, G절, H절, I절, J절, K절, L절, M절):
+    for 절 in (A절, B절, C절, D절, E절, F절, G절, H절, I절, J절, K절, L절, M절, N절):
         try:
             모 += 절() or []
         except Exception as e:  # noqa: BLE001

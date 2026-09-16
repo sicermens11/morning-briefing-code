@@ -516,10 +516,10 @@ def fetch_one(code: str) -> dict:
     out["분기6개"] = quarterly(code)
     # ⚠️ 공매도는 KRX 세션이 필요해 실패 가능성이 다른 항목보다 높다.
     #    실패해도 나머지 수집을 막지 않는다(다른 항목과 동일 원칙).
-    try:
-        out["공매도"] = short_selling(code)
-    except Exception as e:
-        out["공매도"] = {"error": f"{type(e).__name__}: {e}"}
+    # ⚠️⚠️ 2026-09-16: short_selling() 은 data.krx.co.kr(웹 포털)을 두드린다 — **08-28 규칙 위반**
+    #    (AGENDA 「KRX 웹 포털은 두드리지 않는다 · 공매도는 포기한다」). 실패해도 error 로 조용히 넘어가
+    #    19일 동안 아무도 몰랐다. 부르지 않는다. 공매도는 OpenAPI 에 없으므로 **경로가 생기기 전엔 비워 둔다**
+    out["공매도"] = {"error": "규칙: KRX 웹 포털은 두드리지 않는다 (2026-08-28) — 수집 안 함"}
 
     # --- 리서치 리포트 목록 (조건부-C) ---
     try:
