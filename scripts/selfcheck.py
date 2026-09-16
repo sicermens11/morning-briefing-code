@@ -568,7 +568,8 @@ def main():
         except Exception:
             continue
         b = os.path.basename(p)
-        if "Traceback" in t:
+        # ⚠️ 전수점검 결과는 로그 줄을 **인용**하므로 Traceback 낱말이 들어 있어도 죽은 게 아니다 (2026-09-16)
+        if "Traceback" in t and "전수점검" not in b:
             알림(True, f"{b}: **Traceback**이 들어 있다")
         elif re.search(r"있는 종목 0개|0건 확보|파싱 결과가 0", t):
             알림(True, f"{b}: **파싱 0건**이 들어 있다")
