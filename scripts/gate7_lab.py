@@ -3478,7 +3478,15 @@ def main():
         p = _bsP.bisect_right(자리들, i) - 1
         return 1.0 if (p >= 0 and i - 자리들[p] <= n) else 0.0
 
+    _괴리표P = _NM._ETF괴리표(날)
+    _괴리열P = [_괴리표P.get(d) for d in 날]
+
     def _값P(x, 재):
+        if 재 == "ETF괴리":
+            return _괴리열P[x["인"] - 1]
+        if 재 == "ETF괴리20":
+            _iq = x["인"] - 1
+            return (_괴리열P[_iq] - _괴리열P[_iq - 20]) if (_iq >= 20 and _괴리열P[_iq] is not None and _괴리열P[_iq - 20] is not None) else None
         if 재 == "기준금리20":
             return _기준금리20P(x["인"] - 1)
         if 재 == "무역수지비":
@@ -3541,7 +3549,7 @@ def main():
     _문턱P = {}
     _못만듦P = [재 for 재 in _재료P if _값P(사건[0], 재) is None and all(_값P(x, 재) is None for x in 사건[:2000])
                and 재 not in ("금통위변경후5", "ETF시총20", "금값20", "공시장중", "코스피200선물20", "자사주60",
-                              "기준금리20", "무역수지비")
+                              "기준금리20", "무역수지비", "ETF괴리", "ETF괴리20")
                and 재 not in (사건[0].keys())]
     if _못만듦P:
         print(f"     ⚠️ gate7 이 못 만드는 재료 {len(_못만듦P)}개 — 그 재료가 든 조합은 건너뛴다: {', '.join(_못만듦P)}")

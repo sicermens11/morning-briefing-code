@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 r"""
 newmat.py — **안 써본 재료 넷**을 사건에 붙인다 (2026-09-14 밤 신설)
 
@@ -295,6 +295,35 @@ def _ETF자금표(날들):
                 시총 += b
         if 대금 or 시총:
             표[d8] = (대금, 시총)
+    return 표
+
+
+def _ETF괴리표(날들):
+    r"""날짜8 -> 국내 주식형 ETF(시총 500억↑) **괴리율 중앙값(%)** — (종가/NAV − 1)×100 (2026-09-16 · 사용자 물음)
+
+    ⚠️ 시장 재료다. 양수 = 웃돈에 사는 중 · 음수 = 할인. 사건에 안 붙이고 표만 준다
+    """
+    import statistics as _st
+    필요 = set(날들)
+    표 = {}
+    for f in sorted(glob.glob(os.path.join(_DATA, "etf-krx", "*.json"))):
+        d8 = os.path.basename(f)[:8]
+        if d8 not in 필요:
+            continue
+        try:
+            j = json.load(io.open(f, encoding="utf-8-sig"))
+        except ValueError:
+            continue
+        v들 = []
+        for v in (j.get("종목") or {}).values():
+            지 = str(v.get("지수명") or "")
+            if not ("코스피" in 지 or "코스닥" in 지 or "KRX" in 지):
+                continue
+            종, nav, 시 = _숫(v.get("종가")), _숫(v.get("NAV")), _숫(v.get("시가총액"))
+            if 종 and nav and nav > 0 and 시 and 시 >= 5e10:
+                v들.append((종 / nav - 1) * 100)
+        if len(v들) >= 5:
+            표[d8] = _st.median(v들)
     return 표
 
 

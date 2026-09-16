@@ -869,6 +869,7 @@ def main():
               "미국CPI전5", "미국고용전5", "수출발표전5",                            # ⭐ 사용자 「5일 이내 범위면 좋은 것 같은데?」 — 앞 창 전부 5일로
               "선거전5", "선거후5", "월드컵중", "올림픽중",                          # ⭐ 특수 (표본 적음 · 선거 13 · 월드컵 5 · 올림픽 4)
               "미국선거전5", "미국선거후5",                                       # ⭐ 미국 대선4·중간선거4
+              "ETF괴리", "ETF괴리20",                                             # ⭐ ETF NAV 괴리율 (시장 재료 · 2026-09-16)
               "수출YoY", "수입YoY", "무역수지비", "국내CPI_YoY", "기준금리20",         # ⭐ ECOS (수출 주도국 · 처음)
               "시총억", "대금억", "거래량", "회전율",
               "잉여금", "부채", "ROE", "영업이익률", "순이익률", "유동비율",
@@ -931,6 +932,18 @@ def main():
     def _cpiYoY(x):
         return _월YoY(_cpi, _알수있는달(날[x["인"] - 1], 7))
     _기준일들 = sorted(_기준)
+    # ⭐ ETF NAV 괴리율 (2026-09-16 · 사용자 「왜 테스트 안 했지?」) — 날짜 표로만
+    _괴리표 = newmat._ETF괴리표(날)
+    _괴리열 = [_괴리표.get(d) for d in 날]
+    print(f"    ETF 괴리율 {len(_괴리표):,}일", flush=True)
+
+    def _ETF괴리(x):
+        return _괴리열[x["인"] - 1]
+
+    def _ETF괴리20(x):
+        i = x["인"] - 1
+        a, b = _괴리열[i], (_괴리열[i - 20] if i >= 20 else None)
+        return (a - b) if (a is not None and b is not None) else None
     def _기준금리20(x):
         import bisect as _b3
         i = x["인"] - 1
@@ -945,6 +958,7 @@ def main():
     print(f"    ECOS: 수출 {len(_수출)}달 · 수입 {len(_수입)}달 · CPI {len(_cpi)}달 · 기준금리 {len(_기준)}일", flush=True)
 
     _계산재료 = {
+        "ETF괴리": _ETF괴리, "ETF괴리20": _ETF괴리20,
         "수출YoY": _수출YoY, "수입YoY": _수입YoY, "무역수지비": _무역수지비,
         "국내CPI_YoY": _cpiYoY, "기준금리20": _기준금리20,
         "RSI14": _dict계산("RSI14", lambda c, kk: _ta("RSI14", c, kk)),
