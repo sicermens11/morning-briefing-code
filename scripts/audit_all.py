@@ -249,7 +249,7 @@ def H절():
     나쁨 = []
     try:
         out = subprocess.run(["powershell", "-NoProfile", "-Command",
-                              "Get-ScheduledTask | Where-Object { $_.TaskPath -eq '\\' } | Get-ScheduledTaskInfo | "
+                              "Get-ScheduledTask | Where-Object { $_.TaskPath -eq '\\' -and $_.State -ne 'Disabled' } | Get-ScheduledTaskInfo | "
                               "Select-Object TaskName, LastTaskResult, "
                               "@{n='Last';e={$_.LastRunTime.ToString('yyyy-MM-dd HH:mm')}} | ConvertTo-Json"],
                              capture_output=True, timeout=60)
