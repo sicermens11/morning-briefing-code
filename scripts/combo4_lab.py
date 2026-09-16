@@ -403,21 +403,8 @@ def main():
             사건.append({
                 "인": i + 1, "code": code, "원시": o0, "대금": b0[2],
                 "볼린저": 볼, "낙폭20": 낙,
-                "RSI14": _ta("RSI14", code, kk), "RSI변화5": _ta("RSI변화5", code, kk),
-                "MACD히스토": _ta("MACD히스토", code, kk), "MACD골든5": _ta("MACD골든5", code, kk),
-                "스토K14": _ta("스토K14", code, kk),
-                "진폭14": _진폭14(code, kk), "당일진폭": _당일(_진폭, code, kk),
-                "시가위치": _당일(_시위, code, kk),
-                "미국10년20": _변화20(_us10, i), "미국금리차": _금리차[i],
-                "미국금리차20": _변화20(_금리차, i),
-                "실적공시후5": _실적후(code, i, 5), "실적시즌": _실적시즌(d1),
-                "실적공시후1": _실적후(code, i, 1), "실적공시후20": _실적후(code, i, 20),
-                "손익구조후5": _실적후(code, i, 5, _손익일),
-                "FOMC변경후5": _fomc후(i, 5), "FOMC변경후20": _fomc후(i, 20),
-                "FOMC회의후5": _뒤N(_fomc회의자리, i, 5), "미국CPI후3": _뒤N(_cpi자리, i, 3),
-                "금통위변경후5": _뒤N(_금통자리, i, 5),
-                "미국고용후3": _뒤N(_고용자리, i, 3),
-                "국내CPI주간": _국내CPI주간(d1), "수출발표후2": _뒤N(_월첫자리, i, 2),
+                # ⚠️ 새 재료 30개는 여기 **안 넣는다** — 5.4M dict × 30 = MemoryError (2026-09-15 23:44).
+                #    오분위 때 `_계산재료` 로 그때그때 만든다. 값은 같다
                 "시총억": 시총 / 1e8, "대금억": 대금 / 1e8, "거래량": 량,
                 "회전율": (대금 / 시총 * 100) if 시총 > 0 else 0,
                 "갭": g, "매수": 매수, "재통과": 재통과, "낙폭60": 낙60,
@@ -870,8 +857,48 @@ def main():
     print("\n  재료를 오분위로 자르는 중...", flush=True)
     조건 = {}          # 이름 -> 그 조건을 만족하는 사건 자리들(set)
     쓸재료 = []
+    # ⭐ dict 에 안 넣은 재료 30개 — 여기서 함수로 만든다 (2026-09-16 · MemoryError 고침)
+    #    x["인"]-1 = 신호일 자리 i · kk = 그 종목 종가열 자리
+    def _kk(x):
+        return (자리.get(x["code"]) or {}).get(날[x["인"] - 1])
+
+    def _dict계산(이름, f):
+        def g(x):
+            kk = _kk(x)
+            return None if kk is None else f(x["code"], kk)
+        return g
+    _계산재료 = {
+        "RSI14": _dict계산("RSI14", lambda c, kk: _ta("RSI14", c, kk)),
+        "RSI변화5": _dict계산("RSI변화5", lambda c, kk: _ta("RSI변화5", c, kk)),
+        "MACD히스토": _dict계산("MACD히스토", lambda c, kk: _ta("MACD히스토", c, kk)),
+        "MACD골든5": _dict계산("MACD골든5", lambda c, kk: _ta("MACD골든5", c, kk)),
+        "스토K14": _dict계산("스토K14", lambda c, kk: _ta("스토K14", c, kk)),
+        "진폭14": _dict계산("진폭14", lambda c, kk: _진폭14(c, kk)),
+        "당일진폭": _dict계산("당일진폭", lambda c, kk: _당일(_진폭, c, kk)),
+        "시가위치": _dict계산("시가위치", lambda c, kk: _당일(_시위, c, kk)),
+        "미국10년20": lambda x: _변화20(_us10, x["인"] - 1),
+        "미국금리차": lambda x: _금리차[x["인"] - 1],
+        "미국금리차20": lambda x: _변화20(_금리차, x["인"] - 1),
+        "실적공시후5": lambda x: _실적후(x["code"], x["인"] - 1, 5),
+        "실적공시후1": lambda x: _실적후(x["code"], x["인"] - 1, 1),
+        "실적공시후20": lambda x: _실적후(x["code"], x["인"] - 1, 20),
+        "손익구조후5": lambda x: _실적후(x["code"], x["인"] - 1, 5, _손익일),
+        "실적시즌": lambda x: _실적시즌(날[x["인"] - 1]),
+        "FOMC변경후5": lambda x: _fomc후(x["인"] - 1, 5),
+        "FOMC변경후20": lambda x: _fomc후(x["인"] - 1, 20),
+        "FOMC회의후5": lambda x: _뒤N(_fomc회의자리, x["인"] - 1, 5),
+        "미국CPI후3": lambda x: _뒤N(_cpi자리, x["인"] - 1, 3),
+        "금통위변경후5": lambda x: _뒤N(_금통자리, x["인"] - 1, 5),
+        "미국고용후3": lambda x: _뒤N(_고용자리, x["인"] - 1, 3),
+        "국내CPI주간": lambda x: _국내CPI주간(날[x["인"] - 1]),
+        "수출발표후2": lambda x: _뒤N(_월첫자리, x["인"] - 1, 2),
+    }
     for 재 in 재료들:
-        v = [x.get(재) for x in 사건]
+        if 재 in _계산재료:
+            _f재 = _계산재료[재]
+            v = [_f재(x) for x in 사건]
+        else:
+            v = [x.get(재) for x in 사건]
         가 = sorted(z for z in v if z is not None)
         if len(가) < len(사건) * 0.3:
             print(f"    {재:<12} 값이 {len(가):,}개뿐 — 건너뜀")
