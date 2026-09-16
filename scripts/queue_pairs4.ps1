@@ -31,7 +31,7 @@ function 앞줄끝났나 {
     $l = Get-ChildItem "run-logs\queue_pairs3_*.log" -ErrorAction SilentlyContinue |
          Sort-Object LastWriteTime | Select-Object -Last 1
     if (-not $l) { return $true }
-    return ((Get-Content $l.FullName -Raw -Encoding UTF8) -match 'queue_combo3 끝')
+    return ((Get-Content $l.FullName -Raw -Encoding UTF8) -match 'queue_pairs3 끝')
 }
 
 적기 "[0] 앞줄(queue_pairs3)이 끝나길 기다린다"

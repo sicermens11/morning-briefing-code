@@ -314,6 +314,18 @@ def I절():
         elif "끝 =====" not in t and (dt.datetime.now().timestamp() - os.path.getmtime(f)) > 3 * 3600:
             print(f"  ❌ {나}: 3시간 넘게 「끝」 표시가 없다 (죽었거나 멈춤)")
             나쁨.append(f"I 밤 판 {나}: 끝 없음")
+        else:
+            # ⚠️ 2026-09-16 pairs4: 복사한 줄 스크립트가 옛 「앞줄 끝」 문구를 들고 있어 70분을 헛기다렸다
+            import re as _reI
+            _마지막 = (t.strip().splitlines() or [""])[-1]
+            _m = _reI.search(r"앞줄\((queue_\w+?)\)이 끝나길 기다린다", _마지막)
+            _기다림분 = (dt.datetime.now().timestamp() - os.path.getmtime(f)) / 60
+            if _m and _기다림분 > 15:
+                _앞 = _m.group(1)
+                _앞로그 = sorted(glob.glob(os.path.join(_BASE, "run-logs", f"{_앞}_*.log")), key=os.path.getmtime)
+                if _앞로그 and f"{_앞} 끝" in io.open(_앞로그[-1], encoding="utf-8", errors="replace").read():
+                    print(f"  ❌ {나}: 앞줄 {_앞} 은 이미 끝났는데 {_기다림분:.0f}분째 기다린다 — 「앞줄 끝」 문구가 틀렸을 것")
+                    나쁨.append(f"I 줄 {나}: 앞줄 끝났는데 기다림")
     if not 나쁨:
         print("  ✅ 밤 판 이상 없음")
     return 나쁨
