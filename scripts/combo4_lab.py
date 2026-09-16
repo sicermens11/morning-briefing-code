@@ -840,6 +840,7 @@ def main():
               "실적공시후1", "실적공시후20", "손익구조후5",                        # ⭐ earnings-dates.json
               "FOMC회의후5", "미국CPI후3", "금통위변경후5",                       # ⭐ 실제 일정 (event-calendar)
               "미국고용후3", "국내CPI주간", "수출발표후2",                          # ⭐ 고용(실제) · 국내(고정 달력 근사)
+              "수출YoY", "수입YoY", "무역수지비", "국내CPI_YoY", "기준금리20",         # ⭐ ECOS (수출 주도국 · 처음)
               "시총억", "대금억", "거래량", "회전율",
               "잉여금", "부채", "ROE", "영업이익률", "순이익률", "유동비율",
               "시장낙폭", "상대강도", "시장변동성", "소형우위",
@@ -867,7 +868,56 @@ def main():
             kk = _kk(x)
             return None if kk is None else f(x["code"], kk)
         return g
+    # ⭐ ECOS (2026-09-16 · 사용자 키) — 월 자료는 발표일 뒤부터, 일별 금리는 다음 거래일부터
+    def _ecos(이름):
+        try:
+            return (json.load(io.open(os.path.join(O._DATA, "ecos", f"{이름}.json"), encoding="utf-8")).get("값") or {})
+        except Exception:  # noqa: BLE001
+            return {}
+    _수출, _수입, _cpi, _기준 = _ecos("수출금액"), _ecos("수입금액"), _ecos("소비자물가"), _ecos("기준금리")
+
+    def _월YoY(표, ym):
+        a, b = 표.get(ym), 표.get(f"{int(ym[:4]) - 1}{ym[4:]}")
+        return ((a / b - 1) * 100) if (a and b and b > 0) else None
+
+    def _알수있는달(d8, 늦춤일):
+        """d8 에 알 수 있는 「가장 최근 완결 달」 — 그 달 늦춤일 이후면 전달, 아니면 전전달"""
+        y, m = int(d8[:4]), int(d8[4:6])
+        if int(d8[6:8]) < 늦춤일:
+            m -= 1
+        m -= 1                      # 전달 자료
+        while m <= 0:
+            m += 12
+            y -= 1
+        return f"{y}{m:02d}"
+
+    def _수출YoY(x):
+        return _월YoY(_수출, _알수있는달(날[x["인"] - 1], 2))
+    def _수입YoY(x):
+        return _월YoY(_수입, _알수있는달(날[x["인"] - 1], 2))
+    def _무역수지비(x):
+        ym = _알수있는달(날[x["인"] - 1], 2)
+        a, b = _수출.get(ym), _수입.get(ym)
+        return ((a - b) / a * 100) if (a and b and a > 0) else None
+    def _cpiYoY(x):
+        return _월YoY(_cpi, _알수있는달(날[x["인"] - 1], 7))
+    _기준일들 = sorted(_기준)
+    def _기준금리20(x):
+        import bisect as _b3
+        i = x["인"] - 1
+        d, d20 = 날[i - 1] if i >= 1 else None, 날[i - 21] if i >= 21 else None
+        if not d or not d20:
+            return None
+        def _v(dd):
+            p = _b3.bisect_right(_기준일들, dd) - 1
+            return _기준[_기준일들[p]] if p >= 0 else None
+        a, b = _v(d), _v(d20)
+        return (a - b) if (a is not None and b is not None) else None
+    print(f"    ECOS: 수출 {len(_수출)}달 · 수입 {len(_수입)}달 · CPI {len(_cpi)}달 · 기준금리 {len(_기준)}일", flush=True)
+
     _계산재료 = {
+        "수출YoY": _수출YoY, "수입YoY": _수입YoY, "무역수지비": _무역수지비,
+        "국내CPI_YoY": _cpiYoY, "기준금리20": _기준금리20,
         "RSI14": _dict계산("RSI14", lambda c, kk: _ta("RSI14", c, kk)),
         "RSI변화5": _dict계산("RSI변화5", lambda c, kk: _ta("RSI변화5", c, kk)),
         "MACD히스토": _dict계산("MACD히스토", lambda c, kk: _ta("MACD히스토", c, kk)),
