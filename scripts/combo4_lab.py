@@ -351,6 +351,22 @@ def main():
         import bisect as _b2
         p = _b2.bisect_right(자리들, i) - 1
         return 1.0 if (p >= 0 and i - 자리들[p] <= n) else 0.0
+
+    # ⭐ 사건 **앞** 창 (2026-09-16 · 사용자 「전후로 다 테스트 했어?」 — 「후」만 있었다)
+    def _앞N(자리들, i, n):
+        import bisect as _b2
+        q = _b2.bisect_right(자리들, i)          # 다음 사건 자리 (i 당일은 뒤 쪽으로)
+        return 1.0 if (q < len(자리들) and 0 < 자리들[q] - i <= n) else 0.0
+
+    def _실적전(code, i, n=5):
+        """⚠️ 실전 불가 — 소형주는 공시 날짜를 미리 모른다. 「발표 앞에서 움직이나」를 보는 용도"""
+        ds = _실적일.get(code)
+        if not ds:
+            return 0.0
+        import bisect as _b2
+        q = _b2.bisect_right(ds, 날[i])
+        return 1.0 if (q < len(ds) and ds[q] <= 날[min(len(날) - 1, i + n)]) else 0.0
+    _월끝자리 = sorted({i for i, d in enumerate(날) if i + 1 < len(날) and 날[i + 1][:6] != d[:6]})   # 그 달 마지막 거래일
     print(f"    실적 공시 있는 종목 {len(_실적일):,} · FOMC 변경일(대용) {len(_fomc자리)}일 · "
           f"달력: FOMC 회의 {len(_fomc회의자리)} · CPI {len(_cpi자리)} · 금통위 변경 {len(_금통자리)}", flush=True)
 
@@ -841,6 +857,8 @@ def main():
               "실적공시후1", "실적공시후20", "손익구조후5",                        # ⭐ earnings-dates.json
               "FOMC회의후5", "미국CPI후3", "금통위변경후5",                       # ⭐ 실제 일정 (event-calendar)
               "미국고용후3", "국내CPI주간", "수출발표후2",                          # ⭐ 고용(실제) · 국내(고정 달력 근사)
+              "FOMC회의전5", "미국CPI전3", "미국고용전3", "금통위변경전5",           # ⭐ 사건 **앞** 창 (2026-09-16)
+              "수출발표전2", "실적공시전5",                                        # ⚠️ 실적공시전5 는 실전 불가(날짜를 미리 모름)
               "수출YoY", "수입YoY", "무역수지비", "국내CPI_YoY", "기준금리20",         # ⭐ ECOS (수출 주도국 · 처음)
               "시총억", "대금억", "거래량", "회전율",
               "잉여금", "부채", "ROE", "영업이익률", "순이익률", "유동비율",
@@ -943,6 +961,12 @@ def main():
         "미국고용후3": lambda x: _뒤N(_고용자리, x["인"] - 1, 3),
         "국내CPI주간": lambda x: _국내CPI주간(날[x["인"] - 1]),
         "수출발표후2": lambda x: _뒤N(_월첫자리, x["인"] - 1, 2),
+        "FOMC회의전5": lambda x: _앞N(_fomc회의자리, x["인"] - 1, 5),
+        "미국CPI전3": lambda x: _앞N(_cpi자리, x["인"] - 1, 3),
+        "미국고용전3": lambda x: _앞N(_고용자리, x["인"] - 1, 3),
+        "금통위변경전5": lambda x: _앞N(_금통자리, x["인"] - 1, 5),
+        "수출발표전2": lambda x: 1.0 if (_월끝자리 and _앞N(_월끝자리, x["인"] - 2, 2)) else 0.0,
+        "실적공시전5": lambda x: _실적전(x["code"], x["인"] - 1, 5),
     }
     for 재 in 재료들:
         if 재 in _계산재료:
