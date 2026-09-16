@@ -51,12 +51,32 @@ def 찍기(s):
         pass
 
 
+_호가모음 = {}      # ⭐ 회차마다 후보 전부의 호가 10단계·잔량 (2026-09-16 · 사용자 「모으자」) — 같은 응답에서 그냥 꺼낸다
+
+
+def _호가요약(o2):
+    def _f(k):
+        try:
+            return float(o2.get(k) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+    return {"호가시간": o2.get("hoga_bsop_hour"),
+            "매도": [[_f(f"askp{i}"), _f(f"askp_rsqn{i}")] for i in range(1, 11)],
+            "매수": [[_f(f"bidp{i}"), _f(f"bidp_rsqn{i}")] for i in range(1, 11)],
+            "총매도잔량": _f("total_askp_rsqn"), "총매수잔량": _f("total_bidp_rsqn"),
+            "예상체결가": _f("antc_cnpr"), "예상체결량": _f("antc_vol"), "구분": o2.get("cncc_aspr_code")}
+
+
 def 예상체결가(code):
     """(예상체결가, 예상체결량, 동시호가구분) — 못 받으면 (None, None, None)"""
     from nhplug import call
     d = call("/krstock/quote/v1/currentPrice",
              {"iem_cd": code, "market_cd": "KRX"})
     o2 = d.get("Output_2") or {}
+    try:
+        _호가모음[code] = _호가요약(o2)
+    except Exception:  # noqa: BLE001
+        pass
     try:
         가 = float(o2.get("antc_cnpr") or 0)
     except (TypeError, ValueError):
@@ -198,6 +218,17 @@ def main():
              f"08:30~09:00에 다시 돌려라")
         return 1
     찍기(f"  받은 것 {len(모)}개 / 후보 {len(후보)}개")
+    # ⭐ 호가 스냅샷을 남긴다 — 회차마다 한 파일 (판정과 무관 · 실패해도 판정은 간다)
+    try:
+        _호가폴더 = os.path.join(_BASE, "data", "orderbook-antc")
+        os.makedirs(_호가폴더, exist_ok=True)
+        _호가파일 = os.path.join(_호가폴더, f"{이제:%Y%m%d}_{이제:%H%M}.json")
+        with io.open(_호가파일, "w", encoding="utf-8") as fp:
+            json.dump({"잰시각": 이제.strftime("%Y-%m-%d %H:%M:%S"), "후보수": len(후보), "호가": _호가모음},
+                      fp, ensure_ascii=False)
+        찍기(f"  호가 스냅샷 {len(_호가모음)}종목 → orderbook-antc/{os.path.basename(_호가파일)}")
+    except Exception as e:  # noqa: BLE001
+        찍기(f"  ⚠️ 호가 스냅샷 못 남김 {type(e).__name__}")
 
     # ── ⭐⭐⭐ ㉯ **시장 표본 30개** (2026-09-14 저녁) ──────────────
     #    판정의 중앙갭을 후보가 아니라 **표본 30개**로 낸다(시험이 그랬다).
