@@ -47,10 +47,11 @@ $env:BASE_GAP = "표본만+실전표본"
 $env:BASE_RELGAP = "-3.5"
 $env:BASE_SELL = "0.4,15,40 / 0.6,40,90"
 $env:BASE_PICKS = "120"
+$env:SIZE_HI = "999999"
 $env:LAB_OUT = "2026-09-16_PAIRS6_창고침.txt"
 try { & $py "scripts\gate7_lab.py" 2>&1 | Select-Object -Last 4 | ForEach-Object { 적기 "    $_" } }
 catch { 적기 "⚠️ [PAIRS] 터졌다: $($_.Exception.Message)" }
-foreach ($k in "BASE_GAP", "BASE_RELGAP", "BASE_SELL", "BASE_PICKS", "LAB_OUT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
+foreach ($k in "BASE_GAP", "BASE_RELGAP", "BASE_SELL", "BASE_PICKS", "SIZE_HI", "LAB_OUT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
 $밖 = Join-Path "data\_labs" "2026-09-16_PAIRS6_창고침.txt"
 if (Test-Path $밖) { 적기 "[PAIRS] 끝 — $('{0:N0}' -f (Get-Item $밖).Length) B" } else { 적기 "⚠️ [PAIRS] 결과 파일이 없다" }
 적기 "===== queue_pairs6 끝 ====="
