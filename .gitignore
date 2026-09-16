@@ -65,3 +65,5 @@ __pycache__/
 #    scripts/ docs/ *.md  코드와 기록
 #    run-logs/            실행 자취
 # ══════════════════════════════════════════════════════════════
+data/minute/
+data/orderbook-antc/
