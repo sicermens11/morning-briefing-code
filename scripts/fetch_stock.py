@@ -406,108 +406,12 @@ def quarterly(code: str) -> dict:
         return {"error": f"{type(e).__name__}: {e}"}
 
 
-def _isin(code: str) -> str:
-    r"""6자리 종목코드 → ISIN. KRX 공매도 API가 ISIN을 요구하는데, 조회 호출을 하나
-    더 쓰지 않으려고 계산한다. 한국 주식 ISIN = `KR7` + 6자리 + `00` + 체크디짓(Luhn).
-    2026-08-27 검증: 003160·009540·034020·086390·005930 전부 실데이터 반환.
-    """
-    body = "KR7" + code + "00"
-    digits = "".join(str(ord(c) - 55) if c.isalpha() else c for c in body)
-    total, dbl = 0, True
-    for ch in reversed(digits):
-        d = int(ch)
-        if dbl:
-            d *= 2
-            if d > 9:
-                d -= 9
-        total += d
-        dbl = not dbl
-    return body + str((10 - total % 10) % 10)
-
-
-_KRX_OPENER = None
-
-
-def _krx_session():
-    r"""KRX는 **세션 쿠키(JSESSIONID)가 없으면 POST가 전부 HTTP 400**이다.
-    화면 로더를 한 번 GET해서 쿠키를 받아둔다. 이게 이전 시도들이 실패한 이유 중 하나였다.
-    """
-    global _KRX_OPENER
-    if _KRX_OPENER is None:
-        cj = http.cookiejar.CookieJar()
-        op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
-        op.open(urllib.request.Request(
-            "https://data.krx.co.kr/comm/srt/srtLoader/index.cmd?screenId=MDCSTAT301",
-            headers={"User-Agent": HEADERS["User-Agent"]}), timeout=20).read()
-        _KRX_OPENER = op
-    return _KRX_OPENER
-
-
+# ⚠️⚠️ 2026-09-16 — 여기 있던 _isin · _krx_session · short_selling(약 100줄)은 **data.krx.co.kr 웹 포털**을
+#    두드리는 코드였다. 08-28 규칙(AGENDA 「KRX 웹 포털은 두드리지 않는다 · 공매도는 포기한다」) 뒤에도
+#    fetch_one() 이 매일 부르고 있었고, 실패는 {"error"} 로 조용히 넘어갔다. 코드째 걷어낸다.
+#    공매도는 KRX OpenAPI 에 없다 — 써도 되는 경로가 생기면 그때 다시 만든다 (git 이력에 옛 코드가 있다)
 def short_selling(code: str, days: int = 20) -> dict:
-    r"""KRX 개별종목 공매도 거래. (2026-08-27 신설 — 오래 "최대 공백"이던 항목)
-
-    ⚠️ **왜 그동안 못 가져왔나 — 두 가지가 동시에 틀렸다.**
-       ① 경로: `dbms/MDC/STAT/srt/MDCSTAT301xx`로 찍어봤는데 실제로는
-          **`dbms/MDC_OUT/STAT/srt/MDCSTAT30102_OUT`** 이다(`MDC_OUT` + `_OUT` 접미사).
-          화면 ID(`MDCSTAT301`)와 데이터 ID가 달라 추측으로는 못 맞힌다.
-       ② 세션: 쿠키 없이 POST하면 전부 400이다.
-       찾은 경로 — **네이버 공매도 페이지가 KRX를 iframe으로 박아두고 있었고**
-       (`finance.naver.com/item/short_trade.naver` → `data.krx.co.kr/.../srtLoader`),
-       그 iframe HTML 안에 실제 bld 경로가 들어 있었다.
-
-    ⚠️ **점수·등급에 반영하지 않는다(2026-08-27 사용자 결정, A안).**
-       "공매도가 늘면 떨어진다"는 검증된 적 없는 실증 주장이다. 서술로만 쓰고
-       스냅샷에 쌓아 9월 하순에 점수화 여부를 판단한다.
-
-    ⚠️ **오늘 날짜 행은 항상 뺀다.** 공매도 집계는 장 마감 후에 확정되는데, 장중에 부르면
-       전체거래량은 쌓여 있고 공매도만 `0`이라 **비중이 0.00으로 와 평균을 끌어내린다.**
-       2026-08-27 10시대 실측: 오늘 행을 넣으면 디아이 최근5일이 1.19%로 나왔다.
-       브리핑은 08:00 개장 전에 도니 오늘 행은 어차피 쓸 값이 아니다.
-    """
-    end = datetime.now(KST)
-    start = end - timedelta(days=max(days * 2, 30))
-    body = {
-        "bld": "dbms/MDC_OUT/STAT/srt/MDCSTAT30102_OUT", "locale": "ko_KR",
-        "isuCd": _isin(code), "isuCd2": code,
-        "strtDd": start.strftime("%Y%m%d"), "endDd": end.strftime("%Y%m%d"),
-        "share": "1", "money": "1", "csvxls_isNo": "false", "inqCondTpCd": "1",
-    }
-    op = _krx_session()
-    r = op.open(urllib.request.Request(
-        "https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd",
-        data=urllib.parse.urlencode(body).encode(),
-        headers={"User-Agent": HEADERS["User-Agent"], "Referer": "https://data.krx.co.kr/",
-                 "X-Requested-With": "XMLHttpRequest",
-                 "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"}),
-        timeout=25)
-    rows = json.loads(r.read().decode("utf-8", "replace")).get("OutBlock_1") or []
-    today = end.strftime("%Y/%m/%d")
-    live = [x for x in rows
-            if _as_float(x.get("ACC_TRDVOL")) > 0 and x.get("TRD_DD") != today]
-    if not live:
-        return {"error": "공매도 데이터 없음(신규상장·거래정지 등)"}
-
-    wt = [_as_float(x["TRDVOL_WT"]) for x in live if x.get("TRDVOL_WT")]
-    recent, prior = wt[:5], wt[5:]
-    out = {
-        "기준일": live[0]["TRD_DD"],
-        "최근비중pct": _as_float(live[0].get("TRDVOL_WT")),
-        "유효거래일": len(live),
-        "일별": [{"거래일": x["TRD_DD"], "공매도수량": x["CVSRTSELL_TRDVOL"],
-                  "전체거래량": x["ACC_TRDVOL"], "비중pct": _as_float(x.get("TRDVOL_WT"))}
-                 for x in live[:days]],
-        "_주의": ("⚠️ 점수·등급 미반영(2026-08-27). 서술 전용이다. "
-                   "공매도 비중이 높다=나쁘다는 검증된 적 없다 — "
-                   "재료가 터지면 숏커버로 상승이 증폭될 수도 있다. 사실만 쓴다."),
-    }
-    if recent:
-        out["최근5일평균pct"] = round(sum(recent) / len(recent), 2)
-    if recent and prior:
-        a, b = sum(recent) / len(recent), sum(prior) / len(prior)
-        out["직전평균pct"] = round(b, 2)
-        out["추세"] = "급증" if a > b * 1.5 else ("감소" if a < b * 0.67 else "평상")
-    return out
-
+    return {"error": "규칙: KRX 웹 포털은 두드리지 않는다 (2026-08-28) — 수집 안 함"}
 
 def fetch_one(code: str) -> dict:
     out = {}
