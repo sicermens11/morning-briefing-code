@@ -69,7 +69,7 @@ C = {
     #    세 층이 색으로도 갈려야 "제목 / 소제목 / 본문"이 눈에 들어온다(2026-08-28).
     #    다른 데에는 쓰지 않는다.
     "sub": "#8a7038",       # 소제목 전용
-    "blue": "#1b3bf0",      # 브랜드 파랑
+    "blue": "#2050c8",      # 브랜드 파랑
     "gold": "#9d7a17",      # 금색 (글자용)
     # ⚠️ 🟡 점검 배지 전용. 금색(#9d7a17)은 너무 어두워 "노란 동그라미"로 안 읽힌다
     #    (2026-08-28 지적). 베이지 바탕에서 읽히는 선에서 가장 노란 쪽으로 잡았다.
@@ -126,12 +126,12 @@ BRAND = "깜댕의 주식 브리핑"
 HEAD_GAP = 36        # 제목 아래 — 모든 카드 공통 (2026-09-11 지시서 1절)
 
 # ⭐⭐ **섹션색** (2026-09-11 · CODE-INSTRUCTION 1절).
-#    「뉴스·국면·일정·기관 #5f4a12 · 수급 #0d8f74 · 액션플랜 #1b3bf0」
+#    「뉴스·국면·일정·기관 #5f4a12 · 수급 #0d8f74 · 액션플랜 #2050c8」
 #    ⚠️ 전에는 카드마다 blue·gold 를 섞어 써서 **여섯 장이 네 색**으로 갈렸다.
 #       섹션색은 머리글의 사각형과 라벨에만 쓰고, 나머지 색은 등락에만 쓴다
 SEC = {
     "뉴스": "#5f4a12", "국면": "#5f4a12", "일정": "#5f4a12", "기관": "#5f4a12",
-    "수급": "#0d8f74", "액션플랜": "#1b3bf0",
+    "수급": "#0d8f74", "액션플랜": "#2050c8",
 }
 # ⚠️⚠️ **항목과 항목 사이는 이 값 하나로 정한다** (2026-08-31 신설).
 #    예전에는 카드마다 12·16·22·38·44px으로 흩어져 있어 **넘길 때마다 리듬이
@@ -191,8 +191,8 @@ ART = (
     "%3Crect x='820' y='470' width='44' height='110' fill='%230d8f74' fill-opacity='.14'/%3E"
     "%3Crect x='940' y='380' width='44' height='120' fill='%230d8f74' fill-opacity='.14'/%3E"
     "%3Cpolyline points='-20,860 122,835 242,810 362,745 482,680 602,687 722,610 "
-    "842,525 962,440 1100,395' fill='none' stroke='%231b3bf0' stroke-opacity='.16' "
-    "stroke-width='4'/%3E%3Ccircle cx='962' cy='440' r='11' fill='%231b3bf0' "
+    "842,525 962,440 1100,395' fill='none' stroke='%232050c8' stroke-opacity='.16' "
+    "stroke-width='4'/%3E%3Ccircle cx='962' cy='440' r='11' fill='%232050c8' "
     "fill-opacity='.16'/%3E%3Cg font-family='monospace' font-weight='700'%3E"
     "%3Ctext x='790' y='250' font-size='180' fill='%23c9a227' fill-opacity='.20' "
     "transform='rotate(-13 790 250)'%3E$%3C/text%3E"
@@ -200,7 +200,7 @@ ART = (
     "transform='rotate(11 90 560)'%3E%E2%82%A9%3C/text%3E"
     "%3Ctext x='600' y='1000' font-size='70' fill='%230d8f74' fill-opacity='.14' "
     "transform='rotate(-7 600 1000)'%3E%E2%96%B2%3C/text%3E"
-    "%3Ctext x='420' y='330' font-size='58' fill='%231b3bf0' fill-opacity='.16' "
+    "%3Ctext x='420' y='330' font-size='58' fill='%232050c8' fill-opacity='.16' "
     "transform='rotate(6 420 330)'%3E%E2%96%B2%3C/text%3E%3C/g%3E%3C/svg%3E&quot;)"
 )
 
