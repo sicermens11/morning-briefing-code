@@ -1,0 +1,697 @@
+---
+name: morning-sector-briefing
+description: 평일 08:00 한국 증시 개장 전 섹터 브리핑을 생성해 Gmail 임시보관함에 저장하고 카카오톡으로 전송한다. 아침 주식 브리핑·모닝 브리핑·섹터 브리핑을 만들거나, 종목 발굴 결과를 메일/카톡으로 받아보려 할 때 사용.
+---
+
+📌 **설계 결정 이력**: 이 SKILL.md 각 규칙의 도입 배경·과거 논의는 `C:\Users\mrblue\Claude\Templates\DECISIONS.md`에 있다. ⚠️ 평일 08:00 자동 실행(STEP 0~8)에서는 이 파일을 읽지 않는다 — 규칙 변경·검토 논의 중일 때만 참고. 규칙을 바꾸면 이 파일도 함께 갱신.
+
+## 목적
+
+한국 주식시장 개장 전(평일 08:00) 섹터별 투자 기회를 발굴해 Gmail 임시보관함에 저장하고 카카오톡으로도 전송하는 자동화 브리핑.
+
+---
+
+## STEP 0: 실행 환경 준비 ⚠️ 필수 — 다른 무엇보다 먼저
+
+> 이 STEP은 2026-08-21 Cowork → Claude Code(Windows) 이식 때 신설됐다. 이식 전 환경과
+> 달라진 것은 **실행 환경뿐이고, 판정 규칙·점수표·서술 원칙은 전부 그대로**다.
+
+### 0-1. 환경 상수
+
+| 항목 | 값 |
+|---|---|
+| 데이터 폴더 (`Templates`) | `C:\Users\mrblue\Claude\Templates` |
+| 스크립트 폴더 | `C:\Users\mrblue\Claude\Templates\scripts` |
+| 임시 작업 폴더 | `C:\Users\mrblue\AppData\Local\Temp\morning-briefing` |
+| 셸 | **PowerShell** (bash·grep·`/tmp`는 이 PC에 존재하지 않음) |
+| 파이썬 실행 | 항상 래퍼 경유: `& "C:\Users\mrblue\Claude\Templates\scripts\run-py.ps1" -Script <파일명> -Args @(...)` |
+
+⚠️ **파이썬을 직접 부르지 말 것.** 이 PC의 PATH에는 `python.exe`라는 이름의 Microsoft Store
+스텁이 먼저 걸려 있다. 실행하면 아무 일도 안 하고 종료코드 9009만 남기는데, 겉보기엔
+"파이썬이 있다"로 보여서 원인 파악이 오래 걸린다. `run-py.ps1`이 이 스텁을 걸러내고 실제
+인터프리터를 찾아준다.
+
+⚠️ **긴 문자열은 명령행이 아니라 파일로 넘긴다.** 완성 HTML·카카오 본문·Gmail 제목처럼
+한글과 이모지가 섞인 문자열을 PowerShell 명령행에 직접 넣으면 콘솔 코드페이지 때문에
+조용히 깨진다. 반드시 `Write` 도구로 임시 작업 폴더에 UTF-8 파일로 쓴 뒤 **경로만** 넘긴다.
+
+### 0-2. 도구 스키마 선조회 (수집용)
+
+이 환경의 MCP 도구는 전부 **deferred** 상태라, 이름만 알고 파라미터 스키마는 모르는
+상태로 시작한다. 스키마 없이 기억만으로 호출을 구성하면 파싱오류가 난다 — 2026-08-13·18·20
+Gmail `create_draft`에서 반복 확인된 실패 유형이 정확히 이것이다(DECISIONS.md 134차).
+그래서 **수집을 시작하기 전에 한 번에 불러둔다.**
+
+```
+ToolSearch(query: "select:mcp__claude_ai_PlayMCP__fx-get_realtime_rate,mcp__claude_ai_FMP__economics,mcp__claude_ai_FMP__marketPerformance,mcp__claude_ai_FMP__calendar,mcp__claude_ai_Bigdata_com__bigdata_market_tearsheet,mcp__claude_ai_Bigdata_com__find_securities,mcp__claude_ai_Bigdata_com__bigdata_company_tearsheet,mcp__claude_ai_PlayMCP__UsStockInfo-get_finance_news,mcp__claude_ai_PlayMCP__UsStockInfo-get_stock_info,mcp__claude_ai_PlayMCP__UsStockInfo-get_recommendations,mcp__claude_ai_PlayMCP__easyGongsi-daily_briefing,mcp__claude_ai_PlayMCP__easyGongsi-register_watchlist,mcp__claude_ai_PlayMCP__koreaStock-market_get_news,mcp__claude_ai_PlayMCP__koreaStock-market_get_index,mcp__claude_ai_PlayMCP__koreaStock-resolve_stock,mcp__claude_ai_PlayMCP__koreaStock-stock_get_quote,mcp__claude_ai_PlayMCP__koreaStock-stock_get_price_history,mcp__claude_ai_PlayMCP__NaverSearch-search_news,mcp__claude_ai_Exa__web_search_exa,mcp__claude_ai_Exa__web_fetch_exa,mcp__claude_ai_Alpha_Vantage_MCP_Server__INSIDER_TRANSACTIONS,mcp__claude_ai_Alpha_Vantage_MCP_Server__COMPANY_OVERVIEW,mcp__claude_ai_PlayMCP__opendart-find_company,mcp__claude_ai_PlayMCP__opendart-get_executive_stock,mcp__claude_ai_PlayMCP__opendart-get_treasury_stock,mcp__claude_ai_PlayMCP__opendart-get_major_stock,mcp__claude_ai_PlayMCP__koreaStockAnalyz-get_financials,mcp__claude_ai_PlayMCP__koreaStockAnalyz-get_valuation,mcp__claude_ai_PlayMCP__koreaStockAnalyz-get_risk_flags", max_results: 30)
+```
+
+⚠️ 이 1회는 MCP 호출수에 포함하지 않는다(데이터 조회가 아니라 스키마 로드).
+⚠️ 발송용 도구(Gmail·카카오) 스키마는 여기서 불러오지 않는다 — **STEP 6·7 직전에 따로**
+불러온다. 수집 단계에서 미리 불러두면 실제 사용 시점까지 거리가 멀어 기억 기반 호출로
+되돌아가는 것이 위 실패 사례의 패턴이었다.
+
+### 0-3. 도구 이름 매핑 ⚠️ 본문 전체에 적용
+
+**아래 STEP 1~8 본문은 이식 전 짧은 이름을 그대로 쓴다.** 실제 호출할 때만 이 표로 치환한다.
+(본문을 전부 긴 이름으로 바꾸면 규칙 문장이 읽기 어려워지고, 이식 중 규칙을 흘릴 위험이 커진다.)
+
+| 본문 표기 | 실제 도구 이름 |
+|---|---|
+| `fx-get_realtime_rate` | `mcp__claude_ai_PlayMCP__fx-get_realtime_rate` |
+| `FMP-economics` / `FMP-marketPerformance` / `FMP-calendar` | `mcp__claude_ai_FMP__economics` / `__marketPerformance` / `__calendar` |
+| `bigdata_market_tearsheet` | `mcp__claude_ai_Bigdata_com__bigdata_market_tearsheet` |
+| `bigdata_find_securities` | `mcp__claude_ai_Bigdata_com__find_securities` |
+| `bigdata_company_tearsheet` | `mcp__claude_ai_Bigdata_com__bigdata_company_tearsheet` |
+| `UsStockInfo-*` | `mcp__claude_ai_PlayMCP__UsStockInfo-*` |
+| `easyGongsi-*` | `mcp__claude_ai_PlayMCP__easyGongsi-*` |
+| `koreaStock-*` | `mcp__claude_ai_PlayMCP__koreaStock-*` |
+| `koreaStockAnalyz-*` | `mcp__claude_ai_PlayMCP__koreaStockAnalyz-*` |
+| `opendart-*` | `mcp__claude_ai_PlayMCP__opendart-*` |
+| `NaverSearch-search_news` | `mcp__claude_ai_PlayMCP__NaverSearch-search_news` |
+| `web_search_exa` / `web_fetch_exa` | `mcp__claude_ai_Exa__web_search_exa` / `__web_fetch_exa` |
+| `AlphaVantage-XXX` | `mcp__claude_ai_Alpha_Vantage_MCP_Server__XXX` |
+| `create_draft` / `update_draft` / `list_drafts` | `mcp__claude_ai_Gmail__create_draft` / `__update_draft` / `__list_drafts` |
+| 카카오 메모챗 | `mcp__claude_ai_PlayMCP__KakaotalkChat-MemoChat` |
+
+⚠️ **커넥터 ID가 이름에 박혀 있지 않다** — 이식 전에는 `mcp__e14afac1-52dc-...__create_draft`
+처럼 재연결할 때마다 바뀌는 UUID가 도구 이름에 들어 있어서 실패 원인 후보였다. 이 환경은
+커넥터 이름 기반(`mcp__claude_ai_Gmail__`)이라 재연결해도 이름이 그대로다. STEP6·7이
+"도구를 못 찾겠다"로 실패하면 커넥터 ID 문제가 아니라 **연결 자체가 끊긴 것**이니,
+`claude mcp list`로 확인한다.
+
+---
+
+## ⚠️ 실행 규칙
+
+1. **MCP 호출 합산 최대 70회 (월요일 71회, 금요일 73회). 절대 초과 금지.** (변경 이력: DECISIONS.md 72·77·78·82·85·87·98·102·112·113·116·117·118·119·120·121·125·126·127·129·134차)
+   ⚠️ **이 상한을 완화하지 말 것 (2026-08-21 실측으로 확정)**: 이식 당시 "70회는 Cowork 태스크의 단계 수 제약에서 나온 수치이니 로컬에선 완화해도 된다"고 판단해 하드 상한을 95로 올린 적이 있으나, **틀린 판단이었으므로 원복했다.** 근거는 첫 실행 실측이다 — MCP 48회 실행에 모델 턴 135회, 입력 누적 35.1M 토큰(캐시읽기 30.2M + 생성 4.9M), 출력 0.5M(Opus 5 환산 약 $58). 에이전트 실행은 매 턴마다 그때까지의 컨텍스트를 통째로 다시 보내므로 **비용이 호출 수에 비례하지 않고 제곱에 가깝게 는다.** 70회면 $120 안팎이 된다. 게다가 실제 실행이 44~48회로 예산에 여유가 있었으므로, 상한을 올려도 얻는 것이 없었다. 호출을 늘리는 대신 **응답 크기를 줄이는 쪽**(직접 API 전환·큰 응답 격리)이 옳은 방향이다.
+2. **분석 선행 금지. 단, 서로 독립적인 데이터 수집 호출은 병렬 허용** — STEP2·3의 웨이브 A·B·C(아래 STEP2 시작부 "웨이브 병렬 실행" 참고), STEP3.5 1차병렬/2차병렬, 조건부-C·D2 후보별 병렬. STEP2·3·3.5의 읽기 전용 호출에만 적용, STEP6(Gmail 쓰기)엔 미적용.
+3. **WebSearch 사용 절대 금지.** MCP 응답만 활용. (Claude 내장 WebSearch 전용 금지 — Exa `web_search_exa`·`web_fetch_exa` 등 정식 MCP 검색/조회도구는 금지 대상 아님. 이력: DECISIONS.md.)
+4. **모든 호출 완료 후 즉시 HTML 작성. 추가 호출 없음.**
+5. **⚠️ 최우선 안전망: 어떤 단계에서 에러가 발생해도 반드시 STEP 6(Gmail)·STEP 7(카카오)·STEP 8(일일 로그)까지 완료. 중간 실패 시 해당 항목 생략하고 계속 진행.**
+6. Templates 폴더 접근: `C:\Users\mrblue\Claude\Templates` — 로컬 파일이므로 `Read`/`Write` 도구로 직접 접근한다(STEP0 환경 상수 참고).
+7. **⚠️ Gmail 전송은 "단순텍스트 먼저 확정, HTML은 조건부 1회 업그레이드" 구조 — 협상 불가.** 상세 절차·PowerShell 하드카운터·진단로그는 STEP6 참고. 이력: DECISIONS.md 76·123·125차.
+8. **⚠️ 셸은 PowerShell이다.** 이 문서에 남아 있는 bash 관용구(`/tmp`, `grep`, heredoc `<<EOF`, `[ -f ... ]`)를 그대로 실행하지 않는다 — 전부 STEP0·STEP6에 PowerShell 대응 절차가 따로 적혀 있다. `&&`·`||`도 Windows PowerShell 5.1에서는 파서 오류다(`;`와 `if ($?)`를 쓴다).
+
+### ⚠️ 뉴스검색 소스 스위치
+```
+검색1·MCP-7·MCP-SEASON·정책1~2 → NaverSearch-search_news (국내전용·정확한 날짜정렬 필요한 항목)
+MCP-GLOBAL·조건부-SC·조건부-ANCHOR·월요일 주말뉴스·정책3 → web_search_exa (해외소스·의미기반 탐색 필요한 항목)
+조건부-C(리포트목록+컨센서스)·조건부-D2(1순위, 수급데이터)·MCP-10~14(국내금리·예탁금·경제지표·업종랭킹·수급랭킹) → web_fetch_exa (stock.naver.com·m.stock.naver.com 비공식 JSON API 직접조회, 상세는 각 항목 참고)
+조건부-D2 2순위(1순위 API 실패시 폴백) → NaverSearch-search_news 그대로 유지
+MCP-8은 그대로 koreaStock-market_get_news 유지
+MCP-15(국내지수)는 koreaStock-market_get_index 직접호출(이미 연결된 MCP, web_fetch_exa 아님)
+이력: DECISIONS.md 102·116·125·126·127차. NaverSearch 재단절 시 첫 줄 항목만 web_search_exa로 되돌리면 원상복구.
+```
+
+### ⚠️ 미국 시세·투자의견 소스 스위치 (AlphaVantage 폴백)
+```
+MCP-2.5(VIX)+MCP-3(SPY)+MCP-4(QQQ) → bigdata_market_tearsheet() 1회로 영구 채택(DECISIONS.md 121차, 변경 없음).
+
+강화-B(임원 실제매수) → **1단계**: AlphaVantage `INSIDER_TRANSACTIONS(symbol=[MCP-5 핵심 US티커])` → `acquisition_or_disposal`="A"이고 `transaction_date`가 30일 이내인 행 존재 시 +2점("D"는 매도 제외). **2단계(1단계 실패 시, 비상백업)**: `web_fetch_exa`로 `http://openinsider.com/[티커]` 직접조회 → "P - Purchase" 30일 이내 행 기준 +2점. ⚠️ 기존 1단계였던 `UsStockInfo-get_holder_info`는 2026-08-19 검증 결과 이 커넥터에 존재하지 않는 도구로 확인돼 제거(연결상태와 무관하게 항상 실패하던 구조적 오류, 매번 헛호출 1번 낭비 중이었음). 이력: DECISIONS.md 125·126·129차.
+
+강화-G(매수비율) → **1단계(UsStockInfo 연결 시)**: `get_recommendations` → 매수비율=(strongBuy+buy)/전체. **2단계**: AlphaVantage `COMPANY_OVERVIEW(symbol=[티커])` → `AnalystRatingStrongBuy`+`AnalystRatingBuy` 합 ÷ (StrongBuy+Buy+Hold+Sell+StrongSell 합)으로 매수비율 계산. **3단계(최종백업)**: `bigdata_find_securities`+`bigdata_company_tearsheet`의 `ratings`.
+
+MCP-9(목표주가) → **1단계(UsStockInfo 연결 시)**: `get_stock_info` → `targetMeanPrice`를 목표주가로 사용. **2단계**: AlphaVantage `COMPANY_OVERVIEW(symbol=[티커])`(강화-G와 이 한 호출 공유, 추가호출 없음) → `AnalystTargetPrice`를 목표주가로 사용. **3단계(최종백업)**: `bigdata_company_tearsheet`의 `price_targets`. ⚠️ 기존 1단계였던 `UsStockInfo-get_finance_news`는 2026-08-19 검증 결과 뉴스기사 목록만 반환하고 목표주가 필드가 없는 도구로 확인돼(실제 목표주가는 `get_stock_info`의 `targetMeanPrice`에 있음, AAPL 실측: targetMeanPrice 325.7·recommendationKey "buy"·analyst 41명 확인) 교체. ⚠️ FMP `analyst` 2단계는 삭제됨(AlphaVantage로 대체). 이력: DECISIONS.md 129차.
+
+강화-B·G·MCP-9 대상 티커 → MCP-5 정상 시 그 결과, MCP-5가 죽으면(UsStockInfo 단절) 검색2c-B(이미 매일 호출) 최상위 급등종목으로 폴백(변경 없음).
+
+⚠️ **AlphaVantage 호출빈도**: 무료 티어 기준 프리미엄 엔드포인트 하루 25회·표준 엔드포인트 하루 500회 제한. 이 파일에서 쓰는 지점(강화-B 1단계, 강화-G·MCP-9 2단계) 합산 워스트케이스가 하루 최대 4회(후보 2개×2지점)라 여유 충분 — 이 커넥터를 다른 용도로도 함께 쓸 경우 합산량 재확인 필요.
+
+이력: DECISIONS.md 116·117·121·124·125·126·129차.
+```
+
+⚠️ 예산 상한 초과 위기 시 생략 순서(우선순위 낮은 것부터):
+```
+🆕 MCP-6 등록실패 재시도(resolve_stock) 최우선 생략
+🌐 MCP-10~15(국내금리·예탁금·경제지표캘린더·업종랭킹·수급랭킹·국내지수) 그다음 순위 생략 — 생략해도 기존 발굴·서술 경로는 정상 작동(가짓수만 줄어듦, 국내지수는 "미확인"으로 폴백)
+🟠 2군(MCP-7 3·4순위 슬롯 + 2군 강화-P) 그다음 생략
+🔗 조건부-ANCHOR 다음 순위 생략
+🆕 MCP-DAYCHECK·강화-TA·강화-BUYBACK·강화-PREF·강화-OWNERSHIP 5종 그다음 생략
+🌐 MCP-GLOBAL(해외 벤치마크 4종) 그다음 순위 생략
+(그 다음은 기존 우선순위 ①~⑮ 순서대로)
+⑫ F1·F2는 절대 생략 불가
+⑬ 조건부-C·D2의 후보별 1회째(기본 확인)는 ①~⑫보다 먼저 생략 안 함
+⑭ 강화-P 생략 시 갭④는 기사 텍스트 기반 무반응 확인으로 폴백
+⑮ MCP-6 사전 재등록(register_watchlist)은 생략 불가
+```
+
+---
+
+## ⚠️ 종목 발굴 절대 원칙
+
+- ❌ 금지: 카테고리명만 쓰기 / 가치사슬맵 종목 근거 없이 나열만 / 대형주라는 이유만으로 제외
+- ✅ 기준: 갭 4가지 중 하나 이상 + 뉴스·공시·리포트 근거 확인 → 액션플랜
+- ✅ 근거 없으면: 관망
+
+---
+
+## ⚠️ 핵심 작성 원칙
+
+전문 용어 반드시 괄호로 쉬운 설명 병기. 영어 약어 단독 사용 금지.
+
+**실적 발표:**
+- 발표 전: "예상 초과할 경우"/"예상 하회할 경우" — 검색2a `epsEstimated` 근거로 구체 서술. 막연히 "예상"만 쓰지 않음.
+- 발표 후: "실적 깜짝 호조 (예상보다 잘 나옴)" / "실적 실망 (예상보다 못 나옴)"
+- ❌ beat/miss·"이번 주" 등 모호 표현 금지 → D-카운트 + 날짜 병기
+
+**용어 변환:** VIX→"VIX (시장 공포지수. 15미만=안정/15~20=보통/20~30=불안/30+=공포)" · 순매수/순매도→"사는 금액>파는 금액" 식 병기 · 컨센서스→"시장 전문가 평균 예상치" · 목표주가→"애널리스트 제시 적정 주가" · 기업명 한글 필수(티커 단독 금지) · ISM/NFP/PMI/CPI/PCE/FOMC 등 약어는 풀네임(약어) 병기 · 금액: B=10억/M=백만/T=1조 · RSI→"70+=과매수/30-=과매도" · MACD→"추세 전환 지표" · 골든/데드크로스 뜻풀이 병기 · PER/PBR 뜻풀이 병기 · ROE→"ROE(자기자본이익률 — 자기자본으로 얼마나 효율적으로 이익을 냈는지)" · PEG→"PEG(주가수익성장비율 — PER을 이익성장률로 보정한 값, 1 이하면 성장 대비 저평가 참고)" · 자본잠식→"누적손실로 자본금 잠식" · 볼린저밴드→"20일 평균 기준 상하 변동폭" · SPY→"SPY(미국 S&P500 지수 추종 ETF)" · QQQ/^NDX→"나스닥100 지수(추종 ETF는 QQQ)" · WTI→"WTI(국제 유가 기준이 되는 미국산 원유)" · Nikkei→"니케이지수(일본 대표 주가지수)" · VKOSPI→"VKOSPI(코스피 변동성지수, VIX의 한국판)" · EWY→"EWY(한국 증시를 추종하는 미국 상장 ETF)" · CAGR→"CAGR(연평균 성장률)" · 이자보상배율→"이자보상배율(영업이익으로 이자를 몇 배 감당 가능한지, 1미만이면 위험)" · CapEx→"CapEx(설비투자)" · OpEx→"OpEx(운영비용)" · FCF→"FCF(잉여현금흐름)" · MSCI→"MSCI(세계 주요 주가지수 산출기관, 지수 편입 여부가 외국인 자금 유출입에 영향)" · 제로트러스트→"제로트러스트(모든 접근을 기본적으로 신뢰하지 않고 매번 검증하는 보안 체계)" · NAC→"NAC(네트워크 접근제어, 비인가 기기 차단 보안기술)" · CMP→"CMP(반도체 표면을 화학·물리적으로 평탄화하는 연마 공정·장비)" · 콜금리→"콜금리(금융기관간 초단기 자금 대차금리)" · 국고채→"국고채(국가가 발행하는 국채)" · 예탁금→"투자자 예탁금(증권사에 맡겨둔 미집행 매수대기 자금)" · 신용융자→"신용융자(빚내서 주식 사는 것)" · ATR→"ATR(평균진폭 — 최근 일정기간 하루 평균 가격변동폭, 변동성 지표)" · 지지선→"지지선(주가가 잘 안 뚫고 내려가는 가격대)" · 저항선→"저항선(주가가 잘 못 뚫고 올라가는 가격대)" · 장악형→"장악형(오늘 캔들이 어제 캔들을 반대방향으로 완전히 감싸는 추세전환 신호)" · 마루보즈→"마루보즈(꼬리 없이 한 방향으로 쭉 밀린 캔들, 강한 확신 신호)" · 도지→"도지(시가·종가가 거의 같아 매수·매도가 팽팽히 맞선 캔들)" · 품질참고→"품질참고(밸류에이션·재무건전성·기술흐름 3가지를 종합한 참고용 표기, 매수등급 자체엔 미반영)".
+
+⚠️ **용어 커버리지 자동 확장**: 위 목록에 없는 새 전문용어도 일반인이 모를 만하면 괄호 설명. STEP5 작성 직후 검산 단계에서 `Templates\scripts\check_jargon.py`로 기계적 점검.
+
+**⚠️ 숫자→의미 연결 필수:** "PBR 0.8배(장부가치보다 20% 싸게 거래 중 — 저평가 신호)" 식으로 숫자값의 좋고나쁨까지 짧게 해석 병기. 적용범위: ②근거데이터~⑥액션플랜 핵심 수치 전부.
+
+**⚠️ 내부 도구명 본문 노출 금지:** 검색1·2a·2c, MCP-1~15, MCP-GLOBAL, 강화-*, 조건부-*, 정책1~3 등 모든 내부 코드명은 브리핑 HTML·카카오 본문에 표기 금지. STEP5·STEP7 검산 스크립트의 `internal_leaks` 탐지가 1차 보조.
+
+**⚠️ 출처 링크 — HTML 링크 필수:** Exa 결과 기사는 `<a href="[URL]" target="_blank">[제목]</a>` 형식. ①시장한눈에 헤드라인·D-7이벤트·공시·애널리스트뉴스 전부 URL 링크 필수. FMP 데이터는 `<span style="color:#2980b9;">[FMP 실적 캘린더/시장 데이터]</span>`. Naver API 기반 정보(수급데이터·컨센서스·경제지표·업종랭킹·국내지수)는 `<span style="color:#27ae60;">[네이버 증권 데이터]</span>`로 표기. URL 없는 정보만 텍스트 표기.
+
+⚠️ **STEP5 작성 직후 3단계 검산 (용어·문장·출처·내부코드명)**: 완성된 HTML 문자열로 아래를 순서대로 수행.
+
+**1단계 — 기계적 용어검산**: 아래 2단계로 실행해 좌표만 받아 그 부분만 고친다.
+
+(a) `Write` 도구로 완성 HTML을 **그대로**(JSON으로 감싸지 말고, 이스케이프하지 말고) 임시 파일에 쓴다:
+```
+Write(file_path: "C:\Users\mrblue\AppData\Local\Temp\morning-briefing\briefing.html",
+      content: "[STEP5에서 완성한 HTML 문자열 그대로]")
+```
+(b) PowerShell로 검산 스크립트를 돌린다:
+```powershell
+& "C:\Users\mrblue\Claude\Templates\scripts\run-py.ps1" -Script check_jargon.py -Args @('--html-file','C:\Users\mrblue\AppData\Local\Temp\morning-briefing\briefing.html')
+```
+
+⚠️ **왜 파일 경유인가**: 이식 전에는 bash heredoc으로 HTML을 stdin에 밀어넣었지만, PowerShell에는
+heredoc이 없고 완성 HTML을 JSON 문자열로 감싸 명령행에 넣으려면 따옴표·역슬래시·개행·이모지를
+전부 이스케이프해야 한다. 실무에서 가장 잘 깨지는 지점이라 원문을 파일로 넘겨 이스케이프 자체를
+없앴다. 스크립트가 BOM도 알아서 벗겨낸다.
+
+⚠️ **이 임시 파일은 검산용 사본일 뿐이다.** STEP6 Gmail 본문에는 **메모리에 있는 원본 HTML 문자열**을
+그대로 쓴다(아래 "파일 경유 금지" 규칙 유지). 검산 결과로 고칠 때도 원본 문자열을 고치고, 다시 검산할
+일이 있으면 파일을 새로 덮어쓴다 — 파일만 고치고 원본을 안 고치면 둘이 어긋난다.
+
+`missing_terms`·`missing_links`·`internal_leaks` 확인해 해당 부분만 직접 수정. 스크립트 출력을 그대로 가져다 쓰지 않고 원본 HTML을 직접 수정한다.
+
+⚠️ **실패 시(타임아웃 포함) 처리 — 재시도→경량폴백→정직로깅 순서(DECISIONS.md 134차)**: (a) 동일 스크립트로 정확히 1회 재시도(실패 사유·에러메시지를 그대로 로그에 남길 것). (b) 재시도까지 실패하면 새 스크립트나 임의 grep을 즉흥적으로 작성하지 않고, 위 스크립트 안의 `GLOSSARY` dict 키(SPY·QQQ·VIX·NDX·PER·PBR 등)와 `INTERNAL_CODE_PATTERNS`(강화-*·조건부-*·MCP-* 등)를 기준으로 완성 HTML을 1회 수동 재검토해 수정 — 이 폴백은 전체 스크립트보다 좁은 범위(신규 미등재 용어는 못 잡음)라는 한계를 인지하고 수행한다. (c) 결과와 무관하게 STEP8·실행로그에 반드시 "check_jargon.py 실패(재시도 포함 2회, 사유: [에러메시지/타임아웃 등]) → GLOSSARY·INTERNAL_CODE_PATTERNS 기준 경량 수동폴백 사용, 전체 스크립트 미실행"이라고 있는 그대로 기록한다. **"검증 통과"·"수동 검증 완료"처럼 스크립트가 정상 실행된 것과 구분 안 되는 표현 금지** — 2026-08-20 실제로 이 표현 때문에 SPY·QQQ 미설명 노출이 "정상"으로 잘못 기록된 사고 확인.
+
+**2단계 — 초보자 관점 문장검토(신규, DECISIONS.md 134차)**: 완성 HTML 전체를 "주식을 전혀 모르는 사람" 관점에서 다시 읽으며, 헷갈릴 만한 곳을 최소 1곳 찾아내 그 자리에서 쉬운 문장으로 즉시 고친다(단어 설명 유무가 아니라 문장 전체 흐름·"왜 중요한지"가 이해되는지가 기준 — 1단계와 역할이 다름). 실행로그에 "초보자 재독: [고친 문장 요약]" 또는, 정말 찾지 못했을 때만 "초보자 재독 완료, 지적사항 없음"이라고 기록(이 결과가 반복해서 계속 "없음"만 나오면 재검토 대상).
+
+**3단계 — 위험 대응**: 1단계 재시도까지 실패하면 위 (b)(c) 순서로 처리(반복 표기 생략). ⚠️ STEP7(카카오)에도 1단계·2단계 동일 규칙 적용 — 상세는 STEP7 참고.
+
+---
+
+## STEP 1: 날짜 계산
+
+- 오늘 = 한국 기준 당일(요일 포함) · 전일(미장) = 최근 미국 시장 마감일(YYYY-MM-DD) · 7일 후 날짜 = 오늘+7일 · "오늘/내일/어제" 단독 사용 금지, 날짜 항상 병기.
+
+⚠️ **Templates 폴더 접근**: STEP2·3.5·5·8이 이 폴더 접근을 전제로 한다. 실패 시 각 STEP의 위험 대응 규칙에 따라 로그만 남기고 계속 진행. 이력: DECISIONS.md 61차.
+
+⚠️ **국내 증시 휴장일 인식**: STEP1 직후 `Read("C:\Users\mrblue\Claude\Templates\krx-holidays-2026.md")`로 오늘이 휴장일인지 확인. 휴장일이면 ①시장한눈에 서술에 명시.
+
+⚠️ **계절패턴 참고 D-day 계산**: "2월 23일"(기상청 여름철 계절전망 공식 발표일) 사이 D-day 계산 — D-7~D0 범위면 STEP5 ④D-7이벤트에 계절패턴 참고 줄 추가. 이력: DECISIONS.md 115차.
+
+⚠️ **가격이력 조회 기간 계산**: 시작일 = 오늘-140일(달력일 기준, 휴장일 포함해도 100거래일 이상 확보), 종료일 = 오늘. 강화-TA·강화-PREF가 이 값을 그대로 재사용(각자 재계산 금지). 이력: DECISIONS.md 130차.
+
+---
+
+## ⚠️ 월요일 특수 모드
+
+브리핑 대상: 금요일 국장 마감(15:30 KST) → 월요일 08:00 KST. 전일(미장) = 지난 금요일.
+
+- 검색2c-A date = 지난 금요일. MCP-8은 평일과 동일 1회.
+- **MCP-7 pubDate 완화**: 평일은 전일·당일 기사만, 월요일은 금·토·일·월 기사 포함.
+- ⚠️ **금요일 국내 휴장 시**: 직전 실제 거래일까지 pubDate 확장 적용.
+- 월요일 추가: `web_search_exa(query="미국 증시 주말 뉴스 관세 정책 시장", numResults=5)` [1회] → MCP-7 후보 반영.
+
+---
+
+## ⚠️ 금요일 특수 모드 (weekly-policy-calendar 흡수)
+
+월요일 배치 금지. 프레이밍: "다음 주 국회 일정 미리보기".
+
+**정책1** `NaverSearch-search_news(query="국회 본회의 상임위 법안 다음주 일정", sort="date", display=3)` [1회] → pubDate 5일 이내. D-7~D-14 처리예정 법안 + 처리단계.
+
+**정책2** `NaverSearch-search_news(query="정부 정책 발표 예정 다음주 부처 계획", sort="date", display=3)` [1회] → 부처 발표예정 + 날짜·부처·요약.
+
+**정책3** [조건부 1회] `web_search_exa(query="[핵심 법안/정책명] 수혜주 관련주", numResults=3)`.
+
+**신호강도**: 본회의통과확정/예산확정→🔥임박 / 상임위통과·D-3이내→👀주시 / 논의중→💭참고
+
+⚠️ **법안 처리 단계는 정확히 구분해 표기한다** — "상임위 통과" / "본회의 상정" / "본회의 통과"는
+서로 다른 단계이고 신호강도가 갈리는 기준이므로 뭉뚱그리지 않는다. (2026-08-21 추가: 폐지된
+`weekly-policy-calendar` 스킬의 작성 원칙 중 금요일 모드로 흡수될 때 유일하게 빠졌던 항목을 보완.).
+
+**섹터 연결 맵**: 반도체특별법→반도체 / 원전확대→원전기자재 / 방산수출→방산 / AI전력→전력인프라 / 우주개발→우주 / 바이오허가완화→바이오CDMO / 전기차보조금→2차전지 / 조선발주→조선 / 사이버보안의무화→사이버보안
+
+**제외**: 지역연고만·법안무관 테마·다음분기내 처리불가. **근거원칙**: 그 주 실제 뉴스·공시 확인 종목만.
+
+---
+
+## STEP 2: MCP 데이터 수집 — 최대 15회(월 16회) + MCP-GLOBAL 4회 + MCP-10~15 2회 + 조건부 등록실패 재시도(최대3회)
+
+**⚠️ 이 단계는 데이터 수집·신호 메모만. 갭 분류·등급 결정은 STEP4에서만.**
+
+⚠️ **웨이브 병렬 실행**: 서로 결과를 참조하지 않는 항목은 웨이브 단위로 한 턴에 몰아서 병렬 호출한다.
+```
+웨이브 A(선행, 완전독립): MCP-1 + MCP-2 + MCP-2.5+3+4(통합) + 검색1 + 검색2a + MCP-SEASON(조건부) + MCP-10~14(배치통합) + MCP-15(국내지수) + Read("...\value-chain-map.md") 전체 1회
+  → 이 Read 결과는 MCP-6·MCP-7·조건부-SC가 재사용(개별 재Read 금지).
+웨이브 B(A와 동시 가능): MCP-5 + 검색2c-A + 검색2c-B + MCP-8 + MCP-GLOBAL(4개) + MCP-6 register_watchlist + [월요일만] 주말뉴스
+웨이브 C(A·B 완료 후, 내부는 상호독립): MCP-6 daily_briefing + MCP-6 등록실패 재시도(조건부) + MCP-7(4슬롯) + MCP-9·강화-B·강화-G(MCP-5로 대상 티커 확정 후) + 조건부-ANCHOR(조건부)
+
+STEP3의 조건부-C·조건부-D2는 STEP3.5에서 1군이 정해진 뒤에만 실행(기존 "후보별 병렬" 규칙 그대로).
+이력: DECISIONS.md 118·121·126·127·134차.
+```
+
+**MCP-1** `fx-get_realtime_rate(USD)` [1회] → USD/KRW. 신호: ±10원+/일=강·±5~9원=중·±5원미만=약.
+
+**MCP-2** `FMP-economics(endpoint="treasury-rates", from_date="[전일(미장)]")` [1회] → 미 국채 2년물+10년물. 신호: 장단기역전(음수)=강·10Y 4.0%+=중·10Y 3.5%-=중·정상=약.
+
+**MCP-2.5+3+4[통합]** [1회] `bigdata_market_tearsheet()` → VIX·SPY·나스닥100(^NDX). VIX 신호: 20~30(불안)→갭③ 병기 · 30+(공포)→등급조정 테이블.
+
+**MCP-5** `UsStockInfo-get_finance_news(ticker="SPY")` [1회] → 신호: ±5%+=강·±2~4%=중·±2%-=약. ⚠️ 연결단절 시 검색2c-B 최상위 급등종목으로 폴백(신호강도는 "중"으로 간주).
+
+**검색2c-A** `FMP-marketPerformance(endpoint="sector-performance-snapshot", date="[전일(미장)]")` [1회] → 미 11개 섹터 전일 등락률.
+
+**검색2c-B** `FMP-marketPerformance(endpoint="biggest-gainers")` [1회] → 급등종목→MCP-7 후보.
+
+**MCP-6** `easyGongsi-daily_briefing()` [3회] → 사전 `register_watchlist` 필수(웨이브A에서 읽은 value-chain-map.md 재사용). ⚠️ 등록실패 시 `koreaStock-resolve_stock` 재시도(종목당1회, 전체 최대3종목). ⚠️ **재시도 2→3회 상향(DECISIONS.md 134차)**: 2026-08-17·18·20 서버 오류로 반복 실패 확인, 8/17·18은 2회째 재시도로 복구됐으나 8/20은 2회로도 복구 안 돼 스킵됨 — 시간대(장전/장중)와 무관하게 간헐적으로 발생하는 것으로 실측 확인(같은 날 07:00엔 정상, 08:30엔 실패한 사례). 대체 소스는 실측 검토 결과 채택 안 함: `get_disclosures`(종목 1개씩만 조회)·`opendart-search_disclosures`(기업 1곳씩 조회) 둘 다 관심종목 136개 규모에선 예산상 비현실적. 3회 모두 실패하면 재시도 중단, 실행로그·STEP8 "재시도/오류" 필드에 그대로 기록 후 계속 진행.
+
+**MCP-8** `koreaStock-market_get_news(limit=15)` [1회] → 국장 전체 1차 그물.
+
+**[조건부-ANCHOR]** [조건부 최대1회] → 대기업 신사업 헤드라인 확인 시 `web_search_exa` 추가조회.
+
+**[MCP-GLOBAL]** [고정4회] → TSMC·CATL·유럽방산·중국조선 벤치마크, `web_search_exa` 4개 고정쿼리(쿼리마다 주제가 달라 배치 불가 — `web_search_exa`는 URL 배열이 아니라 쿼리 문자열 1개만 받는 구조, 2026-08-20 스키마 확인). 강신호 섹터→MCP-7 "①.8" 우선순위.
+
+**[MCP-10~14 통합] 국내금리·예탁금·경제지표캘린더·업종랭킹·수급랭킹** [1회, 배치] `web_fetch_exa(urls=["https://stock.naver.com/api/securityService/marketindex/bond/nation/KOR", "https://stock.naver.com/api/domestic/market/trendDeposit?startIdx=0&pageSize=5", "https://stock.naver.com/api/securityService/economic/indicator/nations/upcoming?limit=10&nationTypeList=USA&nationTypeList=KOR", "https://stock.naver.com/api/domestic/market/home/upjongTheme/ranking?sortType=changeRate", "https://stock.naver.com/api/domestic/market/trend/trendForeignOrg?investorType=FOREIGNER&tradeType=KRX&marketType=ALL&startIdx=0&pageSize=10&periodType=DAY"])` → `urls` 배열에 5개 URL을 한 번에 담아 1회 호출(2026-08-20 실측: 5개 URL 전부 손실 없이 개별 반환됨 확인, `web_fetch_exa`가 "Batch multiple URLs in one call" 공식 지원). 응답은 URL별로 구획돼 반환되므로 순서대로 매칭:
+  - **국내금리(구 MCP-10)**: 한국 국채 2년물(`KR2YT=RR`)·10년물(`KR10YT=RR`) 최신값+등락방향. **서술 전용**(점수·등급 미반영, 콜금리·CD금리 아닌 국채금리 사용) — ①시장한눈에에 "국고채 10년 4.40%(전일대비 상승)" 식으로 한 줄 병기.
+  - **예탁금(구 MCP-11)**: 투자자 예탁금(매수대기자금)+신용융자 잔고, 최근 5거래일치. **서술 전용, 임의 임계값 판단 금지** — "예탁금 X조원, 전일대비 Y억 증가" 사실만 서술. ①시장한눈에 병기.
+  - **경제지표 캘린더(구 MCP-12)**: 미국·한국 CPI/PMI/고용지표 등 발표예정일+중요도(1~4)+예상/이전치. STEP5 ④D-7이벤트에 "📋 경제지표 캘린더" 카드.
+  - **업종·테마 랭킹(구 MCP-13)**: 업종/테마별 등락률 랭킹+대표종목(leadingItemName/leadingItemCode). MCP-7 국내독립 1순위 "①.9" 신호원(아래 MCP-7 참고).
+  - **외국인 순매수 랭킹(구 MCP-14)**: 외국인 순매수 상위 종목 랭킹. MCP-7 국내독립 1순위 "①.9" 신호원. ⚠️ 08:00 장전엔 전일 마감 기준값일 가능성(다른 도구도 동일 패턴) — 실측 확인 필요.
+  ⚠️ 배치 호출 자체가 실패하면(5개 전부) 이 5개 항목 전부 "미확인" 처리 후 계속 진행(개별 재시도로 5회 되돌리는 것은 예산 절약 취지에 반하므로 금지). 이력: DECISIONS.md 98·126·134차.
+
+**[MCP-15] 국내지수 코스피** [1회] `koreaStock-market_get_index(index_code="KOSPI")` → KOSPI `price`·`change_rate`·`change`(전일종가 대비). **서술 전용**(점수·등급 미반영) — ①시장한눈에 "🇰🇷 전날 국장" 줄과 STEP8 daily-log "코스피등락률" 필드에 실제값 사용. ⚠️ **호출 시각에 따라 `change`·`change_rate`가 0으로 깨져 나온다.** 실측 정리:
+  - 07:00 · 07:30 → **비정상(0)** 반복 확인(`briefing-timing-experiment-log.md` 08/20·08/21). `price`는 정상.
+  - 09:30 이후 → 정상(08/21 09:36 실측).
+  - **08:00 → 미확인 구간.** 2026-08-21에 실행 시각을 08:30→08:00으로 옮겼으므로, 초기 몇 회는 이 필드가 정상인지 확인할 것.
+  - **값이 비정상(0·null·에러)이면 "미확인" 유지**(허위 수치 기재 금지). 이때 `bigdata_market_tearsheet` 응답에 전일 KOSPI 실적치가 있으면 "전일 기준"임을 명시해 서술로 대체할 수 있다(실험 로그에서 실제로 쓰인 우회). 이력: DECISIONS.md 127·129차.
+
+**MCP-7** 신호강도 기반 종목검색 [최대4회] `NaverSearch-search_news(query="[후보 종목/섹터] [이슈 키워드]", sort="date", display=3)` → 종목목록: 웨이브A에서 읽은 value-chain-map.md 재사용.
+
+  ⚠️ **섹터 다양성 가점 + 전일픽 재조회 + 국내독립 2순위**: `Read("...\briefing-daily-log.md")` 최근 20거래일치를 한 번만 읽어 다양성 가점·전일픽 재조회(MCP-DAYCHECK)·국내독립 2순위 큐 구성 3용도에 재사용(기존과 동일, 상세는 생략).
+
+  **국내독립 1순위(고정1회)** 우선순위: ① MCP-8 언급 이슈섹터 → ①.5 **[강화-MACRO]**(MCP-1·2·2.5 중 2개+ 강신호 합치) → ①.8 **[MCP-GLOBAL]** → **①.9 [MCP-13·MCP-14]**: MCP-GLOBAL까지 못 정했을 때, MCP-13 업종랭킹 1위 테마의 대표종목 또는 MCP-14 외국인순매수 1위 종목의 섹터를 우선 채택(실제 매매데이터 기반이라 텍스트 신호인 ②보다 앞순위) → ② MCP-6 강신호 섹터 → ③ MCP-1 환율 수혜섹터 → ④ MCP-2 금리 수혜섹터 → ⑤ [Fallback] 미조회 섹터 우선. 이력: DECISIONS.md 113·119·126차.
+
+  **미장신호 1순위(나머지1회)**: MCP-5·검색2c-A·B 중 최강 신호 1회.
+
+  **국내독립 2순위(상시1회)**: 조선기자재·사이버보안·방산·원전기자재·의료기기/디지털헬스·휴머노이드로봇·바이오CDMO 7개 중 20거래일 최장미조회 큐.
+
+  **미장신호 2순위(조건부1회)**: 검색2c-A·B·MCP-5 중 1순위와 다른 신호.
+
+**MCP-9** [2단 폴백] **1단계(UsStockInfo 연결 시)**: `UsStockInfo-get_stock_info(ticker="[MCP-5 핵심 US티커]")` [조건부1회] → `targetMeanPrice`를 목표주가로 사용. **2단계**: `AlphaVantage-COMPANY_OVERVIEW(symbol="[동일 티커]")` [1회] → `AnalystTargetPrice`를 목표주가로 사용(강화-G와 이 한 호출 공유, 추가호출 없음). **3단계(최종백업)**: 기존 `bigdata_company_tearsheet(analyst_ratings)`의 `price_targets` 재사용.
+
+**MCP-SEASON** [조건부 최대1회] → 근거: `seasonal-investment-calendar.md`. 시기별 트리거는 기존과 동일.
+
+  ⚠️ **`seasonal-investment-calendar.md`를 Read하지 않는다** (DECISIONS.md 60·88차). 위 "근거:" 표기는 **배경 문서 포인터**이지 파일을 읽으라는 지시가 아니다. 그 파일은 월별 계절패턴을 사람이 훑어보라고 만든 순수 참고자료이고, 문서 자체에도 "어떤 SKILL.md도 이 파일을 읽지 않는다"고 적혀 있다. MCP-SEASON은 시기별 트리거 조건이 맞을 때 **뉴스검색 1회**를 수행하는 항목이다(소스 스위치 표 참고).
+  → 이 항목 때문에 `Read`를 호출하지 말 것. 계절 캘린더 내용을 근거로 후보를 서술하지도 말 것 — 계절 소스로 발굴한 후보는 STEP4 "계절 소스 근거 게이트"에 따라 실제 뉴스·공시 근거(구체성기준 ①②)가 있어야만 자격이 생긴다.
+
+---
+
+## STEP 3: 데이터 수집 — 필수 2회(매일) + 조건부
+
+**검색 1** `NaverSearch-search_news(query="외국인 순매수 순매도 코스피 기관 개인", sort="date", display=3)` [1회] → pubDate 전일. 외국인 연속순매도 판정.
+
+**검색 2a** `FMP-calendar(endpoint="earnings-calendar", from_date="[오늘]", to_date="[7일후]")` [1회] → D-7 이내 실적발표.
+
+**[조건부-C+컨센서스+조건부-D2 1순위 통합]** [후보당 1회 배치, 최대2회] → 1군 후보별로 아래 3개 URL을 `web_fetch_exa(urls=[...])` 한 번에 배치 호출(2026-08-20 실측: 3개 URL 동시조회 시 개별호출과 동일하게 손실 없이 반환 확인):
+```
+[
+  "https://m.stock.naver.com/api/research/stock/[후보 종목코드]",
+  "https://stock.naver.com/api/domestic/detail/[후보 종목코드]/consensus",
+  "https://stock.naver.com/api/domestic/detail/[후보 종목코드]/trend?tradeType=KRX&startIdx=0&pageSize=1"
+]
+```
+응답은 URL별로 구획돼 반환되므로 순서대로 매칭·판정:
+  - **리서치(구 조건부-C)**: JSON 배열 최신순 첫 항목의 `writeDate`가 30일 이내면 사용. 제목·미리보기에 상향/신규커버리지 확인 시 +1점, 하향/매도 확인 시 -2점(고정), 신규 커버리지는 위 STEP4 표와 동일 규칙. 애매하면 `researchId`로 `https://m.stock.naver.com/api/research/company/[researchId]` 상세조회(조건부 추가호출, 후보당 최대1회 — 이건 배치 대상 아님, 위 3개 결과를 먼저 봐야 판단 가능하므로 순차 실행).
+  - **컨센서스 스냅샷(구 컨센서스 병기)**: `{"opinion":..., "targetPrice":...}` 스냅샷을 "현재 애널리스트 컨센서스: 목표주가 493,542원(의견점수 4.04/5)" 식으로 근거서술에 자연스럽게 병기. **캐싱·비교 없음, 점수·등급 완전 미반영**(리포트제목 기반 점수와의 중복·충돌 방지 — 강화-VAL의 PER·PBR과 동일하게 순수 서술 참고정보로만 취급).
+  - **수급 1순위(구 조건부-D2 1순위)**: 최신 거래일의 `foreignerPureBuyQuant`(외국인 순매수수량)·`organPureBuyQuant`(기관 순매수수량) **둘 다** 확인. 둘 다 양수(+) → 갭③ 명확히 충족(+1점, 중단). 하나만 양수면 "부분적 수급 유입"으로 참고서술만(+1점 미부여, 애매판정 아님 — 명확한 미충족). 둘 다 음수(-) → 0점(명확, 중단). **2순위(배치 호출 자체가 실패했을 때만 폴백, 조건부)**: `NaverSearch-search_news(query="[후보 종목/섹터] 외국인 기관 수급 뉴스", sort="date", display=3)`.
+  ⚠️ 배치 호출 자체가 실패하면 3개 항목 전부 위 개별 폴백 규칙(리서치는 "리포트 없음" 처리, 컨센서스는 생략, 수급은 D2 2순위 뉴스검색)으로 각각 대응. 이력: DECISIONS.md 126·134차.
+
+⚠️ 구조화 기술지표 전용 도구는 `compute_ta.py`(강화-TA)로 자체계산 해결됨(120차).
+
+---
+
+## STEP 3.5: 강화 신호 수집 — STEP 4 판정 전 필수
+
+**⚠️ 🔴 전용 아님 — 🟢 주목 후보도 포함.**
+
+**실행 순서**: 강화-F1(기업코드조회)은 D1·F2·CAP·VAL·RISK·BUYBACK·OWNERSHIP의 선행조건. 강화-P·TA·PREF와 조건부-ETF는 F1 불필요. 강화-QUANT는 호출 아니라 2차병렬 후 결과 종합.
+
+⚠️ **1군 동일검증**: 갭 충족 후보 2개면 둘 다 1군.
+
+⚠️ **"구체성 기준"**: 동점 시 ①공시>②구체수치·날짜명시기사>③단순언급 순.
+
+⚠️ **2군(간이검증)**: 갭①②는 텍스트만(호출없음), 갭④만 강화-P 후보당1회.
+
+⚠️ **펀더멘탈 캐싱 [F2·VAL·RISK 전용]**: `Read("...\fundamentals-cache.md")` → 10거래일 이내 캐시 있으면 재사용, 없거나 stale이면 새로 호출 후 upsert.
+
+- **1차 병렬**: (후보A) F1+P+TA(가격이력 수집)+PREF+조건부-ETF, (후보B) 동일
+- **TA 계산(1차병렬 직후)**: `compute_ta.py` 스크립트 1회 호출.
+- **2차 병렬**: (후보A) D1+BUYBACK+OWNERSHIP+CAP·F2·VAL·RISK, (후보B) 동일
+- **종합(호출없음)**: 강화-QUANT
+- **3차 조건부**: 조건부-SC
+- 강화-B·G는 US종목 대상, MCP-5 확인 즉시 병렬 실행 가능
+
+**[강화-B]** **1단계**: `AlphaVantage-INSIDER_TRANSACTIONS(symbol="[MCP-5 핵심 US티커]", from_date="[전일-30일]")` [1회] → `acquisition_or_disposal`="A"이고 `transaction_date` 30일 이내인 행 존재 시 +2점("D"는 매도, 제외). **2단계(1단계 실패 시, 비상백업)**: `web_fetch_exa(urls=["http://openinsider.com/[티커]"])` → "P - Purchase" 30일 이내 행 기준 +2점. ⚠️ 기존 1단계였던 `UsStockInfo-get_holder_info`는 2026-08-19 검증 결과 이 커넥터에 존재하지 않는 도구로 확인돼 제거. 이력: DECISIONS.md 125·126·129차.
+
+**[강화-G]** [1~2회] 대상 티커: MCP-5 정상 시 그 결과, 단절 시 검색2c-B 최상위 급등종목. **1단계(UsStockInfo 연결 시)**: `UsStockInfo-get_recommendations(...)` [1회] → 매수비율=(strongBuy+buy)/전체. **2단계**: `AlphaVantage-COMPANY_OVERVIEW(symbol="[영문 티커]")` [1회, MCP-9와 공유] → `(AnalystRatingStrongBuy+AnalystRatingBuy)/(StrongBuy+Buy+Hold+Sell+StrongSell 합)`으로 매수비율 계산. **3단계(최종백업)**: `bigdata_find_securities`+`bigdata_company_tearsheet(analyst_ratings)` [2회]. 이력: DECISIONS.md 121·126차. **서술 보강(2단계 응답 재사용, 추가호출 없음, 137차)**: 같은 COMPANY_OVERVIEW 응답의 `PERatio`·`OperatingMarginTTM`·`DividendYield`를 근거서술에 병기 — 한국 후보는 강화-VAL·F2로 밸류에이션·수익성이 서술에 들어가는데 미국 후보만 매수의견·목표주가뿐이던 불균형 해소. 서술전용, 점수 미반영.
+
+⚠️ B+G 절약 시 절약분은 D2·조건부-C 추가에 배분.
+
+**[강화-F1]** `opendart-find_company(query="[후보 종목명]")` [후보당1회, 최대2회] → `corp_code`+`stock_code`.
+
+**[강화-D1]** `opendart-get_executive_stock(corp_code=...)` [후보당1회, 최대2회] → 30일 이내 임원 자사주매수 확인 +2점. 대표이사·등기임원 대량매도(30일이내, ≤-30,000주 또는 ≤-10%p) -2점, 오탐방지(동일 rcept_dt에 +10%p+ 지분이전 있으면 미적용).
+
+**[강화-F2]** `koreaStockAnalyz-get_financials(ticker="[F1 stock_code]", years=3)` [캐시미스시1회] → 부채비율200%+/순이익률음수 확인시 -2점 근거. **ROE 서술 반영**: `ratios.roe_pct`를 강화-VAL과 함께 병기(서술전용).
+
+**[강화-P]** `koreaStock-stock_get_quote(stock_code="[종목명]")` [후보당1회, 최대2회] → `change_rate` 갭④ 핵심. `current_price`·`week52_high` 다음단계 인계 필수.
+
+**[강화-TA]** [스크립트기반] `koreaStock-stock_get_price_history(stock_code="[종목명]", start_date="[STEP1 가격이력 시작일]", end_date="[오늘]")` [후보당1회] → `compute_ta.py` 1회 호출로 SMA·RSI·볼린저·MACD·52주고점 하락률 계산. 등급조정 4번째 조건에만 연결. **확장(추가호출 없음, 137차)**: 같은 스크립트 호출에서 거래량비율(오늘÷최근20일평균)·지지선/저항선(최근20거래일 최저/최고가)·ATR14(평균진폭, "오늘 움직임 ÷ ATR"로 서술)·캔들패턴 3종(장악형·마루보즈·도지)도 함께 계산 — 이미 받아오던 OHLCV 중 close만 쓰고 버려지던 open/high/low/volume을 재사용, 전부 서술전용(점수·등급 미반영). ⚠️ `start_date`·`end_date` 없이 `limit`만 지정하면 최신 1건만 반환되는 구조적 결함 실측 확인(2026-08-19, 07-30 이후 반복 재현) — 반드시 명시적 날짜범위로 호출. 이력: DECISIONS.md 130·137차.
+
+**[강화-QUANT]** [호출없음] → 강화-VAL·강화-F2/RISK·강화-TA 3가지를 아래 기준으로 각각 긍정/중립/부정 판정한 뒤 종합해 "품질참고" 라벨 산출(추가호출 없음, 138차):
+  - **밸류에이션(강화-VAL)**: PER·PBR이 `scenario_valuation`의 중립 시나리오 대비 저평가 방향이면 긍정, 고평가 방향이면 부정, 판단 애매(데이터 부족·중립가 근접)하면 중립. 강화-VAL 실패로 강화-P 백업값(137차)을 쓴 경우엔 중립 고정.
+  - **재무건전성(강화-F2/RISK)**: 재무취약 판정(F2 부채비율200%+·순이익률음수·RISK 5조건 중 1개+) 미해당이면서 ROE 10%+ 면 긍정, 재무취약 판정 해당이면 부정, 그 사이(재무취약 미해당이지만 ROE 10% 미만 등)면 중립.
+  - **기술흐름(강화-TA)**: 52주고점 -50%+하락+20일선하회(등급조정 4번째 조건과 동일 기준)면 부정, 골든크로스 또는 SMA20 상회 + 오늘 움직임이 ATR14 이내(과열 아님)면 긍정, 그 외 중립.
+  - **종합**: 3개 중 2개 이상 긍정 → "긍정", 2개 이상 부정 → "부정", 그 외(엇갈리거나 중립 다수) → "혼조".
+  - **근거 기록 필수**: 3개 항목 각각의 개별 판정도 함께 산출(예: "VAL:부정·F2/RISK:긍정·TA:중립") — STEP5·STEP7에서 "품질참고" 라벨 옆에 그 근거를 1문장으로 서술(상세는 STEP5·STEP7 작성규칙 참고).
+
+**[강화-CAP]** [후보당 조건부1회, 최대2회] → RISK 캐시미스면 그 disclosures 재사용(호출0), 캐시히트면 독립호출. 유상증자 -2점, 자사주소각 +1점.
+
+**[강화-BUYBACK]** `opendart-get_treasury_stock(corp_code="[F1 corp_code]", bsns_year="[오늘 연도-1]", reprt_code="11011")` [후보당1회, 최대2회] → CAP의 소각판정 검증·정정. ⚠️ `bsns_year`·`reprt_code`는 필수 파라미터이며 미지정 시 파라미터 오류로 실패(2026-08-19 실측 확인, 07-30·07-31 반복 실패의 원인) — 올해 사업보고서는 아직 미발행이므로 작년(=오늘 연도-1) 사업보고서(reprt_code="11011")를 사용. 이력: DECISIONS.md 130차.
+
+**[강화-VAL]** `koreaStockAnalyz-get_valuation(ticker="[F1 stock_code]")` [캐시미스시1회] → `multiples.per`·`pbr`+`scenario_valuation.scenarios`. **PEG**: `multiples.per`÷강화-F2의 `growth.net_income_cagr_pct`(서술전용). **컨센서스**: 조건부-C의 신규 컨센서스 스냅샷(위 STEP3 참고)도 같은 문장에 자연스럽게 병기 가능. ⚡강조: 중립시나리오 대비 10%+ 시 "⚡ 밸류에이션 신호 강함". ⚠️ 점수·등급 미반영 유지(2026-08-20 논의: PER·PBR이 점수에서 빠진 원래 이유는 2026-07-03 당시 도구의 데이터 신뢰성 문제였고, 이후 이 도구로 교체돼 신뢰성 문제는 해소됐으나 재점수화는 아직 재논의 안 됨 — 표본이 더 쌓인 뒤 재검토 예정, 이력: DECISIONS.md 134차). **실패 시 백업(137차)**: 이 호출이 실패(서버 오류 등)하면 강화-P 응답에 이미 포함된 `per`·`pbr`을 대신 사용 — "PER 42.9배(간이값, 정밀 밸류에이션 도구 응답실패로 시세조회 값 대체 사용)" 식으로 출처를 명시하고, 완전히 "미확인" 처리하지 않는다. `scenario_valuation`·PEG는 이 백업으로 대체 불가하므로 그대로 생략.
+
+**[강화-RISK]** `koreaStockAnalyz-get_risk_flags(ticker="[F1 stock_code]")` [캐시미스시1회] → `negative_cfo_streak`·`revenue_decline_streak`·`earnings_cash_divergence`·`low_interest_coverage`·`capital_impairment` 중 1개+ → -2점 근거(F2와 OR로 이중차감 없음, `high_debt_ratio`는 F2의 부채비율200%+ 체크와 중복이라 미사용 유지). `disclosures` 배열은 강화-CAP이 재사용. **확장(137차)**: 기존 3개 조건에 `low_interest_coverage`(영업이익으로 이자도 못 갚는지)·`capital_impairment`(자본잠식 여부) 2개 추가 — 이미 같은 호출에서 반환되던 필드인데 미사용이었음.
+
+**[강화-PREF]** `koreaStock-stock_get_price_history(stock_code="[종목명]우", start_date="[STEP1 가격이력 시작일]", end_date="[오늘]")` [후보당1회] → 60일평균 대비 50%+ 확대 시 참고서술.
+
+**[강화-OWNERSHIP]** `opendart-get_major_stock(corp_code=...)` [후보당1회] → 목적변경(강신호)/지분확대(약신호) 서술.
+
+**[조건부-ETF]** [후보당1회, 조건부] → 5섹터 매핑시만. ⚡20%+/🔵10%+.
+
+**[조건부-SC]** [조건부 최대1회, 3단계] → 서브체인 동반종목 확인 시 "🔵 참고픽" 승격.
+
+---
+
+## STEP 4: 점수 기반 강도 분류
+
+**⚠️ 이 단계에서만 최종 판정. 후보별 독립 채점.**
+
+⚠️ **계절 소스 근거 게이트**: MCP-SEASON 발굴 후보는 구체성기준 ①②만 자격 발생.
+
+### 점수 계산표
+
+| 항목 | 조건 | 점수 |
+|---|---|---|
+| 갭① 시간갭 | 전일 한국장 마감 후 발생, 오늘 개장전 미반영 확인 | +1 |
+| 갭② 정보갭 | 언론·애널리스트 연결고리 미보도 확인 | +1 |
+| 갭③ 수급갭 | 외국인·기관 순매수(`foreignerPureBuyQuant`·`organPureBuyQuant` 둘 다 양수 확인, API 실패시 뉴스 미포착 확인으로 폴백) | +1 |
+| 갭④ 가격갭 | 강화-P 등락률 절댓값 1%미만(무반응) | +1 |
+| 갭④ 가격갭 | 강화-P 등락률 절댓값 1~5% | 0 |
+| 갭④ 가격갭 | 강화-P 등락률 절댓값 5%+ | 0 |
+| 갭④ 가격갭 | 강화-P 미실행+기사에서 무반응 확인 | +1 |
+| 갭④ 가격갭 | 강화-P 미실행+기사도 확인불가 | 0 |
+| 강화-G | US 매수비율 70~84% | +1 |
+| 강화-G | US 매수비율 85%+ | +2 |
+| 강화-B | US 임원 실제 시장매수 확인 | +2 |
+| 강화-D1 | 한국 임원 자사주매수(30일 이내) | +2 |
+| 강화-D1 | 30일 초과(매수없음) | 0(🔭 장기 행 기재) |
+| 강화-D1 | 대표이사·등기임원 대량매도(30일 이내) | **-2(고정값)** |
+| 조건부-C | 목표주가 상향(신규커버리지+매수의견 포함) | +1 |
+| 조건부-C | 목표주가 하향 또는 매도의견 | **-2(고정값)** |
+| 미장급등 | 연관 US종목 전날 +15%+ | +1 |
+| 강화-CAP | 3개월내 유상증자 | **-2(고정값)** |
+| 강화-CAP | 자사주소각(BUYBACK 재매각 정정 시 0점) | +1 |
+| 재무취약 | F2 부채비율200%+ 또는 순이익률음수 또는 RISK 5조건 중 1개+ | **-2(고정값)** |
+
+※ 갭③ 판정 방식이 126차로 텍스트→숫자 기반 변경됐으나 점수값(+1) 자체는 불변, 판정의 정확도만 개선.
+※ 나머지 각주는 기존과 동일(재무개선추세 예외, 부채비율 구조적 예외, 검산 규칙 등 — 아래 계속).
+
+⚠️ **재무개선추세 예외 (회사단위)**: 재무취약(-2) 또는 강화-CAP 유상증자(-2) 판정이 나온 후보라도, F2 응답의 최근 3개년 영업이익률(적자 기업은 순이익률)을 첫해 대비 마지막해로 비교해 20%p 이상 개선(중간~마지막해 재악화 5%p 이내)됐으면 -2점→-1점 완화. 최근 연도 영업이익률 절댓값 ±1000% 초과, 또는 3개년 데이터 결측이면 예외 미적용. 경계선(18~22%p, 4~6%p)이면 미적용(보수적 판단). 이력: DECISIONS.md 113·115차.
+
+⚠️ **부채비율 구조적 예외 (섹터단위, 조선만)**: 조선(기자재·본선) 후보는 F2 `debt_ratio_pct` 200%+ 단독 조건을 재무취약 판정에서 제외. 원전기자재·전력인프라는 회사별 편차 커서 제외 대상 아님. 이력: DECISIONS.md 113차.
+
+⚠️ **평가순서**: ① 조선 부채비율 구조적 예외 먼저 적용 → ② 나머지 재무취약 조건 평가 → ③ 그래도 -2 남으면 재무개선추세 예외 재검토. 두 예외는 독립 적용(캡 없음). 이력: DECISIONS.md 115차.
+
+⚠️ **기술적 지표는 점수표 미포함**: 52주고점 -50%+하락+20일선하회 조합만 등급조정 규칙 4번째 조건으로 예외 연결.
+
+⚠️ **서술 보강용 참고정보(강화-VAL·조건부-SC·ETF·TA·QUANT·MACRO·PREF·OWNERSHIP·컨센서스스냅샷·MCP-10국내금리·MCP-11예탁금·MCP-15국내지수)는 점수표 미포함**: 전부 점수·등급 미반영(TA의 거래량비율·지지저항·ATR14·캔들패턴, 강화-G의 PER·영업이익률·배당수익률 확장분도 동일 원칙, 137차. 강화-QUANT의 "품질참고" 라벨(긍정/혼조/부정, 138차)도 동일 원칙 — 등급배지(🔴/🟢/🟡) 옆 보조표기일 뿐 등급 산출 자체엔 미반영). 강화-BUYBACK만 예외로 CAP의 기존 소각판정(±1점)을 정정. MCP-GLOBAL·MCP-13·MCP-14도 점수표 미포함(발굴 슬롯 우선순위 전용).
+
+### ⚠️ 점수 계산 검산
+
+각 항목 점수를 표에서 가져올 때, 명시된 값과 정확히 일치하는지 최종합산 전 재대조. 마이너스 항목은 전부 고정값.
+
+### ⚠️ 백테스트 적중률 참고 (조건부, 점수·등급 미반영)
+
+`Read("...\backtest-track-record.md")` → 20거래일 미만이면 생략. 20거래일+이면 유사조합 적중/빗나감/놓침 비율 계산, 표본5건+면 서술 추가.
+
+### 등급 기준
+
+**5점+** → 🔴 최우선매수 · **3~4점** → 🟢 주목 · **1~2점** → 🟡 점검
+국장 수급온도: 외국인순매도→`⚠️` / 균형→`⚖️` / 순매수→`✅`
+
+⚠️ **원점수 인계**: STEP4 등급조정 전 최종 합산점수를 STEP8 daily-log "원점수" 필드까지 인계.
+
+### ⚠️ 수급·섹터 환경 등급 조정 규칙
+
+| 조건 | 등급조정 | 액션플랜 표기 |
+|---|---|---|
+| 외국인 연속순매도(5거래일+) 또는 '지속/연속/계속 순매도' | 🔴→🟢/🟢→🟡 | "진입 조건: 외국인 수급 전환 확인 후" |
+| 해당종목 섹터 중기 하락추세(기사확인) | 🔴→🟢/🟢→🟡 | "진입 조건: 섹터 추세 전환 확인 후" |
+| VIX 30+(공포구간) | 🔴→🟢/🟢→🟡 | "진입 조건: VIX 20 이하 안정 후" |
+| 개별종목 52주고점 대비 -50%+하락+20일선하회 | 🔴→🟢/🟢→🟡 | "진입 조건: 주가 반등(20일선 회복) 확인 후" |
+
+- 2개 조건+ 해당 시 2단계 하향(🔴→🟡). 조건부-C 목표주가 하향은 이 표 미해당(점수표 -2점만).
+
+### ⚠️ 하한 규칙
+갭합산 1점+인데 마이너스 겹쳐 최종 총점 0점 이하면 🟡 고정 — "진입 조건: 재무 리스크 해소 확인 후".
+
+### ⚠️ 유동성 주의 플래그 (참고용)
+"거래량 급증"·"품절주"·"관리종목"·"거래정지"·"유동성 부족" 확인 시 `⚠️ 유동성 주의` 표기.
+
+### ⚠️ 섹터전반 동반상승 참고 플래그 (참고용)
+"레버리지 ETF 급등"·"관련주 일제히" 등 확인 시 `💡 섹터 참고` 표기.
+
+⚠️ **능동 확인 추가**: 1군 후보 섹터와 동일 섹터에 MCP-GLOBAL·검색2c-A/B·검색1·MCP-8·MCP-13·MCP-14에서 산업전체 촉매 확인 시 `⚡ [섹터명] 최근 강세 흐름` 표기.
+
+### ⚠️ 관망 판정 기준
+모든 후보 갭합산 점수가 1점 미만이면 관망 선언. 갭합산은 ①~④만(강화신호·페널티 반영 전).
+
+### ⚠️ 미국 직접 기회 기준
+강화-B(+2)·G(+1/+2)·미장급등(+1) 합산 3점+ → ⑥액션플랜 박스에 작성. 미달→"오늘 미국 직접 기회 없음". ⚠️ UsStockInfo 연결단절 시에도 강화-B(AlphaVantage 1단계)·강화-G(AlphaVantage 2단계) 둘 다 계속 산출 가능. 이력: DECISIONS.md 31·116·121·125·126·129차.
+
+### ⚠️ 출력 형식 원칙
+❌ "5점 → 최우선매수" → ✅ 자연어 근거서술.
+
+---
+
+## STEP 5: HTML 생성 (템플릿 기반 직접 작성)
+
+1. `Read("C:\Users\mrblue\Claude\Templates\briefing-template.html")` 실행
+2. 템플릿 CSS·구조 그대로 사용해 완성 HTML 직접 작성. 6개 섹션: ①시장한눈에 ②근거데이터 ③국장수급 ④D-7이벤트 ⑤기관의견 ⑥액션플랜.
+3. 완성 HTML을 검산 스크립트에 통과시켜 누락분 보정.
+4. 완성 HTML을 STEP6 `create_draft`의 `htmlBody`에 사용.
+
+⚠️ **파일 경유 금지**: 완성 HTML은 메모리 문자열 그대로 전달.
+
+**⚠️ 작성 규칙**: 템플릿 6섹션·테이블 스타일 유지. **전체를 `<div style="width:100%;">...</div>`로 감쌈**. **⑤기관의견**: pubDate 30일 이내만 별도 행. **④D-7**: 화~금 매일 표시, **경제지표 캘린더 카드(MCP-12)**: D-7 이내 중요도3+ 지표를 "📋 다음주 경제지표" 카드로 추가(`nationKoreanName`·`name`·`releaseDate`·`importance`·`previousValue` 활용), 금요일은 그 아래 "📋 다음주 정책 캘린더" 카드도 추가. **①시장한눈에 병기**: MCP-10 국채 2년/10년 금리(전일대비 방향), MCP-11 예탁금(전일대비 증감 사실만, 트리거·해석 없이), **MCP-15 KOSPI 등락률("🇰🇷 전날 국장" 줄에 실제값 사용 — 값이 정상이면 "코스피 X,XXX.XX(+X.XX%)" 식으로 명시, 비정상이면 기존처럼 "미확인" 유지)**. **계절패턴 참고**: 기존과 동일. **액션플랜 2종목**: 카카오와 동일 구조. **🔵 참고픽**: 기존과 동일. **조건부-ETF**: 기존과 동일. **강화-VAL 강조 + 컨센서스 병기**: 밸류에이션 문장에 PEG·ROE·조건부-C의 컨센서스 스냅샷(목표주가·의견점수)을 자연스럽게 함께 병기(강화-VAL 실패 시 강화-P 백업값 사용, 137차). **강화-TA·QUANT**: TA는 거래량비율·지지저항·ATR14·캔들패턴도 자연스럽게 근거서술에 병기(137차, 서술전용). **강화-QUANT 품질참고 표기(신규, 138차)**: 액션플랜 각 후보의 등급배지(🔴/🟢/🟡) 바로 옆에 "품질참고: 긍정/혼조/부정"을 병기하고, 이어지는 근거서술 문장에 밸류에이션·재무건전성·기술흐름 3개 항목 중 무엇이 어느 방향이라 그 판정이 나왔는지 1문장으로 서술(예: "밸류에이션은 PER 99.75배로 고평가 신호(부정), 재무는 부채비율 13.4%·순이익률 29.47%로 매우 건전(긍정) — 두 신호가 엇갈려 혼조로 표시"). 주 등급(🔴/🟢/🟡)과는 글자 크기·색상 등으로 시각적으로 구분되는 보조 표기로 작성, 점수·등급 산출 자체엔 미반영. **강화-BUYBACK 정정**: 기존과 동일. **강화-PREF·OWNERSHIP**: 기존과 동일. **MCP-DAYCHECK**: 기존과 동일. **백테스트 문구**: 기존과 동일. **MCP-SEASON 채택 후보**: 기존과 동일. **2군 후보**: 기존과 동일. **섹터전반 플래그**: 기존과 동일. **⚡ 섹터강세 흐름**: 기존과 동일(MCP-13·14도 근거 신호원으로 추가됨). **MCP-GLOBAL·MCP-13·MCP-14**: 본문 직접 노출 없음(내부 우선순위·강세흐름 신호 전용). **출처링크 마커**: 기존과 동일, Naver API 출처는 `<span style="color:#27ae60;">[네이버 증권 데이터]</span>`로 표기.
+
+**실행 로그(맨 아래, 압축요약)**: MCP 호출수/상한, 공시 강신호 유무, 채택후보명·등급, 목표주가 상향/하향·날짜, 임원매수 여부(어느 단계에서 확인됐는지), 등급조정 여부·사유, 금리·환율, 생성시각.
+
+⚠️ **위험 대응**: 템플릿 Read 실패 시 6섹션 이름·순서만 최대한 유지해 작성.
+
+---
+
+## 기업명 표기 목록
+엔비디아 / 애플 / 마이크로소프트 / 알파벳 / 아마존 / 메타 / 테슬라 / 브로드컴 / 인텔 / 퀄컴 / 마이크론 / TSMC / ARM홀딩스 / 크라우드스트라이크 / 팔란티어 / 나이키 / 스페이스X / GE버노바 / 이튼 / 로켓랩
+
+---
+
+## STEP 6: Gmail 전송 ⚠️ 필수
+
+⚠️ **STEP6은 STEP7·8과 병렬 실행 안 함**.
+
+⚠️ **`create_draft` 호출 전 스키마 선조회 (DECISIONS.md 134차)**: `create_draft`는 세션 시작 시 바로 쓸 수 있는 상태가 아닌 도구다 — 첫 호출 전에 반드시 아래로 정확한 파라미터 스키마를 먼저 불러온 뒤, 그 스키마 그대로 호출을 구성한다(아래 예시 문구를 기억만으로 흉내내지 않는다).
+```
+ToolSearch(query: "select:mcp__claude_ai_Gmail__create_draft,mcp__claude_ai_Gmail__update_draft,mcp__claude_ai_Gmail__list_drafts,mcp__claude_ai_PlayMCP__KakaotalkChat-MemoChat", max_results: 5)
+```
+⚠️ STEP0에서 수집용 도구를 불러올 때 이 4개를 **일부러 빼놨다** — 실제 사용 시점 바로 앞에서 불러야 기억 기반 호출로 되돌아가지 않는다. STEP7 카카오 도구도 이 한 번에 같이 불러온다(STEP7에서 다시 부를 필요 없음). 이 1회는 MCP 호출수에 포함하지 않는다. ⚠️ **파싱오류(`__unparsedToolInput` 등)도 정상 실패와 동일하게 시도 횟수에 포함** — "파싱오류는 진짜 시도가 아니었다"는 이유로 재시도를 반복하지 않는다. 1차 시도(스키마 선조회 후 첫 호출)가 어떤 이유로든(파싱오류 포함) 실패하면 정확히 1회만 재시도하고, 그마저 실패하면 즉시 중단·실행로그에 에러메시지 그대로 기록 후 STEP7·8 진행(총 2회 상한, 종류 구분 없이 합산). 배경: 2026-08-13(148회)·2026-08-18(5회)·2026-08-20(10회+) 파싱오류 반복 재시도로 세션 예산 낭비 확인, 원인은 스키마를 선조회하지 않고 SKILL.md 예시 문구 기억만으로 호출을 구성한 데 있는 것으로 추정(2026-08-20 daily-log: "ToolSearch 스키마 확인 후 표준 파라미터 방식 성공"으로 최종 해결된 사례 확인).
+
+⚠️ **파라미터 형태 필수**: `to`는 문자열배열, 본문은 `htmlBody`(camelCase). **`body` 파라미터는 절대 사용 금지**. 이력: DECISIONS.md 76·93·122·123차.
+
+### ⚠️ 전송 순서 — "단순텍스트 먼저 확정, HTML은 조건부 1회 업그레이드" (DECISIONS.md 125차)
+
+**1차(실제 발송, 안전한 형식)**:
+```
+📊 [YYYY-MM-DD(요일)] 모닝 브리핑
+
+[🔴/🟢/🟡] [종목명] ([종목코드]) — [핵심근거 한줄]
+(후보 2개면 반복)
+
+미국직접기회: [있으면 한줄, 없으면 "없음"]
+```
+실패하면 재시도 없이 즉시 중단, 실행로그에 기록 후 STEP7·8 진행.
+
+**업그레이드 시도(조건부, 정확히 1회 — bash 하드카운터로 강제, 태스크·실행 단위로 격리)**: 1차 성공 시에만, 1차 `create_draft`가 반환한 실제 draftId 값을 그대로 넣어 아래 bash 먼저 실행(⚠️ 날짜·시간 기반 플래그 절대 금지 — 같은 시간대에 다른 예약 태스크가 겹쳐 돌면 서로의 업그레이드 슬롯을 가로채는 버그가 2026-08-19 실측 확인됨: 08:00 테스트와 07:30 테스트가 같은 UTC 시간 버킷에 걸려, 먼저 완료된 쪽이 슬롯을 소진해 나중 쪽이 텍스트만 남은 부실 초안으로 남았음. 특히 08:00 테스트 지정일엔 08:30 정식 실행과 30분 차이라 같은 시간대 버킷에 함께 걸릴 수 있어 실제 정식 브리핑 품질에도 영향 가능 — draftId 기반으로 바꾸면 완전 해소):
+```powershell
+$dir = "C:\Users\mrblue\AppData\Local\Temp\morning-briefing"
+if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+# 아래 파일명의 draftId는 1차 create_draft가 실제로 반환한 값을 그대로 넣는다(예: r9025744174866146264).
+$flag = Join-Path $dir "gmail_step6_upgrade_[1차 draftId 값 그대로]"
+if (Test-Path $flag) { "HARD_STOP" } else { New-Item -ItemType File -Path $flag | Out-Null; "PROCEED" }
+```
+⚠️ 이식 주의: 원본은 bash `/tmp` + `touch`였다. 이 PC엔 `/tmp`도 `touch`도 없다. 파일에 **내용을 쓰지 않는다**(존재 여부만이 신호). draftId는 ASCII라 명령행에 직접 넣어도 안전하다.
+PROCEED일 때만: (1) HTML 글자수·이모지여부 확인 → (2) `Templates\gmail-upgrade-diagnostics.log`에 통계만 append → (3) `update_draft(draftId=[1차 draftId], htmlBody=[STEP5 원본 HTML])` 1회 호출. HARD_STOP이면 어떤 이유로도 호출 안 함. 실패해도 재시도 없이 즉시 중단.
+
+**⚠️ 이게 전부다**: "3차" 개념 없음. 이력: DECISIONS.md 76·123·125·131차.
+
+### ⚠️ Gmail 제목(subject) — 통일 형식 (DECISIONS.md 127차)
+
+```
+📊 [YYYY-MM-DD(요일)] 모닝 브리핑 [코드] | [1군후보1 종목명][🔴/🟢/🟡] · [1군후보2 종목명][🔴/🟢/🟡]
+```
+- 1군 후보 1개면 종목명 1개만. 관망(STEP4 관망 판정)이면 "관망"만 표기.
+- 예시(후보2개): `📊 [2026-08-19(수)] 모닝 브리핑 [코드] | 엘에스일렉트릭🔴 · 삼성중공업🟢`
+- 예시(후보1개): `📊 [2026-08-19(수)] 모닝 브리핑 [코드] | 씨이랩🟡`
+- 예시(관망): `📊 [2026-08-19(수)] 모닝 브리핑 [코드] | 관망`
+
+⚠️ **`[코드]` 마커는 모든 실행에서 필수다 (2026-08-21 신설).** Cowork판과 이 Claude Code판을
+같은 08:00에 **병행 실행**하는 동안, 두 브리핑이 같은 메일함에 나란히 도착한다. 마커가 없으면
+어느 쪽이 보낸 것인지 구분할 수 없다.
+- **위치가 끝이 아니라 앞쪽(모닝 브리핑 바로 뒤)인 이유**: 끝에 붙이면 종목명이 긴 날 모바일
+  메일함에서 잘려나가 구분이라는 목적 자체가 무너진다.
+- 제목 하드체크(아래)가 이 마커를 **강제**하므로, 마커를 빠뜨린 제목은 `create_draft`까지 가지 못한다.
+- 병행 운영이 끝나면 이 마커와 `check_subject.py`의 정규식을 함께 되돌린다.
+
+⚠️ **자동실행이 아니면 끝에 suffix 추가**(STEP8의 "평일 08:00 자동 실행 여부" 판단과 동일 기준 재사용 — 이 실행이 예약작업의 평일 08:00 정식 트리거인지, 아니면 테스트/사용자의 채팅 요청인지를 실행 컨텍스트로 구분). **`[코드]` 마커는 아래 어느 경우에도 그대로 유지된다** — suffix는 마커 뒤에 추가로 붙는다:
+- 평일 08:00 정식 자동실행: 추가 suffix 없음 (`… 모닝 브리핑 [코드] | 종목🟡`)
+- 테스트 실행: 끝에 ` [수동실행 HH:MM]` 추가 (`… 모닝 브리핑 [코드] | 종목🟡 [수동실행 18:04]`)
+- 채팅에서 수동 요청: 동일하게 ` [수동실행 HH:MM]` 추가(HH:MM = 실행 시각, 하루 여러 번 실행돼도 구분 가능하도록)
+
+⚠️ **반드시 통일 형식을 그대로 사용할 것** — 임의로 다른 형식("[한국주식브리핑] ...(부제)" 등)을 즉흥적으로 만들지 않는다. 2026-08-19 08:30 실행에서 이 형식이 지켜지지 않은 사례 확인됨(규칙 자체는 그때도 이 문서에 명시돼 있었고, 템플릿 파일 오염도 아니었음 — 순수하게 실행 세션이 명확한 지시를 따르지 않은 사례로 사후 확인됨).
+
+### ⚠️ 제목 형식 기계 검증 (하드체크, DECISIONS.md 132차)
+
+⚠️ **텍스트 규칙만으로는 재발 방지가 안 됨이 실측 확인됨** — 위 통일 형식·예시가 이미 명시돼 있었는데도 2026-08-19 08:30 정식 실행이 "[한국주식브리핑] 2026-08-19(수) — 종목명·종목명 (부제)" 식 구식 형식으로 발송한 사례가 나왔다. 원인은 규칙 누락도, 템플릿 오염도 아니라 실행 세션이 눈앞의 명확한 지시를 그냥 따르지 않은 것 — 텍스트 지시만으로는 확률적으로 언제든 재발할 수 있다는 뜻. 따라서 `create_draft` 호출 직전, 완성한 제목을 아래 bash로 기계적으로 검증한다:
+(a) `Write` 도구로 완성한 제목을 UTF-8 파일에 **한 줄로 그대로** 쓴다:
+```
+Write(file_path: "C:\Users\mrblue\AppData\Local\Temp\morning-briefing\subject.txt",
+      content: "[방금 완성한 제목 문자열 그대로, 위 통일 형식+suffix 규칙 적용 후]")
+```
+(b) 검증:
+```powershell
+& "C:\Users\mrblue\Claude\Templates\scripts\run-py.ps1" -Script check_subject.py -Args @('--file','C:\Users\mrblue\AppData\Local\Temp\morning-briefing\subject.txt')
+```
+⚠️ 이식 주의: 원본은 `grep -P` 한 줄이었다. 이 PC엔 grep이 없고, 무엇보다 제목에는 이모지(📊)와
+한글이 섞여 있어 PowerShell 명령행으로 넘기면 콘솔 코드페이지 때문에 조용히 깨진다 — "제목이
+규칙을 어겼다"가 아니라 "검증기가 제목을 잘못 읽었다"로 실패하는 게 최악이라 파일 경유로 바꿨다.
+**판정 정규식 자체는 원본과 글자 단위로 동일하다**(`check_subject.py` 참고).
+`SUBJECT_FORMAT_VIOLATION`이면 그 제목으로 `create_draft`를 호출하지 않는다 — 위 통일 형식·예시를 다시 보고 제목을 고쳐 쓴 뒤 재검증해 `SUBJECT_OK`가 나올 때까지 반복(최대 2회). 2회째도 실패하면 최소 형식 `📊 [오늘날짜(요일)] 모닝 브리핑 | 관망`(또는 확정된 후보명·등급으로 대체)으로 강제 작성하고, 실행로그·STEP8에 "제목 하드체크 2회 실패 → 최소형식 강제 사용"이라고 있는 그대로 기록. 이 검증은 STEP5 검산 스크립트와 별개이며 STEP6 안에서, 제목 완성 직후·`create_draft` 호출 전에 실행한다. (2026-08-19 라이브 재검증: 이 하드체크 신설 직후 08:00 테스트 재실행에서 실제로 통일형식 그대로 발송됨, draft `r-5520303038728349566` — 정상 작동 확인.)
+
+이력: DECISIONS.md 127·132차.
+
+### ⚠️ 생성/업그레이드 직후 통합 검증 (성공한 시도에 대해서만)
+
+1차든 업그레이드든 성공한 경우에만 `list_drafts`로 1회 재조회해 4가지 확인: (1) 비정상 길이/HTML태그노출 (2) `check_jargon.py` 재사용 (3) `internal_leaks` (4) 티커단독표기. 문제 확인 시에만 `update_draft` 1회 재시도(최대1회). 재조회 자체가 실패하면 "확인 불가, 초안은 존재함" 로그만 남기고 진행.
+
+```
+mcp__claude_ai_Gmail__create_draft(
+    to=["sicermens11@gmail.com"],
+    subject="[위 통일 형식 그대로, 자동실행이 아니면 suffix 포함]",
+    htmlBody="..."
+)
+```
+⚠️ 이건 형태 예시일 뿐이다. **실제 파라미터 이름·필수 여부는 위에서 ToolSearch로 불러온 스키마를 따른다** — 이 예시를 기억으로 흉내내다 파싱오류를 반복한 것이 DECISIONS.md 134차의 원인이었다.
+
+---
+
+## STEP 7: 카카오톡 브리핑 전송 ⚠️ 필수
+
+`mcp__claude_ai_PlayMCP__KakaotalkChat-MemoChat` 사용(스키마는 STEP6 시작부 ToolSearch에서 이미 불러왔다).
+
+⚠️ **정확히 1회만 호출**: 전체를 한 번에 조립 후 전송.
+
+⚠️ **분량 기준**: 목표 800~1,200자, 절대상한 2,000자. 초과 시 순서: ①🔭장기 → ②💡장초체크 3개로 축소 → ③📋2군참고 → ④⚠️주의사항 세부축소 → ⑤⚡지분목적변경·📌전일픽반응.
+
+⚠️ **전송 직전 용어·문장·내부코드명 검산**: STEP5와 같은 방식이되 **`--text-file`** 로 넘긴다(HTML 아니므로 `missing_links` 해당없음).
+```
+Write(file_path: "C:\Users\mrblue\AppData\Local\Temp\morning-briefing\kakao.txt", content: "[완성한 카카오 본문 그대로]")
+```
+```powershell
+& "C:\Users\mrblue\Claude\Templates\scripts\run-py.ps1" -Script check_jargon.py -Args @('--text-file','C:\Users\mrblue\AppData\Local\Temp\morning-briefing\kakao.txt')
+```
+`missing_terms`·`internal_leaks` 확인 후 직접 수정(파일이 아니라 전송할 원본 문자열을 고친다). 실패 시 처리(재시도→경량폴백→정직로깅)와 초보자 관점 문장검토는 위 "⚠️ 핵심 작성 원칙" 섹션의 "STEP5 작성 직후 3단계 검산" 규칙과 동일하게 적용(1단계·2단계 둘 다). 이력: DECISIONS.md 130·134차.
+
+⚠️ **첫 줄에 `[코드]` 마커 필수 (2026-08-21 신설)**: Cowork판도 같은 08:00에 카카오톡 "나에게 보내기"로 전송하므로, 마커가 없으면 두 메시지를 구분할 수 없다. Gmail 제목과 동일한 이유·동일한 표기.
+
+**기본 형식**:
+```
+📊 [YYYY-MM-DD(요일)] 모닝 브리핑 [코드]
+─────────────
+📌 전일픽 반응: [전일 종목명] 발굴시점 대비 [+/-N]% (있을 때만)
+
+[🔴최우선매수/🟢주목/🟡점검] [종목명] ([종목코드]) | 갭[해당번호] | 품질참고:[긍정/혼조/부정]
+→ [핵심근거 — STEP5 액션플랜 서술 2~3문장 압축, 품질참고 판정근거 1문장 포함(예: "밸류에이션 고평가(부정)·재무 건전(긍정)로 혼조")]
+⚠️ [주의사항 — 없으면 생략]
+
+(후보 2개면 블록 반복)
+
+📋 2군 참고 (있을 때만, 최대2개)
+• [종목명]([종목코드]) — [핵심근거 한줄]
+
+💡 장초 체크
+□ [체크리스트 상위 3~4개 압축]
+
+🔵 참고픽: [종목명] — 같은 서브체인 동반종목 확인 (있을 때만)
+🔵 ETF 대안: [ETF명]([종목코드]) (있을 때만)
+⚡ 지분목적 변경: [종목명] — [내용] (있을 때만)
+🇺🇸 미국: [종목 한글명] — [이유] (기회 있을 때만)
+🔭 장기: [섹터] — [핵심 스토리]
+⚠️ 유동성 주의: [문구] (해당 시에만)
+💡 섹터 참고: 동반 상승 가능성 있음 (있을 때만)
+⚡ [섹터명] 최근 강세 흐름 — [근거 한 줄] (있을 때만)
+📋 정책(다음주): [법안/발표명] → [수혜섹터] (금요일+🔥임박 신호 있을 때만)
+─────────────
+※ 투자 참고용, 권유 아님. MCP [실제호출수]/[해당요일상한]회
+```
+
+⚠️ **작성 직후 자체 검산**: 전송 직전 헤더·구분선2개·MCP호출수푸터·"※투자참고용" 문구 확인.
+
+---
+
+## STEP 8: 자동실행 이력 기록
+
+⚠️ **평일 08:00 자동 실행일 때만 수행.**
+
+⚠️ **하루 1건 제한**: append 전 오늘 날짜 헤더 중복확인.
+
+⚠️ **위험 대응**: Read/Write 실패 시 로그만 남기고 계속.
+
+⚠️ **필드 누락 금지 원칙**: 아래 10개 필드 매 실행 항상 전부 표시, 값 없으면 "없음"/"미확인" 명시.
+
+⚠️ **작성 직후 자체 검산**: 10개 필드 전부 존재 확인, "2군:" 줄 자체 누락 특히 주의(과거 3차례 재발 이력).
+
+`Read("C:\Users\mrblue\Claude\Templates\briefing-daily-log.md")` 실행, 아래 형식으로 맨 아래 append:
+
+```
+## [YYYY-MM-DD(요일)]
+코스피등락률: [MCP-15 정상 반환 시 실제값(예: "+0.71%(6,344.46)"), 비정상이면 "미확인" — DECISIONS.md 127차]
+후보1: [종목명 또는 "없음(관망)"] | [🔴/🟢/🟡] | 갭[해당번호] | [강화신호 태그] | [핵심근거 한줄] | 발굴시점가:[값 또는"미확인"] | 원점수:[정수 또는"미확인"]
+후보2: [동일형식, 1개뿐이면 "없음"]
+2군: [종목명, 없으면"없음"] | 🟠(간이검증) | 갭[확인된번호] | [핵심근거 한줄] | 발굴시점가:[값 또는"미확인"]
+미국직접기회: [티커 또는"없음"] ([한글명]) | [태그] | [핵심근거 한줄]
+섹터키워드: [강세·주목 섹터 1~2개]
+미매핑테마후보: [테마명, 없으면"없음"]
+앵커연결후보: [종목명, 없으면"없음"] ([이벤트명])
+전일픽반응: [전일 종목명+오늘 등락률, 없었으면"없음", 확인실패면"미확인"]
+재시도/오류: [check_jargon.py·easyGongsi 등 도구 실패 후 재시도 또는 대체수단을 쓴 경우 도구명+사유, 없으면"없음" — DECISIONS.md 130차]
+```

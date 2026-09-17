@@ -1,0 +1,50 @@
+- [브리핑 이식 구조](briefing-port-layout.md) — 스킬이 Cowork/Claude Code 두 벌로 갈라져 있고 데이터 폴더는 공유다
+- [오래가는 사실](briefing-pending-work.md) — 공개 링크, 열쇠 만료 셋, 비밀 취급 규칙 (할 일은 AGENDA에)
+
+- [근거 먼저, 규칙은 나중](evidence-before-rules.md) — 기간 통제 전엔 "유의"를 믿지 않는다
+- [제안은 따져보고 기각해도 된다](evaluate-dont-just-comply.md) — 단 만들기 전에 뭘 원하는지 먼저 확인
+- [날짜로 열면 확인 목록부터](daily-date-opens-checklist.md) — 사용자가 날짜를 말하면 그날 볼 것을 내가 먼저 알려준다
+- [결정과 과제는 무조건 기록](record-decisions-and-tasks.md) — 결정은 이유까지, 과제는 날짜와 순서까지
+- [맥락 먼저, 선택지는 그 다음](context-before-options.md) — 안1·안2부터 들이밀면 질문이 안 읽힌다
+- [남은 것을 숫자로](state-remaining-count.md) — 중간 요약을 완료 보고처럼 쓰지 않는다
+- [다 받고 결론 내라](finish-data-before-concluding.md) — 표본 늘어나는 중엔 결론 금지. 6번 돌려 5번 물렀다
+- [문제엔 조치를 붙여서](report-fix-with-problem.md) — 고쳐놓고 문제만 말하면 안 고친 걸로 읽힌다
+- [평균 수익은 돈이 아니다](avg-return-is-not-money.md) — 개별 거래가 좋아도 자본 시뮬로 다시 확인
+- [이상한 숫자는 데이터부터](suspect-data-first.md) — 말이 안 되는 결과면 전략이 아니라 원자료를 의심
+- [시험 결과는 남긴다](lab-results-must-persist.md) — Temp가 아니라 data/_labs/에. 85개가 날아갈 뻔했다
+- [검증 통과한 신호](signal-financial-quality-dip.md) — 재무 우량 소형주가 크게 빠진 날 · 한계까지 같이
+- [빠진 걸 산다](buy-dips-not-rallies.md) — 「혼자」 말고 **「같이」** 빠진 걸. 여섯 시험이 같은 답
+- [걷기검증은 자본 시뮬로](walkforward-must-use-capital-sim.md) — 평균 수익으로 하면 통과한 것도 무너진다
+- [조건을 더하면 진다](dont-add-conditions.md) — 자본 시뮬에서 네 번 다 졌다. 개선은 다른 데서
+- [heredoc으로 파이썬 넘기지 마라](no-heredoc-for-python.md) — 이스케이프가 깨진다. 세 번 당했다
+- [「못 구한다」고 말하기 전에](dont-declare-impossible.md) — 여섯 번 말했고 여섯 번 틀렸다
+- [멈추는 건 허락받아라](when-to-stop-testing.md) — 시작은 내 판단, **중단은 사용자 몫**
+- [예측 기록이 핵심](forward-record-is-the-point.md) — 백테스트는 「과거에 이랬다」뿐. 매일 예측을 남기고 채점해야 앞으로 간다
+- [자료 구조부터 열어봐라](verify-data-shape-first.md) — 필드명 짐작으로 하루에 네 번 틀렸다. peek.py 먼저
+- [예약 만들 때 다섯 가지](scheduled-task-checklist.md) — 안 하면 조용히 안 돈다. 9/1에 PC가 꺼진 걸 아무도 몰랐다
+- [한 글자 한글 이름 금지](no-one-letter-korean-names.md) — 비·묶·날. 하루에 다섯 번 당했다
+- [목표까지 기다려 판다](sell-at-target-not-recovery.md) — 회복 신호로 팔면 돈이 반 난다. 20일선 위 = 볼린저 0 위(같은 조건)
+- [계획은 표로](plan-must-be-a-table.md) — 글로 적은 계획은 사라진다. 시험 하나를 그렇게 놓쳤다
+- [재고 끝내지 마라](measure-then-carry-through.md) — 시험→4관문→반영까지. 안 가면 같은 말을 또 듣는다
+- [분류를 의심하라](category-may-not-be-what-you-think.md) — 「업종」 열에 조선·방산·반도체가 없었다
+- [판정 기준을 내 맘대로 정하지 마라](judge-criteria-need-user-check.md) — 「1년 3개」 한 줄이 결론을 뒤집었다
+- [규칙은 하나가 아니어도 된다](rules-can-differ-by-group.md) — 섹터·규모마다 **각각 다른 규칙**. 일주일을 못 알아들었다
+- [사용자 말은 그대로 적어라](quote-user-verbatim.md) — 「만들어라」를 「분석하라」로 적어 2주를 날렸다
+- [「다 봤다」는 대조한 뒤에](claim-full-coverage-only-after-diff.md) — 하루에 다섯 번 걸렸다. 필터를 결과 맨 위에 찍는다
+- [화면은 재고 말해라](measure-screen-dont-guess.md) — 코드로 짐작하면 틀린다. 하루에 세 번 틀렸다
+- [화면에 금액 배분은 안 쓴다](no-position-sizing-on-screen.md) — 「자산의 20%」는 시뮬 가정이지 지침이 아니다
+- [검사기의 사각지대](checker-blind-to-unlisted-files.md) — 목록에 없는 파일은 영영 안 걸린다. 하루에 두 번 당했다
+- [조판이 내용을 깎으면 안 된다](layout-never-cuts-content.md) — 간격 맞추려고 글을 줄였다. 안 맞으면 조판을 바꾸거나 묻는다
+- [디자인은 읽기만, 코드는 내가](design-reads-repo-i-write-code.md) — 저장소로 연결했지만 역할은 그대로. **푸시는 내 몫**
+- [git push는 브라우저 창을 띄운다](git-push-uses-existing-token.md) — 기존 GITHUB_TOKEN으로 민다. secrets 검사는 "secrets.json"으로
+- [예상체결가는 08:55에 본다](antc-timing-0855.md) — 08:50은 호가가 얇아 과장된다. 반복 예약 금지
+- [손으로 적은 숫자는 얼어붙는다](hand-written-numbers-freeze.md) — 재고 문서를 믿지 말고 다시 재라. 16년짜리 재료 셋이 숨어 있었다
+- [걸고 나서 보고한다](do-before-promising.md) — 「하겠습니다」로 턴을 끝내면 거기서 죽는다. 하루에 두 번
+- [9/16 열면 VANISH_KIND 먼저](2026-09-16-open-with-vanish-kind.md) — 밤 판 여섯 결과와 함께 사용자에게 꺼낸다 (사용자 지시)
+- [견줌은 「지금의 N%」로](compare-as-share-of-baseline.md) — 「−92%」로 쓰면 잃은 걸로 읽힌다. 배수를 같이 적는다
+- [OR은 빈 날을 채울 때만 돈이 는다](or-adds-money-only-on-empty-days.md) — 하루 4자리·낙폭 한계. OR 시험은 「기존이 안 사던 날 비율」을 같이 찍는다
+- [대장이 답한다, 내가 아니라](ledger-answers-coverage.md) — 「안 잰 게 있나」는 material_ledger.py 를 돌려 답한다. 하루 네 번 걸린 뒤 만들었다
+- [거시 자료 출처 — 막힌 것/되는 것](macro-data-sources-blocked.md) — FRED curl 차단 · BOK 게시판 스크립트 · FMP economics 구독 밖. ECOS 키가 답
+- [점검기의 소음이 실패를 숨긴다](checker-noise-hides-failures.md) — 「실패 0」까지 빨갛게 찍어 40개 로그를 아무도 안 읽었다. 필드 이름은 원본 한 건으로 확인
+- [핸드폰 말은 같은 세션에 같은 글로](remote-messages-look-identical.md) — 「원격 요청」은 다른 통로가 아니라 밤 시간대 대화에서 찾아 확인한다
+- [나중에 꺼낼 것](future-followups.md) — 10월 중순 문턱 −3.0 판단 · 12월 초 대형주 컨센서스 · 2027-03 분봉. 때가 되면 내가 먼저 말한다
