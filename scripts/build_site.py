@@ -95,7 +95,7 @@ body{font-family:__MONO__}
 #home{justify-content:flex-start;align-items:flex-start;text-align:left;gap:0;
   padding:24px 22px 22px;max-width:430px;margin:0 auto;width:100%;
   box-sizing:border-box}
-/* ⚠️ 페이지 바탕(#e8e4dc)은 카드 바탕(#f2efe8)보다 어두워서 **같은 글자색이라도 대비가 낮다**.
+/* ⚠️ 페이지 바탕(#e8e3d8)은 카드 바탕(#f2efe8)보다 어두워서 **같은 글자색이라도 대비가 낮다**.
    그래서 페이지 UI의 흐린 글씨는 `card_theme.C["faint"]`(#6b665c, 대비 4.50)를 쓴다 ·
    카드용 `muted`(#6f6a60)를 여기 쓰면 4.24로 기준 미달이다(2026-08-31 실측). */
 /* ⭐⭐ 아래는 **시안 그대로**다 (2026-09-11).
@@ -127,6 +127,13 @@ body{font-family:__MONO__}
 #home .idx .il{font-size:12px;color:#6b665c}
 #home .idx .iv{font-size:18px;font-weight:800;letter-spacing:-.03em}
 #home .idx .ic{font-size:12.5px;font-weight:700}
+/* ⭐ 시안(2026-09-17) · 320px 에서 여유가 **0** 이었다 — 나스닥 「28,945.06」이 83px 칸을
+   정확히 83px 로 채워, 자릿수가 하나만 늘어도 넘친다. 좁은 폰에서만 조인다 */
+@media(max-width:360px){
+  #home .idx{gap:10px}
+  #home .idx .iv{font-size:16px}
+  #home .idx .il,#home .idx .ic{font-size:11.5px}
+}
 /* ⚠️ 시안에는 이 줄이 **없다**. 날짜·후보는 데스크톱 부제 한 줄에 들어가고,
    폰에서는 위쪽 캡션(2026.09.11 FRI)이 그 몫을 한다 */
 #home .when{display:none}
@@ -147,12 +154,17 @@ body{font-family:__MONO__}
      키우면 그 안에 안 들어간다. 시안은 「높이 고정 금지 · 부제가 길어지면 칸이
      늘어난다」다. ⚠️ 되돌리려면 `height:78px` 를 살린다 */
   word-break:keep-all}
-.big:hover{border-color:#1b3bf0;color:#1b3bf0}
+/* ⭐ 시안 · 파랑은 하나다(#2050c8) — 전에는 화살표 #2050c8 과 내림 #2050c8 이 한 화면에 있었다 */
+.big:hover{border-color:#2050c8;color:#2050c8}
 /* 안쪽은 두 줄: ① 제목 + 갱신일시  ② 부제 */
 /* ⚠️ `contents` · 이 상자는 사라지고 자식이 바로 격자 칸에 앉는다 */
 .big > .lab{display:contents}
+/* ⭐ 시안(2026-09-17) · **갱신시각을 제목 위로**. 320px 에서 제목줄은 113px 이 필요한데
+   갱신시각이 같은 줄을 먹어 98px 만 남아 「오늘 브리핑 …」으로 잘렸다.
+   ⚠️ HTML 은 `<b>제목</b><i class="up">갱신</i>` 순서다 — `column-reverse` 면
+      **고치지 않고** 갱신시각이 위로 간다. 그러면 제목이 줄 전체를 쓴다 */
 .big .t1{grid-column:1;grid-row:1;min-width:0;
-  display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  display:flex;flex-direction:column-reverse;align-items:flex-start;gap:2px}
 .big .arw2{grid-column:2;grid-row:1}
 .big .sub{grid-column:1/-1;grid-row:2}
 .big .t1 b{font-weight:700;font-size:17.5px;line-height:1.2;
@@ -165,7 +177,7 @@ body{font-family:__MONO__}
 .big .sub{font-size:13px;display:block;margin-top:4px;color:#6f6a60;
   word-break:keep-all;line-height:1.5}
 /* ⭐ 시안 · 화살표는 **파랑**이고 흐리지 않다 */
-.big .arw2{font-size:16px;color:#1b3bf0;flex:none;opacity:1}
+.big .arw2{font-size:16px;color:#2050c8;flex:none;opacity:1}
 #home .note{font-size:12.5px;color:#6b665c;margin-top:10px;line-height:1.7}
 #home .note .disc{display:block;font-size:15px;font-weight:700;color:#4a453c;
   line-height:1.55;margin-bottom:5px;word-break:keep-all}
@@ -184,16 +196,16 @@ body{font-family:__MONO__}
 }
 
 /* ── 위쪽 막대 (달력·브리핑 공통) ── */
-.top{position:sticky;top:0;z-index:6;background:#e8e4dcf2;backdrop-filter:blur(8px);
+.top{position:sticky;top:0;z-index:6;background:#e8e3d8f2;backdrop-filter:blur(8px);
   border-bottom:1px solid #d5cec0}
 /* ⚠️ `flex-wrap:wrap` · 좁은 화면에서 단추가 다 안 들어가면 **다음 줄로 내린다.**
    예전처럼 한 줄에 우겨넣으면 막대가 화면보다 넓어져 페이지 전체가 좌우로 밀린다. */
 .top .in{display:flex;align-items:center;gap:10px;padding:11px 16px;
   max-width:1100px;margin:0 auto;flex-wrap:wrap;box-sizing:border-box;width:100%}
-.tbtn{border:1px solid #d5cec0;background:#e8e4dc;color:#1c1813;border-radius:8px;
+.tbtn{border:1px solid #d5cec0;background:#e8e3d8;color:#1c1813;border-radius:8px;
   padding:8px 13px;font-family:inherit;font-size:14px;cursor:pointer;white-space:nowrap;
   transition:.15s}
-.tbtn:hover{border-color:#1b3bf0;color:#1b3bf0}
+.tbtn:hover{border-color:#2050c8;color:#2050c8}
 .tbtn[disabled]{opacity:.3;cursor:default}
 /* ⚠️ `min-width:0`이 없으면 flex 안에서 **줄어들지 못한다.** 좁은 화면에서 이 날짜
    글자가 버티는 바람에 상단 막대가 320px 화면에서 334px로 벌어졌다(2026-08-27 실측). */
@@ -226,18 +238,18 @@ body{font-family:__MONO__}
 /* 글씨 크기 조절 · 전환 단추와 같은 모양으로 붙여 둔다. */
 .fs{display:flex;border:1px solid #d5cec0;border-radius:8px;overflow:hidden;flex:none;
   margin-left:auto}
-.fs button{border:0;background:#e8e4dc;color:#6b665c;font-family:inherit;font-size:13px;
+.fs button{border:0;background:#e8e3d8;color:#6b665c;font-family:inherit;font-size:13px;
   font-weight:700;padding:8px 12px;cursor:pointer;transition:.15s;white-space:nowrap}
-.fs button:hover{color:#1b3bf0}
+.fs button:hover{color:#2050c8}
 .fs+.seg{margin-left:6px}
 @media(max-width:430px){.fs button{padding:7px 9px;font-size:12px}}
 
 /* 형식 전환. 누른 쪽이 눌린 티가 나야 한다. */
 .seg{display:flex;border:1px solid #d5cec0;border-radius:8px;overflow:hidden;
   flex:none}
-.seg button{border:0;background:#e8e4dc;color:#6b665c;font-family:inherit;font-size:13px;
+.seg button{border:0;background:#e8e3d8;color:#6b665c;font-family:inherit;font-size:13px;
   padding:8px 13px;cursor:pointer;transition:.15s;white-space:nowrap}
-.seg button[aria-pressed="true"]{background:#17181a;color:#e8e4dc;font-weight:700}
+.seg button[aria-pressed="true"]{background:#17181a;color:#e8e3d8;font-weight:700}
 
 /* ── 달력 ── */
 .cal{max-width:520px;margin:26px auto 60px;padding:0 16px}
@@ -249,11 +261,11 @@ body{font-family:__MONO__}
 .cell{aspect-ratio:1;border:1px solid transparent;border-radius:9px;background:transparent;
   font-family:inherit;color:#b8b1a3;font-size:14px;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:3px;padding:0}
-.cell.has{background:#e8e4dc;border-color:#d5cec0;color:#1c1813;cursor:pointer;font-weight:700}
-.cell.has:hover{border-color:#1b3bf0;color:#1b3bf0}
+.cell.has{background:#e8e3d8;border-color:#d5cec0;color:#1c1813;cursor:pointer;font-weight:700}
+.cell.has:hover{border-color:#2050c8;color:#2050c8}
 .cell.old{background:#efece5;border-color:#d5cec0;color:#b3aca0;cursor:not-allowed}
-.cell.today{border-color:#1b3bf0;border-width:2px}
-.cell .dot{width:5px;height:5px;border-radius:50%;background:#1b3bf0}
+.cell.today{border-color:#2050c8;border-width:2px}
+.cell .dot{width:5px;height:5px;border-radius:50%;background:#2050c8}
 .cell.old .dot{background:#b8b1a3}
 .cal .legend{margin-top:18px;font-size:12px;color:#9c968c;line-height:1.7}
 .cal .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;
@@ -520,7 +532,7 @@ SITE_JS = """<script>
  if(/[?&]diag=1/.test(location.search)||badly()>0){
    var box=document.createElement('div');
    box.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99;background:#17181a;'
-     +'color:#e8e4dc;font:11px/1.5 monospace;padding:7px 9px;white-space:pre-wrap';
+     +'color:#e8e3d8;font:11px/1.5 monospace;padding:7px 9px;white-space:pre-wrap';
    var draw=function(){
      var vv=window.visualViewport, sw=document.querySelector('.scrollwrap[data-on="true"]');
      var w=[];

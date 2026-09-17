@@ -1213,7 +1213,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
      · `max-width:100%`로 뿌리 자체가 넓어지는 길도 닫는다.
    ⚠️ `.rail`(가로 카드)은 제 안에서 따로 스크롤하므로 이 규칙에 걸리지 않는다. */
 html,body{overscroll-behavior-x:none;max-width:100%;overflow-x:hidden}
-body{margin:0;background:#e8e4dc;-webkit-font-smoothing:antialiased;overflow-x:clip}
+body{margin:0;background:#e8e3d8;-webkit-font-smoothing:antialiased;overflow-x:clip}
 a{color:#9d7a17;text-decoration:none} a:hover{color:#c9a227}
 .days{display:flex;gap:8px;overflow-x:auto;padding:20px 20px 0;scrollbar-width:none}
 .days::-webkit-scrollbar{display:none}
@@ -1223,7 +1223,7 @@ a{color:#9d7a17;text-decoration:none} a:hover{color:#c9a227}
   padding:9px 15px;cursor:pointer;text-align:left;font-family:inherit;
   font-size:12px;line-height:1.35;color:#6b665c;white-space:nowrap}
 .day b{display:block;font-size:13px;font-weight:700;color:#1c1813}
-.day[aria-selected="true"]{border-color:#1b3bf0;background:#fff}
+.day[aria-selected="true"]{border-color:#2050c8;background:#fff}
 .rail{display:none;overflow-x:auto;scroll-snap-type:x mandatory;
   scroll-behavior:smooth;padding:20px;scrollbar-width:none}
 .rail[data-active="true"]{display:flex}
@@ -1249,7 +1249,7 @@ a{color:#9d7a17;text-decoration:none} a:hover{color:#c9a227}
   margin-bottom:calc(-__H__px*(1 - var(--s)))}
 .nav{display:flex;justify-content:center;align-items:center;gap:7px;padding:14px 0 34px}
 .nav i{width:7px;height:7px;border-radius:50%;background:#c4bdae;display:block;transition:.15s}
-.nav i.on{background:#1b3bf0;transform:scale(1.4)}
+.nav i.on{background:#2050c8;transform:scale(1.4)}
 @media(prefers-reduced-motion:reduce){
   .rail{scroll-behavior:auto}
   .nav i,.arw{transition:none}
@@ -1262,7 +1262,7 @@ a{color:#9d7a17;text-decoration:none} a:hover{color:#c9a227}
   color:#1c1813;font-size:22px;line-height:1;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
   box-shadow:0 2px 12px #17181a1f;transition:.15s}
-.arw:hover{background:#fff;border-color:#1b3bf0;color:#1b3bf0}
+.arw:hover{background:#fff;border-color:#2050c8;color:#2050c8}
 .arw[disabled]{opacity:.28;cursor:default;box-shadow:none}
 .arw.prev{left:16px} .arw.next{right:16px}
 /* 폰은 손가락으로 쓸어 넘기는 게 자연스럽고, 카드가 화면을 꽉 채워서

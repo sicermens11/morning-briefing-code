@@ -238,8 +238,11 @@ def _줄1(x, 업종, 확정):
             + f'<span style="flex:none;font-size:23px;color:{C["보"]};white-space:nowrap">'
               f'{_esc(x.get("종목코드", ""))}</span>'
             + 갭
+            # ⭐ 시안(2026-09-17) · **낙폭에서 색을 뺀다.** 1장 낙폭 −9.6% 는 빨강(좋은 신호)인데
+            #    4장 손실 −42.0% 는 파랑이라, 같은 마이너스가 두 색이었다.
+            #    빨강·파랑은 **등락·수익률에만** 남긴다 — 낙폭은 굵기로만 눈에 띄게
             + f'<span style="{낙자리}">20일 낙폭 <b style="font-weight:800;font-size:32px;'
-              f'color:{C["빨"]}">{낙글}</b></span></div>')
+              f'color:{C["먹"]}">{낙글}</b></span></div>')
 
 
 def _줄2(x):

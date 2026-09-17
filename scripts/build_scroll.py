@@ -1076,13 +1076,13 @@ WEB_CSS = """<style>
    데스크톱 크롬에서는 한 번도 재현되지 않았다. 원인이 이것이다. */
 html{overflow-x:hidden;overscroll-behavior-x:none;
   -webkit-text-size-adjust:100%;text-size-adjust:100%}
-body{margin:0;background:#e8e4dc;-webkit-font-smoothing:antialiased;
+body{margin:0;background:#e8e3d8;-webkit-font-smoothing:antialiased;
   overflow-x:clip;touch-action:pan-y}
-.wrap{max-width:__W__px;margin:0 auto;background:#e8e4dc;
+.wrap{max-width:__W__px;margin:0 auto;background:#e8e3d8;
   padding:44px 40px 72px;box-shadow:0 2px 24px #17181a14}
 @media(max-width:760px){.wrap{padding:28px 18px 48px;box-shadow:none}}
 /* 읽은 만큼 채워지는 얇은 막대. 세로형은 끝이 안 보여서 얼마나 남았는지 모른다. */
-.bar{position:fixed;top:0;left:0;height:3px;width:0;background:#1b3bf0;z-index:9}
+.bar{position:fixed;top:0;left:0;height:3px;width:0;background:#2050c8;z-index:9}
 img,table{max-width:100%}
 table{table-layout:fixed}
 /* ⚠️ **좁은 화면에서는 표를 위아래로 접는다** (2026-08-27 요청). 2단으로 두면
