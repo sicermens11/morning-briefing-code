@@ -47,6 +47,7 @@
 ```
 python scripts\material_ledger.py     「수집한 것 중 안 잰 게 있나」 → docs/재료대장.md 맨 위 구멍 셋
 python scripts\audit_all.py           「조용히 넘어간 게 있나」   → data/_labs/{날짜}_전수점검.txt 맨 아래 ⇒ 찾은 문제
+python scripts\question_grid.py       「더 물어볼 게 있나」     → docs/질문격자.md 맨 위
 ```
 **전수 점검(2026-09-16 확장)**이 보는 것: F 로그 나쁜 줄(최근 3일) · H 예약 작업 결과≠0 · I 밤 판 Traceback/「끝」 없음 ·
 J 08:55 판정 재게시 실패(복구됐나) · K 로그 「살 것 N」 = forward-log 규칙매수 N · L 수집기 열 밀림 · M rule_align.

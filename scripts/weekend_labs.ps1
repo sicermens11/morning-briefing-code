@@ -123,6 +123,9 @@ if (Test-Path $A판) {
 적기 "[H2] 08:55 예상체결가 vs 진짜 시가 오차 (gap_error · 2026-09-16 사용자 결정)"
 & $py "scripts\gap_error.py" 2>&1 | Tee-Object "data\_labs\$(Get-Date -f yyyy-MM-dd)_오차.txt" | Select-Object -Last 12 | Tee-Object $log -Append
 
+적기 "[H4] 질문 격자 — 더 물어볼 칸이 남았나"
+& $py "scripts\question_grid.py" 2>&1 | Select-Object -Last 8 | Tee-Object $log -Append
+
 적기 "[H3] 밖에 있던 것(스킬·메모리)을 외부사본\ 으로 — PC 옮길 때 이것만 빠진다"
 & $py "scripts\sync_outside.py" 2>&1 | Select-Object -Last 6 | Tee-Object $log -Append
 
