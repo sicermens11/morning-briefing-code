@@ -157,12 +157,12 @@ def _f(v, d=None):
 def _note(idx, head_, body):
     """번호 붙은 서술 한 덩어리 — 카드뉴스의 핵심. 숫자를 문장 안에 녹인다."""
     return (f'<div style="display:flex;gap:20px;align-items:flex-start">'
-            f'<span style="font-family:{MONO};font-size:29px;color:{C["blue"]};'
+            f'<span style="font-family:{MONO};font-size:34px;color:{C["blue"]};'
             f'font-weight:700;flex:none;padding-top:7px">{idx:02d}</span>'
             f'<div style="max-width:{TEXT_MAX}">'
-            f'<div style="font-size:33px;font-weight:700;color:{C["text"]};'
+            f'<div style="font-size:39px;font-weight:700;color:{C["text"]};'
             f'letter-spacing:-.02em;margin-bottom:9px">{head_}</div>'
-            f'<div style="font-size:29px;line-height:1.55;color:{C["text2"]};'
+            f'<div style="font-size:34px;line-height:1.55;color:{C["text2"]};'
             f'word-break:keep-all">{body}</div></div></div>')
 
 
@@ -184,9 +184,9 @@ def stat_cell(label, value, change=None, big=44, note="", first=False):
     ch = ""
     if change is not None:
         v = _f(change)
-        ch = (f'<div style="font-size:29px;font-weight:700;'
+        ch = (f'<div style="font-size:34px;font-weight:700;'
               f'color:{sign_color(v or 0)};margin-top:6px">{pct(v)}</div>')
-    nt = (f'<div style="font-size:29px;line-height:1.4;color:{C["text2"]};'
+    nt = (f'<div style="font-size:34px;line-height:1.4;color:{C["text2"]};'
           f'margin-top:9px;word-break:keep-all">{note}</div>') if note else ""
     # ⭐⭐ **바탕 상자 대신 세로선** (2026-09-11 · 디자인 명세 2절 `kv`).
     #    「3칸 가로 · 칸 사이 세로선 1px #d5cec0 + 왼여백 22px」
@@ -197,7 +197,7 @@ def stat_cell(label, value, change=None, big=44, note="", first=False):
     _벽 = ("" if first
            else f"border-left:{KV_DIVIDER};padding-left:{KV_PAD_L}px;")
     return (f'<div style="flex:1;min-width:0;{_벽}">'
-            f'<div style="font-size:29px;color:{C["muted"]};margin-bottom:9px">'
+            f'<div style="font-size:34px;color:{C["muted"]};margin-bottom:9px">'
             f'{label}</div>'
             f'<div style="font-size:{big}px;font-weight:700;color:{C["text"]};'
             f'letter-spacing:-.02em">{value}</div>{ch}{nt}</div>')
@@ -264,7 +264,7 @@ def block(label, color, inner, sub="", top=None, size=26, first=False):
     _머리 = (f'<div style="display:flex;flex-direction:column;gap:4px">'
              f'<span style="flex:none;font-size:{size}px;font-weight:700;'
              f'letter-spacing:{LS_KO};color:{color or LABEL_COLOR}">{label}</span>'
-             + (f'<span style="font-size:25px;line-height:1.45;'
+             + (f'<span style="font-size:30px;line-height:1.45;'
                 f'color:#6b665c;word-break:keep-all">{sub}</span>'
                 if sub else "")
              + '</div>')
@@ -305,8 +305,8 @@ def numbers(p):
     def _쌍(라, 값, 흐림=False):
         _색 = C["muted"] if 흐림 else C["text"]
         return (f'<span style="display:flex;align-items:baseline;gap:10px">'
-                f'<span style="font-size:25px;color:{C["faint"]}">{라}</span>'
-                f'<span style="font-size:34px;font-weight:800;color:{_색};'
+                f'<span style="font-size:30px;color:{C["faint"]}">{라}</span>'
+                f'<span style="font-size:40px;font-weight:800;color:{_색};'
                 f'letter-spacing:-.02em">{값}</span></span>')
 
     bits = []
@@ -361,13 +361,13 @@ def grade_legend(size=26):
        줄일 필요도 없었다.
     """
     # ⚠️⚠️ **시안대로 색을 뺐다** (2026-09-11).
-    #    시안 `chips`: `font-size:24px;line-height:1.3;color:#4b4740` —
+    #    시안 `chips`: `font-size:28px;line-height:1.3;color:#4b4740` —
     #    이모지 + **이름만 볼드** + 설명. 등급 색을 글자에 칠하지 않는다.
     #    (등급 색은 종목 줄의 「🟢 주목」에서만 쓴다)
     return ('<div style="display:flex;flex-wrap:wrap;align-items:baseline;'
             'gap:6px 18px">'
             + "".join(
-                f'<span style="flex:none;font-size:24px;line-height:1.3;'
+                f'<span style="flex:none;font-size:28px;line-height:1.3;'
                 f'color:{C["text2"]}">{e} <b>{w}</b> '
                 f'{d.replace("상승 ", "")}</span>'
                 for e, w, d in GRADE_HELP)
@@ -401,13 +401,13 @@ def sector_rows(sectors, size=26):
             + "".join(
                 f'<div style="flex:1;min-width:0;'
                 f'{"" if not i else f"border-left:{KV_DIVIDER};padding-left:{KV_PAD_L}px;"}">'
-                f'<div style="font-size:29px;color:{C["faint"]};'
+                f'<div style="font-size:34px;color:{C["faint"]};'
                 f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
                 f'{x.get("이름")}</div>'
                 # ⚠️ `line-height:1` 은 정본 값이라 그대로 두되, **아래 4px**을 준다.
                 #    이 칸이 04 카드의 **마지막 항목**이라 글자 꼬리(descender)가
                 #    카드 아래 숨 자리를 4px 파고들어 88px 로 잡혔다(하한 90)
-                f'<div style="font-size:42px;font-weight:800;letter-spacing:-.035em;'
+                f'<div style="font-size:50px;font-weight:800;letter-spacing:-.035em;'
                 f'line-height:1;margin-top:8px;padding-bottom:4px;'
                 f'color:{sign_color(x.get("등락률"))}">'
                 f'{pct(x.get("등락률"))}</div></div>'
@@ -433,9 +433,9 @@ def c01_cover(o, cp, num, total):
     toc = "".join(
         f'<div style="display:flex;align-items:baseline;gap:22px;'
         f'border-top:1px solid {C["line"]};padding:22px 0">'
-        f'<span style="font-size:26px;color:#8a7038;font-weight:700">{i:02d}</span>'
-        f'<span style="font-size:38px;font-weight:700">{t}</span>'
-        f'<span style="margin-left:auto;font-size:28px;color:{C["faint"]}">{s}</span>'
+        f'<span style="font-size:31px;color:#8a7038;font-weight:700">{i:02d}</span>'
+        f'<span style="font-size:45px;font-weight:700">{t}</span>'
+        f'<span style="margin-left:auto;font-size:33px;color:{C["faint"]}">{s}</span>'
         f'</div>'
         for i, (t, s) in enumerate(_TOC, 1))
     # ⭐⭐ **시안 그대로** (2026-09-11 · confirmed-design-source.dc.html).
@@ -443,20 +443,20 @@ def c01_cover(o, cp, num, total):
     #    `justify-content:space-between` 이라 남는 자리는 **셋 사이로** 갈린다
     inner = (
         f'<div style="display:flex;flex-direction:column;gap:18px">'
-        f'<span style="font-size:28px;font-weight:700;letter-spacing:.24em;'
+        f'<span style="font-size:33px;font-weight:700;letter-spacing:.24em;'
         f'color:{C["faint"]}">MORNING BRIEFING</span>'
         # 표지 제목은 첫 낱말 뒤에서 줄을 바꾼다("깜댕의 / 주식 브리핑")
-        f'<span style="font-size:126px;font-weight:800;letter-spacing:-.05em;'
+        f'<span style="font-size:149px;font-weight:800;letter-spacing:-.05em;'
         f'line-height:1.05">{BRAND.replace(" ", "<br>", 1)}</span>'
-        f'<span style="font-size:40px;line-height:1.5;color:{C["text2"]}">'
+        f'<span style="font-size:47px;line-height:1.5;color:{C["text2"]}">'
         f'{cp.get("부제", "3분 만에 읽는 어제와 오늘의 시장")}</span>'
-        f'<span style="font-size:32px;font-weight:700;color:#8a7038">'
+        f'<span style="font-size:38px;font-weight:700;color:#8a7038">'
         f'{dt.strftime("%Y.%m.%d")} {WEEKDAY[dt.weekday()]}요일 · '
         f'후보 {len(picks)}</span></div>'
 
         f'<div style="display:flex;flex-direction:column">{toc}</div>'
 
-        f'<div style="font-size:30px;color:{C["faint"]}">넘겨서 보기 →</div>'
+        f'<div style="font-size:36px;color:{C["faint"]}">넘겨서 보기 →</div>'
     )
     # ⚠️⚠️ **배경 아트워크와 장식 막대를 걷었다** (2026-09-11 · 시안).
     #    캔들차트가 목차 글씨와 겹쳐 읽기 나빴고, 시안 표지는 **바탕이 비어 있다**.
@@ -523,7 +523,7 @@ def c02_news(o, cp, num, total):
         #    강조」를 막는 것과 같은 뜻이다: 다 굵으면 **아무것도 안 도드라진다**
         rows = ('<div style="display:flex;flex-direction:column;gap:6px">'
                 + "".join(
-                    f'<span style="font-size:31px;line-height:1.6;'
+                    f'<span style="font-size:37px;line-height:1.6;'
                     f'color:{C["text2"]};word-break:keep-all">'
                     f'{n.get("머리","")}</span>'
                     # ⭐ 건수 예산 §2·§3 — 미장·국장을 따로 센다
@@ -538,7 +538,7 @@ def c02_news(o, cp, num, total):
     inner = (head(SEC["뉴스"], "뉴스", pg(num, total), "밤사이 무슨 일이 있었나")
              + block("밤사이 지수", "", strip, top=0)
              + block("어젯밤 미국", "",
-                     f'<div style="font-size:31px;line-height:1.6;'
+                     f'<div style="font-size:37px;line-height:1.6;'
                      f'color:{C["text2"]};word-break:keep-all">{요약}</div>')
              + group("미국 증시", us)
              + group("한국 증시", kr))
@@ -581,7 +581,7 @@ def c03_regime(o, cp, num, total):
                      f'{국면색 if _q == _몇 else C["line"]}"></div>'
                      for _q in range(3))
            + '</div>'
-           + f'<div style="display:flex;font-size:28px;color:{C["faint"]};'
+           + f'<div style="display:flex;font-size:33px;color:{C["faint"]};'
              f'margin-top:14px">'
            + "".join(f'<span style="flex:1;{_맞}'
                      f'{f"color:{국면색};font-weight:700" if _i == _몇 else ""}">'
@@ -592,9 +592,9 @@ def c03_regime(o, cp, num, total):
            + '</div>')
     _큰 = (f'<div style="display:flex;align-items:flex-end;gap:22px;'
            f'margin-bottom:14px">'
-           f'<span style="font-size:100px;font-weight:800;line-height:1;'
+           f'<span style="font-size:119px;font-weight:800;line-height:1;'
            f'color:{국면색};letter-spacing:-.05em">{pct(kv)}</span>'
-           f'<span style="font-size:36px;font-weight:700;color:{국면색};'
+           f'<span style="font-size:43px;font-weight:700;color:{국면색};'
            f'padding-bottom:12px">{band}</span></div>')
     # ⭐⭐ **본문은 31px 이다** (FINAL-CARDS §5). 전에 간격을 맞추려고
     #    29 -> 27 까지 내렸던 것이 남아 있었다 — **하한 29 밑이라 위반**이다.
@@ -650,7 +650,7 @@ def c04_flows(o, cp, num, total):
                       f'{"" if not cells else f"border-left:{KV_DIVIDER};padding-left:{KV_PAD_L}px;"}">'
                       + kicker(x.get("주체", ""), C["muted"], 26)
                       + '<div style="height:10px"></div>'
-                      f'<div style="font-size:34px;font-weight:700;'
+                      f'<div style="font-size:40px;font-weight:700;'
                       f'color:{fc}">{x.get("값","")}</div></div>')
         # ⚠️ 지시서 3절 — 3칸 블록은 `display:flex; gap:22px`
         flows_box = f'<div style="display:flex;gap:22px">{cells}</div>'
@@ -661,12 +661,12 @@ def c04_flows(o, cp, num, total):
     def _행(설명, 값, 등락색, 등락):
         return (f'<div style="display:flex;align-items:flex-end;'
                 f'justify-content:space-between;gap:20px">'
-                f'<span style="font-size:29px;line-height:1.5;'
+                f'<span style="font-size:34px;line-height:1.5;'
                 f'color:{C["faint"]}">{설명}</span>'
                 f'<span style="flex:none;display:flex;align-items:baseline;gap:16px">'
-                f'<span style="font-size:56px;font-weight:800;'
+                f'<span style="font-size:66px;font-weight:800;'
                 f'letter-spacing:-.04em">{값}</span>'
-                f'<span style="font-size:33px;font-weight:700;'
+                f'<span style="font-size:39px;font-weight:700;'
                 f'color:{등락색}">{등락}</span></span></div>')
 
     inner = (head(SEC["수급"], "수급", pg(num, total), "돈은 어디로 움직였나")
@@ -676,7 +676,7 @@ def c04_flows(o, cp, num, total):
                          pct(kospi.get("등락률"))), top=0)
              + block("누가 사고팔았나", "", flows_box)
              + block("읽는 법", "",
-                     f'<div style="font-size:31px;line-height:1.6;'
+                     f'<div style="font-size:37px;line-height:1.6;'
                      f'color:{C["text2"]};word-break:keep-all">'
                      f'{first_sentence(cp.get("수급해설"), CUT["수급해설"])}</div>')
              + block("투자자 예탁금", "",
@@ -706,11 +706,11 @@ def c05_calendar(o, cp, num, total):
         rows += (f'<div style="padding-top:{BLOCK_PAD}px;'
                  f'border-top:{BLOCK_RULE};'
                  f'display:flex;flex-direction:column;gap:8px">'
-                 f'<span style="font-size:28px;color:{C["faint"]}">'
+                 f'<span style="font-size:33px;color:{C["faint"]}">'
                  f'{x.get("when","")}</span>'
-                 f'<span style="font-size:35px;font-weight:700;color:{C["text"]};'
+                 f'<span style="font-size:41px;font-weight:700;color:{C["text"]};'
                  f'line-height:1.35;letter-spacing:-.02em">{x.get("what")}</span>'
-                 f'<span style="font-size:29px;color:{C["text2"]};line-height:1.5;'
+                 f'<span style="font-size:34px;color:{C["text2"]};line-height:1.5;'
                  f'word-break:keep-all">'
                  f'{first_sentence(x.get("note",""), CUT["일정"])}</span></div>')
     # ⭐ 지시서 2절 — 이번 주 핵심(문단) -> 일정 3건
@@ -722,7 +722,7 @@ def c05_calendar(o, cp, num, total):
         rows = rows[:-len("</div>")] + _남 + "</div>"
     inner = (head(SEC["일정"], "일정", pg(num, total), "무엇이 시장을 흔들 수 있나")
              + block("이번 주 핵심", "",
-                     f'<div style="font-size:31px;line-height:1.6;'
+                     f'<div style="font-size:37px;line-height:1.6;'
                      f'color:{C["text2"]};word-break:keep-all">'
                      # ⭐ 2026-09-11 디자인 답 1 — **고정 100자**
                      f'{cut(str(cp.get("캘린더해설", "") or ""), CUT["캘린더해설"])}'
@@ -730,7 +730,7 @@ def c05_calendar(o, cp, num, total):
              + rows
              # ⚠️ 꼬리말도 블록을 다시 짜면서 빠뜨렸다 (2026-09-11 대조에서 발견)
              + f'<div style="border-top:{BLOCK_RULE};padding-top:{BLOCK_PAD}px;'
-               f'font-size:25px;color:{C["faint"]}">'
+               f'font-size:30px;color:{C["faint"]}">'
                f'※ 중요도 최상 등급 지표만 추렸습니다</div>')
     return card(inner, "04 일정", 바닥=3)
 
@@ -754,23 +754,23 @@ def c06_opinion(o, cp, num, total):
                  f'{f"border-top:{BLOCK_RULE};" if i else ""}'
                  f'display:flex;flex-direction:column;gap:9px">'
                  f'<div style="display:flex;gap:12px;align-items:baseline">'
-                 f'<span style="font-size:28px;color:{C["faint"]}">{x.get("날짜")}</span>'
-                 f'<span style="font-size:28px;color:{C["faint"]}">{x.get("사")}</span>'
-                 f'<span style="font-size:29px;font-weight:700;color:{C["text"]}">'
+                 f'<span style="font-size:33px;color:{C["faint"]}">{x.get("날짜")}</span>'
+                 f'<span style="font-size:33px;color:{C["faint"]}">{x.get("사")}</span>'
+                 f'<span style="font-size:34px;font-weight:700;color:{C["text"]}">'
                  f'{x.get("종목")}</span></div>'
-                 f'<div style="font-size:32px;line-height:1.55;color:{C["text"]};'
+                 f'<div style="font-size:38px;line-height:1.55;color:{C["text"]};'
                  f'word-break:keep-all">"{tint_pct(x.get("말"))}"</div>'
-                 f'<div style="font-size:28px;line-height:1.5;color:{C["faint"]};'
+                 f'<div style="font-size:33px;line-height:1.5;color:{C["faint"]};'
                  f'word-break:keep-all">→ {tint_pct(x.get("뜻"))}</div></div>')
     # ⭐ 지시서 2절 — 보는 법(문단) -> 리포트 2건 -> 애널리스트 컨센서스(문단)
     inner = (head(SEC["기관"], "기관", pg(num, total), "증권가는 뭐라고 했나")
              + block("보는 법", "",
-                     f'<div style="font-size:31px;line-height:1.6;'
+                     f'<div style="font-size:37px;line-height:1.6;'
                      f'color:{C["text2"]};word-break:keep-all">'
                      f'{first_sentence(cp.get("의견해설"), CUT["의견해설"])}</div>', top=0)
              + block("리포트", "", rows + 남은줄(len(ops) - _리n))
              + block("애널리스트 컨센서스", "",
-                     f'<div style="font-size:31px;line-height:1.6;'
+                     f'<div style="font-size:37px;line-height:1.6;'
                      f'color:{C["text2"]};word-break:keep-all">'
                      f'{first_sentence(cp.get("컨센서스"), CUT["컨센서스"])}</div>'))
     return card(inner, "05 기관")
@@ -816,10 +816,10 @@ def _전일픽(cp):
     #       ⚠️ 규칙은 `SKILL.md`의 「전일픽 판정 규칙」이 정본이다. 여기서 다시 정하지 않는다.
     부호색 = {"up": C["up"], "down": C["down"]}
     조각 = [f'<span style="flex:none;display:flex;align-items:baseline;gap:10px">'
-           f'<span style="font-size:26px;font-weight:700">{x.get("종목", "")}</span>'
-           f'<span style="font-size:26px;font-weight:700;'
+           f'<span style="font-size:31px;font-weight:700">{x.get("종목", "")}</span>'
+           f'<span style="font-size:31px;font-weight:700;'
            f'color:{부호색.get(x.get("부호"), C["faint"])}">{x.get("결과", "")}</span>'
-           f'<span style="font-size:24px;color:{C["faint"]}">'
+           f'<span style="font-size:28px;color:{C["faint"]}">'
            f'{x.get("판정", "")}</span></span>'
            for x in xs[:4]]
     # ⚠️ 제목을 **줄 안으로** 넣는다. 별도 제목 줄을 두면 40px가 더 드는데,
@@ -830,7 +830,7 @@ def _전일픽(cp):
     #    항목: 종목 26px/700 + 등락 26px/700(색) + 결과 24px #6b665c」
     return ('<div style="display:flex;flex-wrap:wrap;align-items:baseline;'
             'gap:8px 20px;padding-top:20px">'
-            f'<span style="flex:none;font-size:25px;font-weight:700;'
+            f'<span style="flex:none;font-size:30px;font-weight:700;'
             f'color:#8a7038">어제 후보</span>' + "".join(조각) + '</div>')
 
 
@@ -892,7 +892,7 @@ def _pick_block(p, idx, me, first_on_card=True):
         return (f'<div style="padding-top:{BLOCK_PAD}px;'
                 f'border-top:{BLOCK_RULE};'
                 f'display:flex;flex-direction:column;gap:10px">'
-                f'<span style="font-size:26px;color:{lc};font-weight:700;'
+                f'<span style="font-size:31px;color:{lc};font-weight:700;'
                 f'letter-spacing:{LS_KO}">{lab}</span>'
                 f'<span style="font-size:{_fs}px;line-height:{_lh};'
                 f'color:{C["text2"]};word-break:keep-all">{txt}</span></div>')
@@ -914,10 +914,10 @@ def _pick_block(p, idx, me, first_on_card=True):
         # ⚠️ 지시서 3절 — 이름 46px/800/-.035em · 코드 27px #6b665c ·
         #    등급 `margin-left:auto` 30px/700 **색만** (배지 아님)
         + (f'<div style="display:flex;gap:18px;align-items:baseline">'
-           f'<span style="font-size:46px;font-weight:800;color:{C["text"]};'
+           f'<span style="font-size:55px;font-weight:800;color:{C["text"]};'
            f'letter-spacing:-.035em">{p["name"]}</span>'
-           f'<span style="font-size:27px;color:{C["faint"]}">{p["code"]}</span>'
-           f'<span style="margin-left:auto;color:{col};font-size:30px;'
+           f'<span style="font-size:32px;color:{C["faint"]}">{p["code"]}</span>'
+           f'<span style="margin-left:auto;color:{col};font-size:36px;'
            f'font-weight:700;white-space:nowrap">{p["grade"]} {word}</span></div>')
         + (f'{numbers(p)}' if numbers(p) else "")
         + '</div>'
@@ -976,9 +976,9 @@ def 후보요약(o, cp):
         갭 = "".join("①②③④"[g - 1] for g in (p.get("gaps") or []) if 1 <= g <= 4)
         rows += (f'<div style="display:flex;gap:14px;align-items:baseline;'
                  f'margin-top:{8 if i else 0}px">'
-                 f'<span style="font-size:29px;font-weight:700;color:{col};'
+                 f'<span style="font-size:34px;font-weight:700;color:{col};'
                  f'flex:none;white-space:nowrap">{p["grade"]} {p["name"]}</span>'
-                 + (f'<span style="font-size:26px;color:{C["muted"]};flex:none">'
+                 + (f'<span style="font-size:31px;color:{C["muted"]};flex:none">'
                     f'갭 {갭}</span>' if 갭 else "")
                  # ⚠️ 한 줄 **설명**은 뺐다(2026-08-28) — 넣으면 첫 액션 카드가 넘친다.
                  #    근거는 세로 상세에 있다.
@@ -987,7 +987,7 @@ def 후보요약(o, cp):
                  #    세 번째 후보는 **확인선도 손절선도 한 자리 없이** 나갔다.
                  #    "무엇이 더 있나"만 알려주고 **어디서 물러날지를 안 알려주는 것**이
                  #    요약으로서 제일 나쁜 형태다. 설명과 달리 숫자는 한 줄이라 안 넘친다.
-                 + f'<div style="font-family:{MONO};font-size:26px;color:{C["muted"]};'
+                 + f'<div style="font-family:{MONO};font-size:31px;color:{C["muted"]};'
                    f'margin-top:4px">{numbers(p)}</div>')
     # ⚠️ **보조 정보는 상자, 종목 본문은 맨바닥** — 이게 액션플랜 카드의 규칙이다
     #    (2026-08-28). 성격이 다른 글이 같은 바탕에 이어지면 어디까지가 오늘의 결론이고
@@ -1031,7 +1031,7 @@ def c07_action(o, cp, num, total, chunk=(), first=True, offset=0, last=True,
         lead = (f'<div style="padding-top:{BLOCK_PAD}px;'
                 f'border-top:{BLOCK_RULE}">'
                 + grade_legend(24)
-                + f'<div style="font-size:24px;line-height:1.35;color:{C["faint"]};'
+                + f'<div style="font-size:28px;line-height:1.35;color:{C["faint"]};'
                   f'margin-top:12px;word-break:keep-all">'
                   # ⚠️ **"되찾는지 보는 선"이 무슨 뜻인지 아무도 모른다** (2026-08-31 지적).
                 # 무엇을 "본다"는 건지, 그래서 사라는 건지 말라는 건지가 빠져 있었다.
@@ -1073,17 +1073,17 @@ def c07_action(o, cp, num, total, chunk=(), first=True, offset=0, last=True,
                 d, 아슬 = v
                 # ⚠️ 아슬아슬하면 **말로도 적는다.** 숫자만 두면 `+0.07%`가 작다는 걸
                 #    사람이 스스로 환산해야 한다. 그 환산을 화면이 대신한다.
-                return (f'<span style="font-size:26px;color:'
+                return (f'<span style="font-size:31px;color:'
                         f'{C["down"] if 아슬 else C["faint"]};margin-left:2px">'
                         f'조건선 {d:+.2f}%' + ('<b> 아슬아슬</b>' if 아슬 else '') + '</span>')
             checks = "".join(
                 f'<div style="display:flex;gap:12px;align-items:baseline;margin-bottom:3px">'
-                f'<span style="font-size:29px;font-weight:700;color:'
+                f'<span style="font-size:34px;font-weight:700;color:'
                 f'{색.get(r.get("verdict"), C["muted"])};flex:none;white-space:nowrap">'
                 f'{r.get("verdict", "?")}</span>'
-                f'<span style="font-size:29px;color:{C["text2"]};flex:none">'
+                f'<span style="font-size:34px;color:{C["text2"]};flex:none">'
                 f'{r.get("grade", "")} {r.get("name", "")}</span>'
-                + (f'<span style="font-size:26px;color:{C["faint"]}">'
+                + (f'<span style="font-size:31px;color:{C["faint"]}">'
                    f'{int(r["now"]):,}원</span>' if r.get("now") else "")
                 + _여유표시(r)
                 + '</div>'
@@ -1096,7 +1096,7 @@ def c07_action(o, cp, num, total, chunk=(), first=True, offset=0, last=True,
                 f'<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:8px">'
                 f'<span style="width:14px;height:14px;border:1px solid {C["pill"]};flex:none;'
                 f'margin-top:5px"></span>'
-                f'<span style="font-size:29px;line-height:1.4;color:{C["faint"]};'
+                f'<span style="font-size:34px;line-height:1.4;color:{C["faint"]};'
                 f'word-break:keep-all">{first_sentence(x, CUT["장초확인"])}</span></div>'
                 for x in (cp.get("장초확인") or [])[:2])
         # ⚠️ **장 시작 후 확인은 맨 마지막이다** (2026-08-28 지시). 그날 마지막으로
@@ -1116,22 +1116,22 @@ def c07_action(o, cp, num, total, chunk=(), first=True, offset=0, last=True,
         #    보였다. 라벨 색도 초록(#0d8f74)이었는데 지시서는 **#8a7038** 이다
         tail = (f'<div style="padding-top:{BLOCK_PAD}px;'
                   f'border-top:{BLOCK_RULE}">'
-                + f'<div style="font-size:25px;font-weight:700;color:#8a7038">'
+                + f'<div style="font-size:30px;font-weight:700;color:#8a7038">'
                   f'{"장 시작 후 확인" if not _진입판정(o["date"]) else "장 시작 후 확인 · 09:05 결과"}'
                   f'</div>'
                 + f'<div style="height:12px"></div>{checks}'
-                + (f'<div style="font-size:25px;color:{C["faint"]};'
+                + (f'<div style="font-size:30px;color:{C["faint"]};'
                    f'line-height:1.5;padding-top:14px;word-break:keep-all">'
                    f'오늘 후보 {2 + rest}종목 중 둘만 실었습니다. '
                    f'나머지와 자세한 근거는 세로 상세에.</div>'
                    if rest > 0 else
-                   f'<div style="font-size:25px;color:{C["faint"]};'
+                   f'<div style="font-size:30px;color:{C["faint"]};'
                    f'line-height:1.5;padding-top:14px;word-break:keep-all">'
                    f'자세한 근거는 세로 상세에 있습니다.</div>')
                 # ⚠️⚠️ **면책은 뺄 수 없다.** 간격을 맞추려고 지웠다가 되돌렸다 —
                 #    「투자 참고용이며 매수 권유가 아닙니다」는 투자 문구다
                 #    (2026-09-11 사용자 지적)
-                + f'<div style="font-size:25px;color:{C["faint"]};'
+                + f'<div style="font-size:30px;color:{C["faint"]};'
                   f'padding-top:14px">투자 참고용이며 매수 권유가 아닙니다.</div>'
                 + '</div>')
     # 후보가 많아 여러 장이면 제목에 번호를 붙인다 — 안 붙이면 같은 제목이 반복돼
@@ -1259,7 +1259,7 @@ a{color:#9d7a17;text-decoration:none} a:hover{color:#c9a227}
    첫 장에만 있어서 힌트 구실을 못 했다. 화살표는 **항상 떠 있다.** */
 .arw{position:fixed;top:50%;transform:translateY(-50%);z-index:5;
   width:52px;height:52px;border-radius:50%;border:1px solid #d5cec0;background:#efece5ee;
-  color:#1c1813;font-size:22px;line-height:1;cursor:pointer;
+  color:#1c1813;font-size:26px;line-height:1;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
   box-shadow:0 2px 12px #17181a1f;transition:.15s}
 .arw:hover{background:#fff;border-color:#2050c8;color:#2050c8}
@@ -1500,7 +1500,7 @@ def 남은줄(n):
     """
     if n <= 0:
         return ""
-    return (f'<div style="padding-top:14px;font-size:25px;line-height:1.5;'
+    return (f'<div style="padding-top:14px;font-size:30px;line-height:1.5;'
             f'color:#6b665c">나머지 {n}건은 세로 상세에</div>')
 
 

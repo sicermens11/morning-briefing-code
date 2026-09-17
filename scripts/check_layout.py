@@ -28,6 +28,12 @@ import re
 import shutil
 import subprocess
 import sys
+
+# ⭐ 카드 키를 손으로 적지 않는다 (2026-09-17 · 1350 → 1600)
+try:
+    from card_theme import CARD_H as _CARD_H
+except Exception:  # noqa: BLE001
+    _CARD_H = 1600
 import tempfile
 from urllib.request import pathname2url
 
@@ -522,8 +528,8 @@ def check(cards_path, site_path=None):
                     _선없음 = int(p[10]) if len(p) > 10 and p[10].isdigit() else 0
                     _칸없음 = int(p[11]) if len(p) > 11 and p[11].isdigit() else 0
                     # ① 카드 높이는 1350 고정
-                    if _H and abs(_H - 1350) > 1:
-                        fails.append(f"{label}: 카드 높이 {_H}px (1350이어야 한다) "
+                    if _H and abs(_H - _CARD_H) > 1:
+                        fails.append(f"{label}: 카드 높이 {_H}px ({_CARD_H}이어야 한다) "
                                      f"— 내용이 넘쳐 카드가 늘어났다")
                     # ⭐⭐ **40px 규칙은 오늘 이후 날짜에만** (2026-09-11 디자인 답).
                     #    지난 날짜는 글이 이미 고정돼 있어 맞추려면 **그날 글을
@@ -610,8 +616,8 @@ def check(cards_path, site_path=None):
                     fails.append(f"{label}: **마지막 블록 밑에서 카드 아래끝까지 "
                                  f"{_블아래}px** (하한 {MIN_MARGIN})")
                 _qH = int(p[8]) if len(p) > 8 and p[8].lstrip("-").isdigit() else 0
-                if _qH and abs(_qH - 1350) > 1:
-                    fails.append(f"{label}: 카드 높이 {_qH}px (1350이어야 한다)")
+                if _qH and abs(_qH - _CARD_H) > 1:
+                    fails.append(f"{label}: 카드 높이 {_qH}px ({_CARD_H}이어야 한다)")
 
     # 0. 좌우 잠금 + 스크립트 문법 (크롬 측정으로는 못 잡는 것들)
     fails.extend(check_locks(site_path))

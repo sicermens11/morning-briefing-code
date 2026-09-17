@@ -105,7 +105,12 @@ MONO = SANS
 # 그 여유를 글자 키우는 데 쓴다. 액션플랜이 정보 과밀이라 글씨가 작아졌던 게
 # 결국 세로가 모자라서였다(2026-08-27).
 CARD_W = 1080
-CARD_H = 1350
+# ⭐ 1350 → 1600 (2026-09-17 · 시안 「글씨가 9~12px 이라 어르신이 못 읽는다」).
+#    ⚠️ 폰 배율은 **가로 폭만** 본다(build_cards.fit) — 카드 키를 키운 만큼 화면에서도 길어진다.
+#       아이폰 16 은 2,038 까지 되지만 **아이폰 SE(375px)는 1,605 가 한계**라 거기에 맞췄다.
+#       사용자: 「친구나 가족한테도 제대로 보여야지」 · 시안의 1,980 은 SE 에서 잘린다
+#    ⚠️ 바꾸면 `check_layout` 의 높이 검사와 `MIN_MARGIN`·`BREATH_BOTTOM` 을 같이 본다
+CARD_H = 1600
 
 # 한글 라벨의 자간. 위 경고대로 **벌리지 않는다.** 살짝 조이는 쪽이 한글에 맞는다.
 LS_KO = "-.01em"
@@ -525,7 +530,7 @@ def head(square: str, label: str, right: str, title: str = "") -> str:
     ⚠️ 라벨은 **한국어**이므로 SANS다. 우측 번호(`right`)만 숫자라 MONO를 쓴다.
        한 줄에 두 글꼴이 있지만 **역할이 갈린다** — 한글은 SANS, 숫자는 MONO.
     """
-    t = (f'<h2 style="font-size:58px;font-weight:800;line-height:1.16;'
+    t = (f'<h2 style="font-size:69px;font-weight:800;line-height:1.16;'
          f'letter-spacing:-.04em;color:{C["text"]};margin:32px 0 0;'
          f'max-width:{TEXT_MAX}">{title}</h2>') if title else ""
     # ⚠️⚠️ **간격은 `padding-bottom`으로 준다 — `margin-bottom`은 안 된다.**
@@ -540,9 +545,9 @@ def head(square: str, label: str, right: str, title: str = "") -> str:
             f'<div style="display:flex;align-items:center;gap:14px;'
             f'border-bottom:1px solid {C["line"]};padding-bottom:20px">'
             f'<span style="width:11px;height:11px;background:{square};flex:none"></span>'
-            f'<span style="font-size:27px;letter-spacing:{LS_KO};'
+            f'<span style="font-size:32px;letter-spacing:{LS_KO};'
             f'color:{square};font-weight:700">{label}</span>'
-            f'<span style="margin-left:auto;font-family:{MONO};font-size:26px;'
+            f'<span style="margin-left:auto;font-family:{MONO};font-size:31px;'
             f'color:{C["faint"]}">{right}</span></div>{t}</div>')
 
 
@@ -598,7 +603,7 @@ KV_PAD_L = 22                      # 그 세로선 오른쪽 여백
 
 # ── 3절 · 타이포 스케일 (1080 기준) ────────────────────────────
 #    ⚠️ **절대 하한 24px.** 여백을 만들려고 본문을 24 아래로 내리지 않는다
-FS_MIN = 24
+FS_MIN = 28
 FS = {
     "제목": 58, "섹션": 27, "번호": 26,
     "라벨": 28, "본문": 31, "큰수": 52, "종가": 56, "중간수": 42,

@@ -160,10 +160,10 @@ def _선택지(앞, 뒤):
 # ── 카드 틀 (0절 공통) ───────────────────────────────────────────
 def _킥커(글, 쪽):
     return (f'<div style="display:flex;align-items:center;gap:16px">'
-            f'<span style="flex:none;font-size:25px;font-weight:700;color:{C["금"]};'
+            f'<span style="flex:none;font-size:30px;font-weight:700;color:{C["금"]};'
             f'letter-spacing:.1em">{글}</span>'
             f'<span style="flex:1;height:1px;background:{C["선"]}"></span>'
-            f'<span style="flex:none;font-size:25px;font-weight:700;color:{C["보"]}">'
+            f'<span style="flex:none;font-size:30px;font-weight:700;color:{C["보"]}">'
             f'{쪽}</span></div>')
 
 
@@ -172,9 +172,9 @@ def _머리(킥커, 쪽, 제목, 크기=64, 부제=None, 배지=None, 배지색=
           f'line-height:1.2;letter-spacing:-.045em">{제목}</span>')
     if 배지:
         제 = (f'<div style="display:flex;align-items:flex-end;gap:20px">{제}'
-              f'<span style="flex:none;font-size:28px;font-weight:700;color:{배지색};'
+              f'<span style="flex:none;font-size:33px;font-weight:700;color:{배지색};'
               f'white-space:nowrap;padding-bottom:10px">{_esc(배지)}</span></div>')
-    부 = (f'<span style="font-size:35px;line-height:1.5;color:{C["보"]}">{부제}</span>'
+    부 = (f'<span style="font-size:41px;line-height:1.5;color:{C["보"]}">{부제}</span>'
           if 부제 else "")
     return (f'<div style="flex:none;display:flex;flex-direction:column;gap:{틈}px;'
             f'padding-bottom:{밑}px">{_킥커(킥커, 쪽)}{제}{부}</div>')
@@ -198,7 +198,7 @@ def _블록(라벨, 속, 틈=11):
     """2·3·4장 항목 — 첫 항목 외 border-top (호출자가 첫 항목엔 선을 안 준다)"""
     return (f'<div style="display:flex;flex-direction:column;gap:{틈}px;'
             f'border-top:1px solid {C["선"]};padding-top:18px">'
-            f'<span style="font-size:26px;font-weight:700;color:{C["금"]}">{라벨}</span>'
+            f'<span style="font-size:31px;font-weight:700;color:{C["금"]}">{라벨}</span>'
             f'{속}</div>')
 
 
@@ -223,32 +223,32 @@ def _딱지(x):
 def _줄1(x, 업종, 확정):
     갭 = ""
     if 확정 and x.get("상대갭") is not None:
-        갭 = (f'<span style="flex:none;margin-left:auto;font-size:23px;color:{C["보"]};'
+        갭 = (f'<span style="flex:none;margin-left:auto;font-size:27px;color:{C["보"]};'
               f'white-space:nowrap">상대갭 {_esc(_음(x["상대갭"], 2, "%p"))}</span>')
-    낙자리 = "flex:none;font-size:24px;color:%s;white-space:nowrap" % C["보"]
+    낙자리 = "flex:none;font-size:28px;color:%s;white-space:nowrap" % C["보"]
     if not 갭:
         낙자리 = "flex:none;margin-left:auto;" + 낙자리[len("flex:none;"):]
     낙 = x.get("20일낙폭")
     낙글 = _esc(_음(낙, 1)) if 낙 is not None else "—"
     return (f'<div style="display:flex;align-items:baseline;gap:13px">'
-            f'<span style="flex:none;font-size:34px;font-weight:700;letter-spacing:-.02em;'
+            f'<span style="flex:none;font-size:40px;font-weight:700;letter-spacing:-.02em;'
             f'white-space:nowrap">{_esc(x.get("이름", ""))}</span>'
-            + (f'<span style="flex:none;font-size:26px;font-weight:700;color:{C["본"]};'
+            + (f'<span style="flex:none;font-size:31px;font-weight:700;color:{C["본"]};'
                f'white-space:nowrap">{_esc(업종)}</span>' if 업종 else "")
-            + f'<span style="flex:none;font-size:23px;color:{C["보"]};white-space:nowrap">'
+            + f'<span style="flex:none;font-size:27px;color:{C["보"]};white-space:nowrap">'
               f'{_esc(x.get("종목코드", ""))}</span>'
             + 갭
             # ⭐ 시안(2026-09-17) · **낙폭에서 색을 뺀다.** 1장 낙폭 −9.6% 는 빨강(좋은 신호)인데
             #    4장 손실 −42.0% 는 파랑이라, 같은 마이너스가 두 색이었다.
             #    빨강·파랑은 **등락·수익률에만** 남긴다 — 낙폭은 굵기로만 눈에 띄게
-            + f'<span style="{낙자리}">20일 낙폭 <b style="font-weight:800;font-size:32px;'
+            + f'<span style="{낙자리}">20일 낙폭 <b style="font-weight:800;font-size:38px;'
               f'color:{C["먹"]}">{낙글}</b></span></div>')
 
 
 def _줄2(x):
     def 칸(라, 값):
-        return (f'<span style="flex:none;font-size:23px;color:{C["보"]};white-space:nowrap">'
-                f'{라} <b style="font-weight:800;font-size:26px;color:{C["먹"]}">{값}</b></span>')
+        return (f'<span style="flex:none;font-size:27px;color:{C["보"]};white-space:nowrap">'
+                f'{라} <b style="font-weight:800;font-size:31px;color:{C["먹"]}">{값}</b></span>')
     잉 = x.get("잉여금비율")
     부 = x.get("부채비율")
     칸들 = [칸("전날 종가", f'{x.get("어제종가", 0):,}원'),
@@ -259,7 +259,7 @@ def _줄2(x):
         칸들.append(칸("빚", f"{부:.0f}%"))
     딱 = _딱지(x)
     if 딱:
-        칸들.append(f'<span style="flex:none;margin-left:auto;font-size:22px;font-weight:700;'
+        칸들.append(f'<span style="flex:none;margin-left:auto;font-size:26px;font-weight:700;'
                    f'color:{C["금"]};background:{C["딱"]};border-radius:6px;padding:3px 11px;'
                    f'white-space:nowrap">{_esc(딱)}</span>')
     return ('<div style="display:flex;align-items:baseline;gap:18px">'
@@ -284,13 +284,13 @@ def _줄3(x, 상태):
             칩, 칩색 = "안 산다", C["보"]
     return (f'<div style="display:flex;align-items:baseline;gap:12px;'
             f'border-top:1px solid {C["선"]};padding-top:11px">'
-            f'<span style="flex:none;font-size:23px;font-weight:700;color:{C["금"]};'
+            f'<span style="flex:none;font-size:27px;font-weight:700;color:{C["금"]};'
             f'white-space:nowrap">{라}</span>'
-            f'<span style="flex:none;font-size:29px;font-weight:800;letter-spacing:-.03em;'
+            f'<span style="flex:none;font-size:34px;font-weight:800;letter-spacing:-.03em;'
             f'color:{C["먹"]};white-space:nowrap">{_esc(값)}</span>'
-            f'<span style="flex:1;min-width:0;font-size:21px;color:{C["보"]};'
+            f'<span style="flex:1;min-width:0;font-size:25px;color:{C["보"]};'
             f'white-space:nowrap;overflow:hidden;text-overflow:clip">{_esc(보)}</span>'
-            f'<span style="flex:none;font-size:24px;font-weight:700;color:{칩색}">{칩}</span>'
+            f'<span style="flex:none;font-size:28px;font-weight:700;color:{칩색}">{칩}</span>'
             f'</div>')
 
 
@@ -374,7 +374,7 @@ def _장1(q, 보유):
             말.append(f"오늘 나머지 정리: {' · '.join(_esc(x.get('이름', '')) for x in 뒤팔것)} · "
                      f"{R.뒷몫기한}거래일이 지났습니다.")
         알림 = (f'<div style="border-left:9px solid {C["빨"]};background:{C["경고"]};'
-              f'border-radius:16px;padding:14px 24px;font-size:26px;line-height:1.5;'
+              f'border-radius:16px;padding:14px 24px;font-size:31px;line-height:1.5;'
               f'color:{C["먹"]}">{" ".join(말)}</div>')
 
     부 = [알림] if 알림 else []
@@ -382,9 +382,9 @@ def _장1(q, 보유):
         부.append(_본문(_esc(리드), 35))
     if 상태 == "none":
         부.append(f'<div style="display:flex;flex-direction:column;gap:18px">'
-                 f'<span style="font-size:96px;font-weight:800;letter-spacing:-.05em;'
+                 f'<span style="font-size:114px;font-weight:800;letter-spacing:-.05em;'
                  f'line-height:1.15;color:{C["금"]}">0개</span>'
-                 f'<span style="font-size:31px;line-height:1.6;color:{C["본"]}">조건을 통과한 '
+                 f'<span style="font-size:37px;line-height:1.6;color:{C["본"]}">조건을 통과한 '
                  f'종목이 없습니다. 규칙상 이런 날은 열흘에 세 번쯤 있습니다. 고장이 아닙니다.'
                  f'</span></div>')
         for 글 in (f"후보가 되려면 먼저 이걸 모두 통과해야 합니다 · 쌓은 이익 {R.잉여금하한:g}% 이상 · "
@@ -396,15 +396,15 @@ def _장1(q, 보유):
                   + " 걸려야 합니다. 오늘은 어느 것도 걸리지 않았습니다."
                   + (f" 들고 있는 것 {len(보유)}개에는 +{R.앞몫목표:g}% · +{R.뒷몫목표:g}% "
                      f"지정가가 걸려 있습니다." if 보유 else "")):
-            부.append(f'<div style="font-size:33px;line-height:1.55;color:{C["본"]};'
+            부.append(f'<div style="font-size:39px;line-height:1.55;color:{C["본"]};'
                      f'border-top:1px solid {C["선"]};padding-top:18px">{_esc(글)}</div>')
     else:
         블록들 = "".join(_종목블록(x, (업.get(x.get("종목코드", "")) or {}).get("업종명")
                               or (x.get("섹터") or ""), 상태, 확정) for x in 목록)
         부.append(f'<div style="display:flex;flex-direction:column;gap:12px">'
-                 f'<span style="font-size:27px;font-weight:700;color:{라벨색}">{_esc(라벨)}</span>'
+                 f'<span style="font-size:32px;font-weight:700;color:{라벨색}">{_esc(라벨)}</span>'
                  f'{블록들}</div>')
-    부.append(f'<div style="font-size:25px;line-height:1.55;color:{C["보"]}">{_esc(각주)}</div>')
+    부.append(f'<div style="font-size:30px;line-height:1.55;color:{C["보"]}">{_esc(각주)}</div>')
 
     머리 = _머리(킥, "1 / 4", _esc(제), 크기=68, 배지=배, 배지색=배색, 틈=24, 밑=32)
     return _카드("퀀트1 종목", 머리, "".join(부), 패딩="12px 18px",
@@ -430,7 +430,7 @@ def _장2():
     ) + ((("변동성·자사주", f"시장이 크게 출렁이는 날(지수 20일 변동성 {R.시장변동성문턱:g}% 이상)에는, "
                           f"최근 {R.자사주창일}거래일 안에 자기 주식을 사겠다고 공시한 회사도 걸린다. "
                           "회사가 제 주식을 사는 중인데 시장이 흔들리는 때다"),) if R.변동성자사주_켬 else ())
-    칩 = (f'flex:none;font-size:26px;font-weight:700;white-space:nowrap;border-radius:7px;'
+    칩 = (f'flex:none;font-size:31px;font-weight:700;white-space:nowrap;border-radius:7px;'
          f'padding:5px 15px;color:{C["금"]};background:{C["딱"]}')
     줄들 = "".join(
         f'<div style="display:flex;align-items:flex-start;gap:16px">'
@@ -441,7 +441,7 @@ def _장2():
     몸 = (_본문(_esc(리드), 35)
          + _블록("먼저, 이걸 모두 통과", _본문(_괄호nowrap(_굵(통과))))
          + _블록(f"그 다음, {'넷' if R.변동성자사주_켬 else '셋'} 중 하나만 맞으면 후보 · 1장 딱지가 이것입니다", 줄들, 틈=14)
-         + f'<span style="font-size:25px;line-height:1.55;color:{C["보"]}">여러 규칙에 걸린 종목이 '
+         + f'<span style="font-size:30px;line-height:1.55;color:{C["보"]}">여러 규칙에 걸린 종목이 '
            f'1장 위쪽에 옵니다. 다음 장은 언제 사고 언제 파는지입니다.</span>')
     return _카드("퀀트2 어떻게뽑았나", _머리("HOW THEY WERE PICKED", "2 / 4", "어떻게 뽑았나"), 몸)
 
@@ -469,7 +469,7 @@ def _장3():
     )
     행 = "".join(
         f'<div style="display:flex;gap:28px;border-top:1px solid {C["선"]};padding-top:18px">'
-        f'<span style="flex:none;width:210px;text-align:right;font-size:26px;font-weight:700;'
+        f'<span style="flex:none;width:210px;text-align:right;font-size:31px;font-weight:700;'
         f'line-height:1.35;color:{C["금"]}">{라}</span>'
         f'<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:9px;'
         f'border-left:1px solid {C["선"]};padding-left:28px">'
@@ -485,7 +485,7 @@ def _장3():
     몸 = (_본문(_esc("규칙이 정하는 것은 언제 사고 언제 파는지 둘뿐입니다. 얼마를 넣을지는 정하지 않습니다."), 35)
          + 행
          + 비교
-         + f'<span style="font-size:24px;line-height:1.55;color:{C["보"]}">다음 장은 이 규칙이 '
+         + f'<span style="font-size:28px;line-height:1.55;color:{C["보"]}">다음 장은 이 규칙이 '
            f'과거에 어땠는지입니다.</span>')
     return _카드("퀀트3 사고파나", _머리("HOW TO BUY &amp; SELL", "3 / 4", "어떻게 사고 파나"), 몸)
 
@@ -558,7 +558,7 @@ def _장4():
          + _블록("최근 3건", 표)
          + _블록("가장 좋았던 셋", 좋, 틈=10)
          + _블록("가장 나빴던 셋", 나, 틈=10)
-         + f'<span style="font-size:25px;line-height:1.55;color:{C["보"]}">{_esc(각주)}</span>')
+         + f'<span style="font-size:30px;line-height:1.55;color:{C["보"]}">{_esc(각주)}</span>')
     return _카드("퀀트4 성적표", _머리("TRACK RECORD", "4 / 4", "과거에 어땠나", 부제=_esc(부제), 틈=18, 밑=28), 몸)
 
 
