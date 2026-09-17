@@ -121,7 +121,13 @@ def _지수낙폭표():
                    if i >= 20 and xs[i - 20] > 0 else None)
             n60 = ((xs[i] / xs[i - 60] - 1) * 100
                    if i >= 60 and xs[i - 60] > 0 else None)
-            칸[k] = (n20, n60)
+            # ⭐ ㉤ 20일 일간수익률 표준편차(%) (2026-09-17)
+            σ20 = None
+            if i >= 20:
+                _칸 = xs[i - 20:i + 1]
+                _일 = [(_칸[j] / _칸[j - 1] - 1) * 100 for j in range(1, len(_칸)) if _칸[j - 1]]
+                σ20 = st.pstdev(_일) if len(_일) > 3 else None
+            칸[k] = (n20, n60, σ20)
         표[날] = 칸
     return 표
 # ⚠ 환경변수로 바꿀 수 있게 한다 (2026-09-09 · 172차 후보수 시험)
@@ -207,6 +213,26 @@ def main():
 
     주가 = O.수정주가(("시총", "거래대금"))
     날 = sorted(주가)
+    # ⭐ ㉤ 변동성·자사주 (2026-09-17) — dart-capital 「자사주취득」 접수일 표 · 거래일 자리표
+    _자리날 = {d: i for i, d in enumerate(날)}
+    _자사표 = {}
+    for _f in glob.glob(os.path.join(O._DATA, "dart-capital", "*.json")):
+        try:
+            _j = json.load(io.open(_f, encoding="utf-8-sig"))
+        except ValueError:
+            continue
+        _ds = sorted(str(x.get("rcept_no") or "")[:8] for x in (_j.get("자사주취득") or []) if len(str(x.get("rcept_no") or "")) >= 8)
+        if _ds:
+            _자사표[os.path.basename(_f)[:-5]] = _ds
+    import bisect as _bsq
+
+    def _자사수(code, d8):
+        _ds = _자사표.get(code)
+        _i = _자리날.get(d8)
+        if not _ds or _i is None:
+            return 0
+        _시작 = 날[max(0, _i - R.자사주창일)]
+        return _bsq.bisect_right(_ds, d8) - _bsq.bisect_left(_ds, _시작)
     _사라짐 = O.사라진종목(주가, 날)   # ⚠️ 상장폐지를 손실로 센다
     print(f"  중간에 사라진 종목 {len(_사라짐):,}개 — 상장폐지는 {O.폐지손실:.0f}% 손실로 센다", flush=True)
     기본, 재무 = O._기본(), 연간재무()
@@ -393,7 +419,10 @@ def main():
                 _키 = ("KOSDAQ" if ("닥" in 부 or "KOSDAQ" in 부
                                     or "닥" in str(bb.get("시장") or ""))
                        else "KOSPI")
-                _지 = (_지수표.get(d1) or {}).get(_키) or (None, None)
+                _지 = (_지수표.get(d1) or {}).get(_키) or (None, None, None)
+                # ⭐ ㉤ 변동성·자사주 (2026-09-17) — 소형만 · 빠짐 조건 없음
+                _변자맞나 = bool(R.변동성자사주_켬 and not _큰회사 and len(_지) > 2 and _지[2] is not None
+                               and _지[2] >= R.시장변동성문턱 and _자사수(code, d1) >= 1)
                 _때맞나 = ((_지[0] is not None and _지[0] <= _지수낙20문턱)
                            or (_지[1] is not None and _지[1] <= _지수낙60문턱))
                 _빠졌나 = (볼20 <= _시장볼문턱 or 낙 <= _시장낙20문턱
@@ -401,7 +430,7 @@ def main():
                 if _큰회사:                  # ⭐ ㉣ 큰 회사는 섹터규칙으로만 (기존·시장 갈래는 소형만)
                     _기존맞나 = False
                     _때맞나 = False
-                if not (_기존맞나 or _섹맞나 or (_때맞나 and _빠졌나)):
+                if not (_기존맞나 or _섹맞나 or (_때맞나 and _빠졌나) or _변자맞나):
                     continue
             # ⭐⭐ **두 창 함께** (165차 4관문 통과 · 2026-09-09 반영)
             #    20일만 빠진 것은 잠깐 흔들린 것일 수 있다.
