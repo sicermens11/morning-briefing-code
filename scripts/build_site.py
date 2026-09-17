@@ -167,6 +167,8 @@ body{font-family:__MONO__}
 /* ⭐ 시안 · 화살표는 **파랑**이고 흐리지 않다 */
 .big .arw2{font-size:16px;color:#1b3bf0;flex:none;opacity:1}
 #home .note{font-size:12.5px;color:#6b665c;margin-top:10px;line-height:1.7}
+#home .note .disc{display:block;font-size:15px;font-weight:700;color:#4a453c;
+  line-height:1.55;margin-bottom:5px;word-break:keep-all}
 #home .note .pconly{display:none}
 
 /* ⭐⭐ **데스크톱도 폰과 같은 크기다** (2026-09-11 지시서 5절).
@@ -1153,7 +1155,9 @@ def build(out, days=DEFAULT_DAYS):
         #    데스크톱에서만 — 폰은 한 화면에 들어가야 한다.
         #    ⚠️ 생성 시각 자체는 없애지 않는다: 카톡 인앱처럼 캐시가 센 데서
         #       옛 화면인지 가려내는 유일한 단서다 (2026-08-27)
-        f'<div class="note">투자 참고용이며 매수 권유가 아닙니다.'
+        # ⭐ 면책을 키웠다 (2026-09-17 · 사용자 「아래에 지금보다 크게」) — 12.5px 회색 한 줄 → 15px 굵게 · 두 문장
+        f'<div class="note"><b class="disc">투자 참고용이며 매수 권유가 아닙니다. '
+        f'투자 판단과 책임은 본인에게 있습니다.</b>'
         f'<span class="pconly"> 수록 {len(kept)}일 '
         f'({oldest_kept} ~ {latest}) · 화면 생성 {built}</span></div>'
         f'</section>')
@@ -1222,6 +1226,23 @@ def build(out, days=DEFAULT_DAYS):
     #    안 없어진다.** 매일 새 글이 오므로 **내보내는 자리**에서 걸러야 한다.
     #    ⚠️ `<style>`·`<script>` 안에는 em dash 를 쓰지 않으므로 통째로 바꿔도 안전하다
     html = html.replace("—", "·")
+    # ⭐ **개발 메모를 벗긴다** (2026-09-17 · 친구에게 주소를 알려주기 전).
+    #    화면엔 안 보이지만 「소스 보기」로 읽힌다 — 「사용자가 세 번 지적했다」 같은 문장이 8,600자쯤 있었다.
+    #    ⚠️ 문자열 안의 // (예: https://) 를 지우면 코드가 깨진다 → **줄 첫머리가 // 인 줄**만 지운다.
+    #    ⚠️ 소스 파일의 주석은 그대로 둔다 — 벗기는 건 **내보내는 사본**뿐이다
+    import re as _re
+
+    def _메모뺌(m):
+        t = m.group(0)
+        t = _re.sub(r"/\*.*?\*/", "", t, flags=_re.S)
+        t = "\n".join(z for z in t.split("\n")
+                      if not z.lstrip().startswith("//"))
+        return t
+
+    _전길이 = len(html)
+    html = _re.sub(r"<style[^>]*>.*?</style>", _메모뺌, html, flags=_re.S)
+    html = _re.sub(r"<script[^>]*>.*?</script>", _메모뺌, html, flags=_re.S)
+    print(f"    개발 메모 벗김 — {_전길이 - len(html):,}자 줄임")
     io.open(out, "w", encoding="utf-8").write(html)
 
     res = {"ok": True, "파일": out, "수록일": len(kept), "전체기록": len(all_dates),
