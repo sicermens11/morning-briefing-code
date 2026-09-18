@@ -56,6 +56,17 @@ function 판($이름, $설명, $환경) {
 }
 
 # -- 0 . 앞 시험이 돌고 있으면 기다린다 (램 9GB) --------------------
+# ⚠️⚠️ **큰 파이썬이 돌면 기다린다** (2026-09-18 추가). 이 스크립트에는 겹침 막기가 없어서
+#    주말 줄(queue_*)이 도는 중에 21:00 에 같이 떠 램이 터질 수 있었다 (31.9GB 중 시험 하나가 18~23GB).
+#    ram_guard 는 예약에 안 걸려 있어 자동으로 안 돈다 — 그래서 여기서 막는다
+function 큰파이썬 {
+    @(Get-Process python -ErrorAction SilentlyContinue |
+      Where-Object { $_.WorkingSet64 -gt 1GB }).Count
+}
+$ㄱ = 0
+while ((큰파이썬) -gt 0 -and ($ㄱ -lt 600)) { Start-Sleep -Seconds 60; $ㄱ = $ㄱ + 1 }
+적기 "[0] 큰 파이썬 기다림 $ㄱ 분"
+
 적기 "[0] 앞 시험 확인"
 $분 = 0
 while ((Get-Process python -ErrorAction SilentlyContinue) -and ($분 -lt 180)) {
