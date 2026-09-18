@@ -3806,7 +3806,10 @@ def main():
     _띠재료 = []
     import re as _reB
     try:
-        _bf = sorted(glob.glob(os.path.join(O._DATA, "_labs", "*BAND*.txt")), key=os.path.getmtime, reverse=True)
+        # ⚠️ `*BAND*` 는 **자기 자신(BANDOR)** 도 잡는다 — 2026-09-18 에 0개를 읽고 절이 통째로 비었다
+        _bf = [f for f in sorted(glob.glob(os.path.join(O._DATA, "_labs", "*BAND*.txt")),
+                                 key=os.path.getmtime, reverse=True)
+               if "BANDOR" not in os.path.basename(f).upper()]
         if _bf:
             _t = io.open(_bf[0], encoding="utf-8", errors="replace").read()
             _지금띠 = None
