@@ -3530,7 +3530,7 @@ def main():
                "06": "여름", "07": "여름", "08": "여름", "09": "가을", "10": "가을", "11": "가을"}
 
     # ⭐ 미국 선거 · 미국 금리차 (2026-09-18) — BAND 판에서 대형주 띠 1위가 「미국선거전5」였는데 gate7 이 못 만들었다
-    _미선P = sorted({_bsP.bisect_right(날, d) for d in (_달력.get("미국선거") or [])
+    _미선P = sorted({_bsP.bisect_right(날, d) for d in (_달력P.get("미국선거") or [])
                      if _bsP.bisect_right(날, d) < len(날)})
 
     def _앞NP(자리들, i, n):
