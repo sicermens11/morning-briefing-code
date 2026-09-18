@@ -79,9 +79,11 @@ def main():
     assert isinstance(날, list) and len(날) > 1000, ('거래일 목록이 깨졌다', len(날))
     기본, 재무 = O._기본(), 연간재무()
     종계, 자리 = {}, {}
+    대금계 = {}      # ⭐ 거래대금 계열 (2026-09-18)
     for d in 날:
         for c, v in 주가[d].items():
             종계.setdefault(c, []).append(v[0])
+            대금계.setdefault(c, []).append(v[2])      # ⭐ 거래대금 계열 (2026-09-18 · 거래량바닥용)
             자리.setdefault(c, {})[d] = len(종계[c]) - 1
     비, 갭표, 앞종, 원시, 거량 = {}, {}, {}, {}, {}
     for f in sorted(glob.glob(os.path.join(O._DATA, "krx-daily", "*.json"))):
@@ -198,7 +200,8 @@ def main():
     #    krx-daily 「저가」 는 16년치가 있는데 시험 어디에도 안 썼다(비 = 시가/종가·고가/종가만).
     #    fred 미국 금리 셋은 실전 국면에만 쓰고 시험엔 없었다. 여기서 여섯을 만든다
     import bisect as _bs
-    print("  저가·고가·시가(krx-daily 원본) 다시 읽는 중 — 진폭·시가 위치...", flush=True)
+    _꼬리, _양봉 = {}, {}      # ⭐ 반등 신호 (2026-09-18 · 사용자 「반등 신호를 포착해서 사기」)
+    print("  저가·고가·시가(krx-daily 원본) 다시 읽는 중 — 진폭·시가 위치·아래꼬리·양봉...", flush=True)
     _진폭 = {c: _array("f", [float("nan")] * len(q)) for c, q in 종계.items()}
     _시위 = {c: _array("f", [float("nan")] * len(q)) for c, q in 종계.items()}
     for _f in sorted(glob.glob(os.path.join(O._DATA, "krx-daily", "*.json"))):
@@ -222,6 +225,10 @@ def main():
                 _진폭[_c][_k] = (_hi - _lo) / _cl * 100.0
                 if _hi > _lo and _op > 0:
                     _시위[_c][_k] = (_op - _lo) / (_hi - _lo)
+                    # ⭐ 반등 신호 (2026-09-18) — 아래꼬리는 **종가** 기준 (시가위치와 다르다)
+                    _꼬리.setdefault(_c, {})[_k] = (_cl - _lo) / (_hi - _lo)
+                if _op > 0:
+                    _양봉.setdefault(_c, {})[_k] = 1.0 if _cl > _op else 0.0
 
     def _진폭14(code, kk):
         a = _진폭.get(code)
@@ -414,6 +421,45 @@ def main():
         if not 전환:
             return 1.0 if 오늘 else 0.0
         return 1.0 if (오늘 and not _맞나(k - 1)) else 0.0
+
+    def _낙폭둔화(x):
+        """5일 낙폭 − 20일 낙폭. 양수면 **덜 빠지는 중**"""
+        sq, k = _시세(x)
+        if not sq or k is None or k < 21 or sq[k - 5] <= 0 or sq[k - 20] <= 0:
+            return None
+        return (sq[k] / sq[k - 5] - 1) * 100 - (sq[k] / sq[k - 20] - 1) * 100
+
+    def _볼(sq, k):
+        m = sum(sq[k - 19:k + 1]) / 20
+        import statistics as _st2
+        sd = _st2.pstdev(sq[k - 19:k + 1]) or 1e-9
+        return (sq[k] - m) / (2 * sd)
+
+    def _볼린저회복(x):
+        """오늘 볼린저 − 어제 볼린저. 양수면 **하단에서 올라오는 중**"""
+        sq, k = _시세(x)
+        if not sq or k is None or k < 21:
+            return None
+        return _볼(sq, k) - _볼(sq, k - 1)
+
+    def _하락끊김(x):
+        """어제 종가 > 그저께 종가 (연속 하락이 끊겼다)"""
+        sq, k = _시세(x)
+        if not sq or k is None or k < 2 or sq[k - 1] <= 0:
+            return None
+        return 1.0 if sq[k] > sq[k - 1] else 0.0
+
+    def _거래량바닥(x):
+        """어제 거래대금 / 20일 평균. **낮을수록 투매가 끝난 것**"""
+        _d = 대금계.get(x["code"])
+        if not _d:
+            return None
+        _k = _시세(x)[1]
+        if _k is None or _k < 20:
+            return None
+        _앞 = _d[_k - 19:_k + 1]
+        _평 = sum(_앞) / len(_앞) if _앞 else 0
+        return (_d[_k] / _평) if _평 > 0 else None
 
     def _계절인가(x, 이름):
         return 1.0 if _계절표[날[x["인"] - 1][4:6]] == 이름 else 0.0
@@ -918,7 +964,8 @@ def main():
               "미국선거전5", "미국선거후5",                                       # ⭐ 미국 대선4·중간선거4
               "ETF괴리", "ETF괴리20",                                             # ⭐ ETF NAV 괴리율 (시장 재료 · 2026-09-16)
               "봄", "여름", "가을", "겨울",
-              "신고가60", "20일선돌파", "60일선돌파", "정배열", "정배열전환",   # ⭐ 오르기 시작하는 것 (2026-09-18)                                         # ⭐ 계절 (combo5 H절 뒤 · 2026-09-16 밤)
+              "신고가60", "20일선돌파", "60일선돌파", "정배열", "정배열전환",   # ⭐ 오르기 시작하는 것 (2026-09-18)
+              "양봉어제", "아래꼬리", "낙폭둔화", "볼린저회복", "하락끊김", "거래량바닥",  # ⭐ 반등 신호 (2026-09-18)                                         # ⭐ 계절 (combo5 H절 뒤 · 2026-09-16 밤)
               "수출YoY", "수입YoY", "무역수지비", "국내CPI_YoY", "기준금리20",         # ⭐ ECOS (수출 주도국 · 처음)
               "시총억", "대금억", "거래량", "회전율",
               "잉여금", "부채", "ROE", "영업이익률", "순이익률", "유동비율",
@@ -1051,6 +1098,13 @@ def main():
         "미국선거후5": lambda x: _뒤N(_미선거자리, x["인"] - 1, 5),
         # ⭐ **오르기 시작하는 것** (2026-09-18 · 사용자 「빠진 걸 재고 있는데 오르기 시작하는 건?」)
         #    지금 재료는 전부 「이미 올랐다」다 — 전환점(돌파·정배열 전환)은 하나도 없었다
+        # ⭐ **반등 신호 포착** (2026-09-18) — 전날 종가까지로만 계산한다. 하루도 안 늦는다
+        "양봉어제": lambda x: (_양봉.get(x["code"]) or {}).get(_시세(x)[1]),
+        "아래꼬리": lambda x: (_꼬리.get(x["code"]) or {}).get(_시세(x)[1]),
+        "낙폭둔화": _낙폭둔화,
+        "볼린저회복": _볼린저회복,
+        "하락끊김": _하락끊김,
+        "거래량바닥": _거래량바닥,
         "신고가60": lambda x: _신고가(x, 60),
         "20일선돌파": lambda x: _선돌파(x, 20),
         "60일선돌파": lambda x: _선돌파(x, 60),
