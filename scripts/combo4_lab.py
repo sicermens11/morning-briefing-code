@@ -80,6 +80,23 @@ def main():
     기본, 재무 = O._기본(), 연간재무()
     종계, 자리 = {}, {}
     대금계 = {}      # ⭐ 거래대금 계열 (2026-09-18)
+    # ⭐ 공시 직후용 표 (2026-09-18 밤) — 자사주60 은 60일 누적이라 「어제 났다」가 묻힌다
+    _증자표2 = newmat._증자표()
+    _임원표 = {}
+    for _f9 in glob.glob(os.path.join(O._DATA, "dart-exec", "*.json")):
+        try:
+            _j9 = json.load(io.open(_f9, encoding="utf-8-sig"))
+        except ValueError:
+            continue
+        _ds9 = sorted(str(z.get("접수일") or "").replace("-", "") for z in (_j9.get("이력") or [])
+                      if z.get("접수일") and str(z.get("증감") or "").lstrip("-").replace(",", "").isdigit()
+                      and not str(z.get("증감") or "").startswith("-"))
+        if _ds9:
+            _임원표[os.path.basename(_f9)[:-5]] = _ds9
+    print(f"    공시 직후용 — 증자·자사주 {len(_증자표2):,}종목 · 임원 매수 {len(_임원표):,}종목", flush=True)
+
+    def _증자재기(code, i, 갈래, 일수):
+        return newmat._증자재기(_증자표2, code, 갈래, 날[i], 일수, 날, i)
     for d in 날:
         for c, v in 주가[d].items():
             종계.setdefault(c, []).append(v[0])
@@ -449,6 +466,66 @@ def main():
             return None
         return 1.0 if sq[k] > sq[k - 1] else 0.0
 
+    def _밴드수축(x):
+        """20일 밴드 폭 / 60일 평균 폭. **낮을수록 조용했다** — 벌어지기 직전"""
+        sq, k = _시세(x)
+        if not sq or k is None or k < 61:
+            return None
+        import statistics as _st3
+        def _폭(kk, n):
+            _창 = sq[kk - n + 1:kk + 1]
+            _m = sum(_창) / n
+            return (_st3.pstdev(_창) * 4 / _m * 100) if _m > 0 else None
+        _지 = _폭(k, 20)
+        _앞들 = [z for z in (_폭(k - j, 20) for j in range(0, 60, 5)) if z]
+        if _지 is None or len(_앞들) < 6:
+            return None
+        _평 = sum(_앞들) / len(_앞들)
+        return (_지 / _평) if _평 > 0 else None
+
+    def _신저가반등(x):
+        """250일 최저를 찍고 어제 올라왔나"""
+        sq, k = _시세(x)
+        if not sq or k is None or k < 251:
+            return None
+        _저 = min(sq[k - 250:k])
+        return 1.0 if (sq[k - 1] <= _저 * 1.005 and sq[k] > sq[k - 1]) else 0.0
+
+    def _연속하락(x):
+        """며칠 내리 빠졌나 (어제까지)"""
+        sq, k = _시세(x)
+        if not sq or k is None or k < 12:
+            return None
+        n = 0
+        for j in range(k, k - 10, -1):
+            if sq[j] < sq[j - 1]:
+                n += 1
+            else:
+                break
+        return float(n)
+
+    def _되돌림(x):
+        """(오늘 − 20일 최저) / (20일 최고 − 20일 최저). 0 이면 바닥, 1 이면 꼭대기"""
+        sq, k = _시세(x)
+        if not sq or k is None or k < 21:
+            return None
+        _창 = sq[k - 19:k + 1]
+        _lo, _hi = min(_창), max(_창)
+        return ((sq[k] - _lo) / (_hi - _lo)) if _hi > _lo else None
+
+    def _공시직후(x, 갈래, 일수=5):
+        """그 공시가 최근 `일수` 거래일 안에 났나 (60일 누적과 다르다)"""
+        return _증자재기(x["code"], x["인"] - 1, 갈래, 일수)
+
+    def _임원직후(x, 일수=5):
+        _ds = (_임원표 or {}).get(x["code"])
+        if not _ds:
+            return 0.0
+        i = x["인"] - 1
+        _시작 = 날[max(0, i - 일수)]
+        import bisect as _b9
+        return float(_b9.bisect_right(_ds, 날[i]) - _b9.bisect_left(_ds, _시작))
+
     def _거래량깨움(x):
         """어제 거래대금 / 20일 평균. **2배 넘으면 잠에서 깬 것** (거래량바닥의 반대쪽)"""
         _d = 대금계.get(x["code"])
@@ -664,6 +741,8 @@ def main():
         if 시낙 is not None:
             붙음 += 1
         섹 = 업종지수(x["code"])
+        x["섹터이름"] = 섹 or "없음"          # ⭐ 쪼개서 재기용 (2026-09-18)
+        x["시장이름"] = ("코스닥" if "닥" in str(시장표.get(x["code"]) or "") else "코스피")
         섹낙 = 낙폭(섹, i2) if 섹 else None
         x["섹터"] = 섹
         x["섹터낙폭"] = 섹낙
@@ -994,7 +1073,9 @@ def main():
               "신고가60", "20일선돌파", "60일선돌파", "정배열", "정배열전환",   # ⭐ 오르기 시작하는 것 (2026-09-18)
               "양봉어제", "아래꼬리", "낙폭둔화", "볼린저회복", "하락끊김", "거래량바닥",  # ⭐ 반등 신호 (2026-09-18)
               "외인전환", "기관전환", "수급동시전환", "지분율바닥",                    # ⭐ 막 켜진 신호 (2026-09-18)
-              "거래량깨움",                                         # ⭐ 계절 (combo5 H절 뒤 · 2026-09-16 밤)
+              "거래량깨움",
+              "밴드수축", "신저가반등", "연속하락", "되돌림",                    # ⭐ 전환 낌새 더 (2026-09-18 밤)
+              "자사주직후", "임원매수직후",                                         # ⭐ 계절 (combo5 H절 뒤 · 2026-09-16 밤)
               "수출YoY", "수입YoY", "무역수지비", "국내CPI_YoY", "기준금리20",         # ⭐ ECOS (수출 주도국 · 처음)
               "시총억", "대금억", "거래량", "회전율",
               "잉여금", "부채", "ROE", "영업이익률", "순이익률", "유동비율",
@@ -1130,6 +1211,13 @@ def main():
         # ⭐ **반등 신호 포착** (2026-09-18) — 전날 종가까지로만 계산한다. 하루도 안 늦는다
         # ⭐ 막 켜진 신호 중 계산이 필요한 둘 (2026-09-18)
         "거래량깨움": _거래량깨움,
+        # ⭐ 전환 낌새 더 여섯 (2026-09-18 밤 · 사용자 「테스트 해볼 수 있는 건 다 해봐」)
+        "밴드수축": _밴드수축,
+        "신저가반등": _신저가반등,
+        "연속하락": _연속하락,
+        "되돌림": _되돌림,
+        "자사주직후": lambda x: _공시직후(x, "자사주취득"),
+        "임원매수직후": lambda x: _임원직후(x),
         "양봉어제": lambda x: (_양봉.get(x["code"]) or {}).get(_시세(x)[1]),
         "아래꼬리": lambda x: (_꼬리.get(x["code"]) or {}).get(_시세(x)[1]),
         "낙폭둔화": _낙폭둔화,
@@ -1560,6 +1648,30 @@ def main():
     print("  ── ⭐⭐⭐ **규모 띠별 재료** — 띠마다 바탕이 다르다. 그 띠 안에서만 견준다 ──")
     print("     ⚠️ 사건 5만 건 미만은 표본 부족 · 앞뒤 절반이 **같은 방향**인 것만 ✅")
     print("=" * 122)
+    # ⭐ **쪼개는 잣대 넷** (2026-09-18 · 사용자 「더 좁게 테스트한 걸 더 넓혀서」)
+    _잣대들 = {}
+    _잣대들["규모"] = [(라, [i for i, x in enumerate(사건) if lo <= (x.get("시총억") or 0) < hi])
+                      for lo, hi, 라 in ((0, 300, "~300억"), (300, 2000, "300~2,000억 (지금)"),
+                                         (2000, 10000, "2,000억~1조"), (10000, 100000, "1조~10조"),
+                                         (100000, 1000000, "10조~100조"), (1000000, 9e12, "100조 이상"))]
+    _섹모음 = {}
+    for _i, _x in enumerate(사건):
+        _섹모음.setdefault(_x.get("섹터이름") or "없음", []).append(_i)
+    _잣대들["섹터(전 업종)"] = sorted(((k, v) for k, v in _섹모음.items() if k != "없음"),
+                                      key=lambda t: -len(t[1]))[:14]
+    _시모음 = {}
+    for _i, _x in enumerate(사건):
+        _시모음.setdefault(_x.get("시장이름") or "?", []).append(_i)
+    _잣대들["시장"] = sorted(_시모음.items(), key=lambda t: -len(t[1]))
+    # 국면 — 그날 코스피 60일 낙폭으로 (지수는 _거시/지수계열이 아니라 시장낙폭 재료를 쓴다)
+    _국면 = {"오르는 장 (+5%↑)": [], "빠지는 장 (−5%↓)": [], "횡보": []}
+    for _i, _x in enumerate(사건):
+        _v = _x.get("시장낙폭")
+        if _v is None:
+            continue
+        _국면["오르는 장 (+5%↑)" if _v >= 5 else "빠지는 장 (−5%↓)" if _v <= -5 else "횡보"].append(_i)
+    _잣대들["국면"] = list(_국면.items())
+
     _띠들 = ((0, 300, "~300억"), (300, 2000, "300~2,000억 (지금)"),
              (2000, 10000, "2,000억~1조"), (10000, 100000, "1조~10조"),
              (100000, 1000000, "10조~100조"), (1000000, 9e12, "100조 이상"))
@@ -1589,6 +1701,35 @@ def main():
     _띠자리 = {}
     for _lo, _hi, _라B in _띠들:
         _띠자리[_라B] = [i2 for i2, x in enumerate(사건) if _lo <= (x.get("시총억") or 0) < _hi]
+
+    # ⭐ 잣대 넷을 차례로 (2026-09-18) — 규모는 아래 옛 절이 이어서 자세히 본다
+    for _잣, _칸들 in _잣대들.items():
+        print(f"\n  ── ⭐ **{_잣}으로 쪼개면** ──")
+        print(f"     {'칸':<22}{'종목':>7}{'사건':>11}{'바탕 20일':>10}   그 칸에서 제일 센 재료 셋 (바탕 대비)")
+        for _라S, _자리S in _칸들:
+            if len(_자리S) < 20000:
+                print(f"     {_라S[:21]:<22}{'·':>7}{len(_자리S):>11,}{'표본 부족':>10}")
+                continue
+            _n, _w, _, _ = _재기B(_자리S)
+            if _w is None:
+                continue
+            _종수S = len({사건[i]["code"] for i in _자리S})
+            _집 = set(_자리S)
+            _상위 = []
+            for _라1, _마 in 조건.items():
+                _칸 = [i for i in _자리뽑기(_마) if i in _집]
+                if len(_칸) < 500:
+                    continue
+                _n2, _w2, _앞2, _뒤2 = _재기B(_칸)
+                if _w2 is None or _앞2 is None or _뒤2 is None:
+                    continue
+                if (_앞2 - _w) * (_뒤2 - _w) <= 0:      # 앞뒤가 다른 방향이면 버린다
+                    continue
+                _상위.append((abs(_w2 - _w), _라1, _w2 - _w, _n2))
+            _상위.sort(reverse=True)
+            _글 = " · ".join(f"{r}{d:+.1f}({n:,})" for _, r, d, n in _상위[:3]) or "없음"
+            print(f"     {_라S[:21]:<22}{_종수S:>7,}{_n:>11,}{_w:>9.1f}%   {_글}")
+    print("     ⚠️ 앞뒤 절반이 같은 방향인 것만 · 사건 2만 건 미만 칸은 건너뜀")
     print(f"\n     {'띠':<22}{'종목':>7}{'사건':>11}{'1년에':>8}{'바탕 20일':>10}")
     _바탕B = {}
     for _lo, _hi, _라B in _띠들:
