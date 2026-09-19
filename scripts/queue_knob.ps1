@@ -30,7 +30,8 @@ $log = "run-logs\queue_knob_$(Get-Date -f yyyyMMdd_HHmm).log"
 function 적기($s) {
     $줄 = "$(Get-Date -f 'MM-dd HH:mm')  $s"
     Write-Output $줄
-    Add-Content -Path $log -Value $줄 -Encoding UTF8
+    # ⚠️ 로그를 누가 잡고 있어도 판이 멈추면 안 된다 — 적는 데 실패해도 그냥 간다
+    try { Add-Content -Path $log -Value $줄 -Encoding UTF8 -ErrorAction Stop } catch { }
 }
 function 큰파이썬 {
     @(Get-Process python -ErrorAction SilentlyContinue |
@@ -40,11 +41,15 @@ function 아침인가 {
     $h = (Get-Date).Hour; $m = (Get-Date).Minute
     return (($h -eq 7 -and $m -ge 20) -or ($h -eq 8) -or ($h -eq 9 -and $m -lt 10))
 }
+# ⚠️ 앞줄 판정을 **로그 글귀에서 결과 파일로** 바꿨다 (2026-09-20 00:20).
+#    2026-09-19 23:08 에 내가 tail 로 로그를 잡고 있어서 앞 판의 완료 줄이 **안 써졌다**
+#    (Add-Content: The process cannot access the file). 로그로 기다리면 영영 안 끝난 걸로 본다.
+#    결과 파일은 시작할 때 생기므로 「파일이 있고 + 큰 파이썬이 없다」가 끝난 것이다
+$앞파일 = "data\_labs\2026-09-19_MKT2_코스피코스닥.txt"
 function 앞줄끝났나 {
-    $l = Get-ChildItem "run-logs\queue_mkt2_*.log" -ErrorAction SilentlyContinue |
-         Sort-Object LastWriteTime | Select-Object -Last 1
-    if (-not $l) { return $true }
-    return ((Get-Content $l.FullName -Raw -Encoding UTF8) -match 'queue_mkt2 끝')
+    if (-not (Test-Path $앞파일)) { return $false }
+    if ((큰파이썬) -gt 0) { return $false }
+    return $true
 }
 
 적기 "[0] 앞줄(queue_mkt2)이 끝나길 기다린다"
