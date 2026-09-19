@@ -290,6 +290,7 @@ def main():
     _sp = os.path.join(O._DATA, "stock-base.json")
     if os.path.exists(_sp):
         _sb = json.load(io.open(_sp, encoding="utf-8-sig"))
+        _sb = _sb.get("종목") or _sb   # ⚠️ 2026-09-19 버그 — 한 겹 안에 있다 (gate7_lab 참고)
         for c2, v2 in _sb.items():
             if isinstance(v2, dict) and v2.get("시장"):
                 시장표[c2] = str(v2["시장"])

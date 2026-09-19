@@ -725,9 +725,15 @@ def main():
     _sp = os.path.join(O._DATA, "stock-base.json")
     if os.path.exists(_sp):
         _sb = json.load(io.open(_sp, encoding="utf-8-sig"))
+        # ⚠️⚠️ **2026-09-19 버그** — 종목은 한 겹 안에 있다 (gate7_lab 같은 자리 참고)
+        #    겉을 돌면 시장표가 텅 비어 **코스닥 1,823종목이 코스피 지수로** 계산됐다.
+        #    9/19 「시장으로 쪼개면」에서 코스피 칸 하나만 나온 것도 이 탓이다
+        _sb = _sb.get("종목") or _sb
         for c2, v2 in _sb.items():
             if isinstance(v2, dict) and v2.get("시장"):
                 시장표[c2] = str(v2["시장"])
+    print(f"    시장표 — {len(시장표):,}종목 "
+          f"(코스닥 {sum(1 for z in 시장표.values() if 'KOSDAQ' in z or '닥' in z):,})", flush=True)
 
     붙음, 섹붙음 = 0, 0
     for x in 사건:
