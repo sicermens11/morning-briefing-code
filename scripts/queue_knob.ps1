@@ -46,6 +46,33 @@ function 아침인가 {
 #    (Add-Content: The process cannot access the file). 로그로 기다리면 영영 안 끝난 걸로 본다.
 #    결과 파일은 시작할 때 생기므로 「파일이 있고 + 큰 파이썬이 없다」가 끝난 것이다
 $앞파일 = "data\_labs\2026-09-19_MKT2_코스피코스닥.txt"
+function 메모리여유GB {
+    # ⚠️ **물리 메모리가 아니라 「커밋 여유」가 진짜 벽이다.**
+    #    2026-09-20 00:19 에 물리는 1.4GB 였는데 커밋이 43.8/45.3GB 로 1.5GB 밖에 안 남았었다.
+    #    커밋 한도를 넘으면 파이썬이 MemoryError 로 죽는다 (판 하나가 24~32GB 를 쓴다)
+    $o = Get-CimInstance Win32_OperatingSystem
+    return [math]::Round(($o.FreeVirtualMemory) / 1MB, 1)
+}
+function 메모리적기($때) {
+    $o = Get-CimInstance Win32_OperatingSystem
+    $물 = [math]::Round($o.FreePhysicalMemory / 1MB, 1)
+    $커 = [math]::Round($o.FreeVirtualMemory / 1MB, 1)
+    적기 ("[메모리] $때 — 물리 남음 {0} GB · 커밋 여유 {1} GB" -f $물, $커)
+}
+function 메모리관문($필요GB = 18) {
+    # 앞 판이 끝나도 OS 가 커밋을 바로 안 놓을 수 있다. 실제로 돌아올 때까지 기다린다
+    $ㅁ = 0
+    while ((메모리여유GB) -lt $필요GB -and $ㅁ -lt 40) {
+        if ($ㅁ -eq 0) { 적기 ("[메모리] 여유 {0} GB — {1} GB 될 때까지 기다린다" -f (메모리여유GB), $필요GB) }
+        Start-Sleep -Seconds 60
+        $ㅁ = $ㅁ + 1
+    }
+    if ($ㅁ -gt 0) { 적기 "[메모리] $ㅁ 분 기다렸다" }
+    if ((메모리여유GB) -lt $필요GB) {
+        적기 ("⚠️ [메모리] 40분 기다려도 여유가 {0} GB 뿐이다 — 그래도 간다 (안 도는 것보다 낫다)" -f (메모리여유GB))
+    }
+}
+
 function 앞줄끝났나 {
     if (-not (Test-Path $앞파일)) { return $false }
     if ((큰파이썬) -gt 0) { return $false }
@@ -69,6 +96,8 @@ while ((아침인가) -and ($ㅇ -lt 180)) {
 }
 if ($ㅇ -gt 0) { 적기 "[0] 아침 창을 $ㅇ 분 기다렸다" }
 
+메모리관문 18
+메모리적기 "판 시작 전"
 적기 "[KNOB] Q-1~Q-5 · ㉢·㉤ 문턱 다시 + 시장별 문턱 - 시작"
 $env:BASE_GAP = "표본만+실전표본"
 $env:BASE_RELGAP = "-3.5"
@@ -81,4 +110,5 @@ catch { 적기 "⚠️ [KNOB] 터졌다: $($_.Exception.Message)" }
 foreach ($k in "BASE_GAP", "BASE_RELGAP", "BASE_SELL", "BASE_PICKS", "SIZE_HI", "LAB_OUT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
 $밖 = Join-Path "data\_labs" "2026-09-20_KNOB_문턱다시.txt"
 if (Test-Path $밖) { 적기 "[KNOB] 끝 — $('{0:N0}' -f (Get-Item $밖).Length) B" } else { 적기 "⚠️ [KNOB] 결과 파일이 없다" }
+메모리적기 "판 끝난 뒤"
 적기 "===== queue_knob 끝 ====="
