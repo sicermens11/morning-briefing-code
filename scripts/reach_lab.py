@@ -284,7 +284,8 @@ def main():
     for x in 사건:
         i2 = x["인"] - 1
         시장 = 시장표.get(x["code"]) or ""
-        지수이름 = "코스닥" if "닥" in 시장 else "코스피"
+        지수이름 = ("코스닥" if ("닥" in str(시장) or "KOSDAQ" in str(시장).upper())
+                   else "코스피")   # ⚠️2026-09-19: 값은 "KOSDAQ" — 한글 「닥」만 찾으면 늘 거짓이었다
         시낙 = 낙폭(지수이름, i2)
         x["시장낙폭"] = 시낙
         x["상대강도"] = (x["낙폭20"] - 시낙) if 시낙 is not None else None
