@@ -509,6 +509,86 @@ def N절():
     return 나쁨
 
 
+def O절():
+    r"""⭐⭐⭐ **찾아보기 표가 조용히 비지 않았나** (2026-09-19 신설)
+
+    2026-09-19 에 같은 버그로 **두 겹** 당했다. 둘 다 오류를 안 냈다:
+    ```
+    ① stock-base.json 은 {"받은날","종목수","종목":{코드:{…}}} 인데 **겉을 돌았다**
+       ⇒ 시장표가 텅 빔. .get() 이 None, `or ""` 가 삼킴, `in ""` 이 조용히 False
+    ② 값은 **"KOSDAQ"** 인데 한글 **「닥」**을 찾았다
+       ⇒ ①을 고쳐도 판정은 여전히 거짓. 결과가 한 원도 안 바뀌어서야 알았다
+    ```
+    결과: 코스닥 1,823종목(상장의 2/3)이 **코스피 지수로** 시장낙폭·변동성을 봤다.
+    실전(record_pick)은 「닥」·「KOSDAQ」을 둘 다 봐서 **맞았다** — 시험만 틀렸다.
+
+    여기서 보는 것 둘:
+      ㉠ stock-base.json 을 읽으면서 ["종목"] 을 안 거치는 곳
+      ㉡ 코스닥을 「닥」으로만 가리는 곳 (값이 "KOSDAQ" 이면 늘 거짓이다)
+    """
+    print("\n" + "=" * 96)
+    print("  O ⭐⭐⭐ **찾아보기 표가 조용히 비지 않았나** — 2026-09-19 에 두 겹으로 당했다")
+    print("     빈 표는 터지지 않는다. 틀린 답을 끝까지 들고 간다")
+    print("=" * 96)
+    나쁨 = []
+    import re as _re
+    for f in sorted(glob.glob(os.path.join(_S, "*.py"))):
+        이름 = os.path.basename(f)
+        if 이름 == "audit_all.py":
+            continue
+        try:
+            src = io.open(f, encoding="utf-8-sig").read()
+        except Exception:  # noqa: BLE001
+            continue
+        줄들 = src.splitlines()
+        # ㉠ stock-base.json 을 **읽는 자리**에서 ["종목"] 을 안 거친다
+        #    ⚠️ 경로를 변수에 담아 두고 나중에 읽는 꼴이 많다 (이게 바로 깨졌던 모양이다):
+        #        _sp = os.path.join(O._DATA, "stock-base.json")
+        #        _sb = json.load(io.open(_sp, ...))          ← 이 줄엔 파일 이름이 없다
+        #    그래서 **변수를 따라간다.** 그냥 경로만 정의한 줄은 잡지 않는다
+        #    (chain_map.py:45 를 그렇게 잘못 잡았다 — 읽는 곳은 18줄 뒤였고 멀쩡했다)
+        _읽자리 = []
+        for i, 줄 in enumerate(줄들):
+            if "stock-base.json" not in 줄:
+                continue
+            if "json.load" in 줄 or "io.open" in 줄 or "read(" in 줄:
+                _읽자리.append(i)
+                continue
+            m = _re.search(r"(\w+)\s*=\s*os\.path\.join", 줄)
+            if not m:
+                _읽자리.append(i)          # 무슨 꼴인지 모르겠으면 일단 본다
+                continue
+            변수 = m.group(1)
+            for j in range(i + 1, min(i + 26, len(줄들))):
+                if _re.search(r"json\.load|io\.open|open\(", 줄들[j]) and 변수 in 줄들[j]:
+                    _읽자리.append(j)
+                    break
+        for i in _읽자리:
+            근처 = "\n".join(줄들[i:i + 25])
+            if '"종목"' in 근처 or "_기본()" in 근처:
+                continue
+            print(f"  ❌ {이름}:{i + 1}  stock-base 를 읽는데 25줄 안에 [\"종목\"] 이 없다")
+            print(f"        {줄들[i].strip()[:82]}")
+            나쁨.append(f"O 한 겹 안 들어감 {이름}:{i + 1}")
+        # ㉡ 「닥」으로만 코스닥을 가린다
+        for i, 줄 in enumerate(줄들):
+            if '"닥"' not in 줄 and "'닥'" not in 줄:
+                continue
+            if 줄.lstrip().startswith("#"):
+                continue
+            근처 = "\n".join(줄들[max(0, i - 2):i + 3])
+            if _re.search(r"KOSDAQ", 근처, _re.I):
+                continue
+            print(f"  ❌ {이름}:{i + 1}  「닥」만 찾는다 — 값이 \"KOSDAQ\" 이면 늘 거짓이다")
+            print(f"        {줄.strip()[:82]}")
+            나쁨.append(f"O 「닥」만 {이름}:{i + 1}")
+    if not 나쁨:
+        print("  ✅ stock-base 는 전부 [\"종목\"] 을 거치고, 코스닥 판정은 KOSDAQ 도 같이 본다")
+    else:
+        print("     ※ 고친 뒤에는 **표 크기를 찍는 줄**도 같이 넣는다 — 다음엔 바로 보인다")
+    return 나쁨
+
+
 def G절():
     print("\n" + "=" * 96)
     print("  G ⭐⭐ **판정에 「기회 수」를 안 보는 시험**")
@@ -542,7 +622,7 @@ def main():
     print(f"  {dt.datetime.now():%Y-%m-%d %H:%M}")
     print("=" * 96)
     모 = []
-    for 절 in (A절, B절, C절, D절, E절, F절, G절, H절, I절, J절, K절, L절, M절, N절):
+    for 절 in (A절, B절, C절, D절, E절, F절, G절, H절, I절, J절, K절, L절, M절, N절, O절):
         try:
             모 += 절() or []
         except Exception as e:  # noqa: BLE001

@@ -14,6 +14,10 @@
 #    ㉤ 변동성·자사주  지수 20일 변동성 ≥ 1.42%    ← 역시 지수 값 위
 #  둘 다 잘못된 지수로 검증됐다. 같은 판에서 ㉢ 끔 · ㉤ 끔 · 소형만(㉣ 끔) 을 나란히 찍는다.
 #
+#  ⚠️ MKT(21:41) 는 **반만 고친 판**이다 — 시장표는 채웠는데 값이 "KOSDAQ" 이라
+#     한글 「닥」 판정이 여전히 거짓이었다. 그래서 결과가 한 원도 안 바뀌었다.
+#     MKT3 이 「닥」까지 고친 진짜 판이다.
+#
 #  앞줄 없음 (주말 판은 06:20 에 전부 끝났다) · 07:20~09:10 은 시작 안 함
 # ==============================================================
 $ErrorActionPreference = "Continue"
@@ -48,10 +52,10 @@ $env:BASE_RELGAP = "-3.5"
 $env:BASE_SELL = "0.4,15,40 / 0.6,40,90"
 $env:BASE_PICKS = "120"
 $env:SIZE_HI = "999999"
-$env:LAB_OUT = "2026-09-19_MKT_시장표고침.txt"
+$env:LAB_OUT = "2026-09-19_MKT3_닥까지고침.txt"
 try { & $py "scripts\gate7_lab.py" 2>&1 | Select-Object -Last 6 | ForEach-Object { 적기 "    $_" } }
 catch { 적기 "⚠️ [MKT] 터졌다: $($_.Exception.Message)" }
 foreach ($k in "BASE_GAP", "BASE_RELGAP", "BASE_SELL", "BASE_PICKS", "SIZE_HI", "LAB_OUT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
-$밖 = Join-Path "data\_labs" "2026-09-19_MKT_시장표고침.txt"
+$밖 = Join-Path "data\_labs" "2026-09-19_MKT3_닥까지고침.txt"
 if (Test-Path $밖) { 적기 "[MKT] 끝 — $('{0:N0}' -f (Get-Item $밖).Length) B" } else { 적기 "⚠️ [MKT] 결과 파일이 없다" }
 적기 "===== queue_mkt 끝 ====="
