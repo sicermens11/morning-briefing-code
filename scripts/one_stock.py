@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 r"""
 one_stock.py — **종목 하나만 떼어 본다** (2026-09-17 신설)
 
