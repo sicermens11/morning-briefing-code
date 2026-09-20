@@ -3605,11 +3605,16 @@ def main():
     _조합들P = []
     try:
         import re as _reP
-        _cf = sorted(glob.glob(os.path.join(O._DATA, "_labs", "2026-*COMBO*.txt")), key=os.path.getmtime, reverse=True)
+        # ⚠️⚠️ **2026-09-20 고침** — 이름에 COMBO 가 든 파일만 찾고 있었다.
+        #    주말 판 이름이 WIDE · TURN · MKT2 · RISE2 로 바뀌면서 **하나도 안 걸렸고**,
+        #    P절이 9/19 부터 내내 **손으로 적어둔 11쌍**으로 돌았다 (새 조합을 하나도 안 봤다).
+        #    WIDE 한 파일에만 「셋 다」가 68건 들어 있었다.
+        #    ⇒ **이름으로 찾지 말고 판정표가 든 파일을 전부** 본다 (안에서 다시 거른다)
+        _cf = sorted(glob.glob(os.path.join(O._DATA, "_labs", "2026-*.txt")), key=os.path.getmtime, reverse=True)
         # ⚠️ 첫 파일만 읽고 break 하면 combo3(ECOS)가 새로 생긴 뒤엔 combo2 의 18개를 놓친다 (2026-09-16 11:50)
         #    → 최근 3일 안의 COMBO 파일을 **전부 합친다** (겹치면 하나로)
         import time as _tmP
-        _cf = [f for f in _cf if _tmP.time() - os.path.getmtime(f) < 3 * 86400]
+        _cf = [f for f in _cf if _tmP.time() - os.path.getmtime(f) < 5 * 86400][:30]
         for _f in _cf:
             _t = io.open(_f, encoding="utf-8", errors="replace").read()
             if "── 판정 (기존 OR 쌍" not in _t:
@@ -4032,6 +4037,22 @@ def main():
     #    그 판도 **틀린 지수**로 돌았다 — 숫자부터 다시 본다
     print("\n  ── Q-9 ⭐⭐ **보류 중인 후보 3호** (기준금리20↓ + 선물20↓) — 지수 고친 뒤 ──")
     _쌍9 = (("기준금리20", "↓"), ("코스피200선물20", "↓"))
+    # ⚠️⚠️ **2026-09-20 고침** — 9/20 첫 판에서 이 절이 통째로 건너뛰어졌다.
+    #    앞 절이 COMBO 판정표를 못 읽어 손으로 적은 11쌍으로 되돌아갔고,
+    #    그 11쌍에 기준금리20 이 없어 _문턱P 에 안 들어갔다.
+    #    _값P 는 기준금리20 을 만들 수 있다 — **문턱만 여기서 직접 내면 된다**
+    for _재9 in (재 for 재, _ in _쌍9):
+        if _재9 in _문턱P:
+            continue
+        _v9 = sorted(z for z in (_값P(x, _재9) for x in 사건) if z is not None)
+        if len(_v9) < len(사건) * 0.3:
+            print(f"     ⚠️ {_재9} — 값이 {len(_v9):,}개뿐 (사건의 "
+                  f"{len(_v9) / max(len(사건), 1) * 100:.0f}%) 이라 문턱을 못 낸다")
+            continue
+        _낮9, _높9 = _v9[len(_v9) // 5], _v9[len(_v9) * 4 // 5]
+        _문턱P[_재9] = (_낮9, _높9, _낮9 == _높9)
+        print(f"     {_재9} 문턱을 여기서 냈다 — 아래 20% ≤ {_낮9:,.2f} · 위 20% ≥ {_높9:,.2f}"
+              + ("  (몰림)" if _낮9 == _높9 else ""))
     if all(재 in _문턱P for 재, _ in _쌍9):
         def _H3호(x):
             return _H(x) or (문통과(x) and all(_조건P(x, 재, 방) for 재, 방 in _쌍9))
