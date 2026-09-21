@@ -735,13 +735,35 @@ def c05_calendar(o, cp, num, total):
     return card(inner, "04 일정", 바닥=3)
 
 
-def c06_opinion(o, cp, num, total):
+def _기관쪼갤까(cp):
+    r"""리포트가 많아 **한 장에 안 들어가나** (2026-09-21).
+
+    2026-09-21 08:55 에 「항목 간 간격 0px」로 게시가 막혔다. 기관 카드에
+    보는 법 + 리포트 N건 + 컨센서스를 한 장에 밀어 넣다 보니 넘쳤다.
+    ⚠️ **글을 줄이지 않는다** — 넘치면 **장을 늘린다** (사용자 2026-09-21 「2번으로 가자」).
+
+    ⚠️ 처음엔 「리포트 3건부터 쪼갠다」로 짰는데 **리포트는 최대 2건**이라
+       (`건수['리포트'] = 2`) 한 번도 안 걸렸다. 넘치는 것은 건수가 아니라
+       **글 길이**다 — 보는 법 + 인용 + 컨센서스가 다 긴 글이다.
+       기록된 22일 중 **17일**에서 넘쳤다. 어느 날은 -326px 이었다.
+    ⇒ 길이를 재서 갈라도 되지만, 길이는 날마다 널뛰고 경계에 걸린 날이 또 막는다.
+       **늘 두 장으로** 둔다 — 쪽 수가 날마다 바뀌지 않아 읽는 쪽도 예측이 된다.
+    """
+    return True
+
+
+def c06_opinion(o, cp, num, total, 쪽=1, 쪽수=1):
     rows = ""
     # 카드는 요약 — **점수를 실제로 움직인 것 2건**만. 나머지는 세로형에서 본다.
     ops = sorted((cp.get("의견") or []), key=lambda y: y.get("부호", "flat") == "flat")
     # ⚠️ 항목마다 바탕을 깔고, 목표주가를 올렸나 내렸나를 **왼쪽 막대 색**으로 표시한다.
     _리n = 건수['리포트']
-    for i, x in enumerate(ops[:_리n]):
+    # ⭐ 두 장으로 나누면 **리포트를 반씩** 나눠 싣는다 (2026-09-21)
+    _쓸것 = ops[:_리n]
+    if 쪽수 > 1:
+        _반 = (len(_쓸것) + 1) // 2
+        _쓸것 = _쓸것[:_반] if 쪽 == 1 else _쓸것[_반:]
+    for i, x in enumerate(_쓸것):
         tone = x.get("부호", "flat")
         col = {"up": C["up"], "down": C["down"], "flat": C["muted"]}[tone]
         # ⚠️⚠️ **색 막대도 색 글자도 걷었다** (2026-09-11 · 시안).
@@ -763,16 +785,26 @@ def c06_opinion(o, cp, num, total):
                  f'<div style="font-size:33px;line-height:1.5;color:{C["faint"]};'
                  f'word-break:keep-all">→ {tint_pct(x.get("뜻"))}</div></div>')
     # ⭐ 지시서 2절 — 보는 법(문단) -> 리포트 2건 -> 애널리스트 컨센서스(문단)
-    inner = (head(SEC["기관"], "기관", pg(num, total), "증권가는 뭐라고 했나")
-             + block("보는 법", "",
-                     f'<div style="font-size:37px;line-height:1.6;'
-                     f'color:{C["text2"]};word-break:keep-all">'
-                     f'{first_sentence(cp.get("의견해설"), CUT["의견해설"])}</div>', top=0)
-             + block("리포트", "", rows + 남은줄(len(ops) - _리n))
-             + block("애널리스트 컨센서스", "",
-                     f'<div style="font-size:37px;line-height:1.6;'
-                     f'color:{C["text2"]};word-break:keep-all">'
-                     f'{first_sentence(cp.get("컨센서스"), CUT["컨센서스"])}</div>'))
+    # ⭐ 한 장이면 지금과 똑같다. 두 장이면 **앞장에 보는 법 + 리포트 앞 절반**,
+    #    **뒷장에 리포트 뒷 절반 + 컨센서스**를 싣는다 (2026-09-21)
+    _꼬리 = "" if 쪽수 == 1 else f" ({쪽}/{쪽수})"
+    _머리 = head(SEC["기관"], "기관" + _꼬리, pg(num, total), "증권가는 뭐라고 했나")
+    _보는법 = block("보는 법", "",
+                    f'<div style="font-size:37px;line-height:1.6;'
+                    f'color:{C["text2"]};word-break:keep-all">'
+                    f'{first_sentence(cp.get("의견해설"), CUT["의견해설"])}</div>', top=0)
+    _컨센 = block("애널리스트 컨센서스", "",
+                  f'<div style="font-size:37px;line-height:1.6;'
+                  f'color:{C["text2"]};word-break:keep-all">'
+                  f'{first_sentence(cp.get("컨센서스"), CUT["컨센서스"])}</div>')
+    _리표 = block("리포트" + (f" ({쪽}/{쪽수})" if 쪽수 > 1 else ""), "",
+                  rows + (남은줄(len(ops) - _리n) if 쪽 == 쪽수 else ""))
+    if 쪽수 == 1:
+        inner = _머리 + _보는법 + _리표 + _컨센
+    elif 쪽 == 1:
+        inner = _머리 + _보는법 + _리표
+    else:
+        inner = _머리 + _리표 + _컨센
     return card(inner, "05 기관")
 
 
@@ -1188,11 +1220,16 @@ def cards_for(o, cp):
               for i in range(0, len(picks), PICKS_PER_CARD)] or [[]]
     # ⚠️ **표지는 세지 않는다** — "밤사이 무슨 일이 있었나"가 01이다(2026-08-28 지시).
     #    세로 상세도 같은 규칙이라 두 화면의 쪽 번호가 맞는다.
-    total = 5 + len(chunks)
+    # ⭐ 기관 카드가 넘치면 **두 장**이 된다 (2026-09-21 · 08:55 게시가 막혀서)
+    _기관쪽수 = 2 if _기관쪼갤까(cp) else 1
+    total = 5 + len(chunks) + (_기관쪽수 - 1)
     out = [b(o, cp, max(i, 1), total) for i, b in enumerate(
-        [c01_cover, c02_news, c03_regime, c04_flows, c05_calendar, c06_opinion], 0)]
+        [c01_cover, c02_news, c03_regime, c04_flows, c05_calendar], 0)]
+    for _p in range(1, _기관쪽수 + 1):
+        out.append(c06_opinion(o, cp, 5 + _p - 1, total, 쪽=_p, 쪽수=_기관쪽수))
+    _밀림 = _기관쪽수 - 1
     for j, ch in enumerate(chunks):
-        out.append(c07_action(o, cp, 6 + j, total, chunk=ch, first=(j == 0),
+        out.append(c07_action(o, cp, 6 + _밀림 + j, total, chunk=ch, first=(j == 0),
                               offset=j * PICKS_PER_CARD, last=(j == len(chunks) - 1),
                               part=j + 1, parts=len(chunks), rest=남은))
     return out
