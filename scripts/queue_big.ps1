@@ -1,29 +1,22 @@
 ﻿# ==============================================================
-#  queue_big.ps1 — ㉠ **크기 문 하나만 바꾼다** (2026-09-15)
+#  queue_rejudge.ps1 — **새 잣대로 전부 다시 판정** (2026-09-20 · 사용자)
 #
-#  왜 다시 거나
-#  ------------
-#  M판(2026-09-14)을 「크기 무제한이면 낙폭 -62%」의 근거로 읽었는데,
-#  M판과 Z판은 **세 가지**가 달랐다. 크기 탓으로 돌릴 수 없다:
+#  사용자: 「셋 넣어!」「근데 그럼 여태 4관문 테스트 했던거 다시 해야하는 거 아니야?」
 #
-#      항목        M판(크기무제한)   Z판(지금)
-#      후보수         40            **120**
-#      크기상한      999,999억        3,000억
-#      매도         50:50          **40:60**
+#  ## 무엇이 바뀌었나 (docs/판정장치점검.md)
+#    · 해마다를 **승패 세기 → 평균 ± 오차 · t** 로
+#    · **낙폭**도 같이 본다 (전에는 돈만 봤다)
+#    · 죽은 구간(±0.5 · ±1) 없앰 — 내가 고른 선이 승패를 만들었다
+#    · ⬜「못 가른다」는 **기각이 아니다** — t ≤ -2 일 때만 ❌
+#    · 무작위 대조 문턱 25% → 10%
+#    · 판정 12곳을 함수 하나로 모았다
 #
-#  그래서 **Z판과 똑같이** 두고 `SIZE_HI` 하나만 999999 로 연다.
-#  이러면 차이가 **크기 하나**에서만 온다.
+#  ## 다시 보게 되는 것
+#    · ㉢ 문턱 후보 넷 — 「4승 5패 ❌」로 떨어뜨렸는데 t 는 전부 |t|<1 이었다
+#    · 유상증자 거르개 — 「1승 2패 ❌」
+#    · 옛 4관문 표 전체 (A·B·C)
 #
-#  ⚠️ SIZE_HI 는 사건 그물(①)과 규칙 안 상한(②) 을 **둘 다** 연다
-#     (`_규칙크기상한` · 2026-09-14 에 묶었다)
-#
-#  ⚠️ 볼 곳 — 260차 절의 「Ⓗ · 규모별 잣대 · 소형만 / 크기 무제한」 두 줄.
-#     SIZE_HI 를 주면 `_H` 자체가 열려 **두 줄이 또 같아진다.**
-#     그러니 이 판의 **Ⓗ 기준선 자체**를 Z판 Ⓗ(2.541억 · -5.8% · 263)와 견준다
-#
-#  ⚠️ 램: 사건 그물이 3,000억 -> 무제한이면 사건이 크게 는다.
-#     전에 램 지킴이가 이 시험을 **네 번 죽였다**. 여유를 보고 시작한다
-#  ⚠️ 07:20~09:10 은 아침 브리핑·판정 구간이라 시작하지 않는다
+#  앞줄(PAIR)이 끝난 뒤 · 메모리 18GB 관문 · 07:20~09:10 은 기다렸다 시작
 # ==============================================================
 $ErrorActionPreference = "Continue"
 Set-Location "C:\Users\mrblue\Claude\morning breifing_code"
@@ -35,7 +28,7 @@ $log = "run-logs\queue_big_$(Get-Date -f yyyyMMdd_HHmm).log"
 function 적기($s) {
     $줄 = "$(Get-Date -f 'MM-dd HH:mm')  $s"
     Write-Output $줄
-    Add-Content -Path $log -Value $줄 -Encoding UTF8
+    try { Add-Content -Path $log -Value $줄 -Encoding UTF8 -ErrorAction Stop } catch { }
 }
 function 큰파이썬 {
     @(Get-Process python -ErrorAction SilentlyContinue |
@@ -45,30 +38,50 @@ function 아침인가 {
     $h = (Get-Date).Hour; $m = (Get-Date).Minute
     return (($h -eq 7 -and $m -ge 20) -or ($h -eq 8) -or ($h -eq 9 -and $m -lt 10))
 }
+function 메모리여유GB {
+    return [math]::Round((Get-CimInstance Win32_OperatingSystem).FreeVirtualMemory / 1MB, 1)
+}
+function 메모리적기($때) {
+    $o = Get-CimInstance Win32_OperatingSystem
+    적기 ("[메모리] $때 — 물리 남음 {0} GB · 커밋 여유 {1} GB" -f
+          [math]::Round($o.FreePhysicalMemory / 1MB, 1), [math]::Round($o.FreeVirtualMemory / 1MB, 1))
+}
+function 메모리관문($필요GB = 18) {
+    $ㅁ = 0
+    while ((메모리여유GB) -lt $필요GB -and $ㅁ -lt 40) {
+        if ($ㅁ -eq 0) { 적기 ("[메모리] 여유 {0} GB — {1} GB 될 때까지 기다린다" -f (메모리여유GB), $필요GB) }
+        Start-Sleep -Seconds 60; $ㅁ = $ㅁ + 1
+    }
+    if ($ㅁ -gt 0) { 적기 "[메모리] $ㅁ 분 기다렸다" }
+}
+# ⚠️ 앞줄 판정은 **결과 파일 + 큰 파이썬 없음**으로 본다.
+#    로그 글귀로 보면 로그가 잠겼을 때 영영 기다린다 (2026-09-19 23:08 에 겪었다)
+$앞파일 = "data\_labs\2026-09-20_PAIR_쌍다시.txt"
+function 앞줄끝났나 {
+    if (-not (Test-Path $앞파일)) { return $false }
+    if ((큰파이썬) -gt 0) { return $false }
+    return $true
+}
 
-적기 "[0] 앞선 큰 파이썬이 끝나길 기다린다"
-$ㄱ = 0
-while ((큰파이썬) -gt 0 -and ($ㄱ -lt 300)) { Start-Sleep -Seconds 60; $ㄱ = $ㄱ + 1 }
-$여유 = (Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1MB
-적기 "   (큰 파이썬 $ㄱ 분 기다림 · 여유 $('{0:N1}' -f $여유) GB)"
-if ($여유 -lt 8) { 적기 "⚠️ 램 여유가 8GB 미만 — 시작하지 않는다"; exit 0 }
+$ㅇ = 0
+while ((아침인가) -and ($ㅇ -lt 180)) {
+    if ($ㅇ -eq 0) { 적기 "[0] 아침 시간대다 — 09:10 지나가길 기다린다" }
+    Start-Sleep -Seconds 60; $ㅇ = $ㅇ + 1
+}
+메모리관문 18
+메모리적기 "판 시작 전"
 
-if (아침인가) { 적기 "⚠️ 아침 시간대 — 시작하지 않는다"; exit 0 }
-적기 "[BIG_크기만] Z판과 똑같이 두고 **SIZE_HI 만** 연다 - 시작"
+적기 "[BIG] Q-12 대형주 낙폭 문턱을 규모에 맞게 - 시작"
 $env:BASE_GAP = "표본만+실전표본"
 $env:BASE_RELGAP = "-3.5"
 $env:BASE_SELL = "0.4,15,40 / 0.6,40,90"
 $env:BASE_PICKS = "120"
 $env:SIZE_HI = "999999"
-$env:LAB_OUT = "2026-09-15_BIG_크기만.txt"
-try {
-    & $py "scripts\gate7_lab.py" 2>&1 | Select-Object -Last 4 | ForEach-Object { 적기 "    $_" }
-}
-catch { 적기 "⚠️ [BIG_크기만] 터졌다: $($_.Exception.Message)" }
-foreach ($k in "BASE_GAP", "BASE_RELGAP", "BASE_SELL", "BASE_PICKS", "SIZE_HI", "LAB_OUT") {
-    Remove-Item "env:$k" -ErrorAction SilentlyContinue
-}
-$밖 = Join-Path "data\_labs" "2026-09-15_BIG_크기만.txt"
-if (Test-Path $밖) { 적기 "[BIG_크기만] 끝 — $('{0:N0}' -f (Get-Item $밖).Length) B" }
-else { 적기 "⚠️ [BIG_크기만] 결과 파일이 없다" }
-적기 "===== queue_big 끝 ====="
+$env:LAB_OUT = "2026-09-21_BIG_대형주문턱.txt"
+try { & $py "scripts\gate7_lab.py" 2>&1 | Select-Object -Last 6 | ForEach-Object { 적기 "    $_" } }
+catch { 적기 "⚠️ [REJUDGE] 터졌다: $($_.Exception.Message)" }
+foreach ($k in "BASE_GAP", "BASE_RELGAP", "BASE_SELL", "BASE_PICKS", "SIZE_HI", "LAB_OUT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
+$밖 = Join-Path "data\_labs" "2026-09-21_BIG_대형주문턱.txt"
+if (Test-Path $밖) { 적기 "[REJUDGE] 끝 — $('{0:N0}' -f (Get-Item $밖).Length) B" } else { 적기 "⚠️ [REJUDGE] 결과 파일이 없다" }
+메모리적기 "판 끝난 뒤"
+적기 "===== queue_rejudge 끝 ====="
