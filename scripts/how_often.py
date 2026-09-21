@@ -176,18 +176,21 @@ def main():
             if not (_기존 or _섹 or _시장):
                 continue
             g = 하루갭.get(code)
-            칸.append((_기존 + _섹 + _시장, 낙, g))
+            칸.append((_기존 + _섹 + _시장, 낙, g, _z20))
         # ⚠️ 자르는 순서도 **실전과 같게** — 걸린 규칙 수가 많은 것 먼저,
         #    같은 층에서 깊게 빠진 순 (record_pick · 206차 P-2)
         칸.sort(key=lambda z: (-z[0], z[1]))
         앞 = 칸[:_후보수]
         살 = 0
-        벌 = [g for _, _, g in 앞 if g is not None]
+        벌 = [z[2] for z in 앞 if z[2] is not None]
         if len(벌) >= 3:
             중 = st.median(벌)
-            살 = sum(1 for _, _, g in 앞
-                     if g is not None and (g - 중) <= _갭문턱)
-        셈.append((다음, len(앞), min(살, R.하루최대종목)))
+            살 = sum(1 for z in 앞
+                     if z[2] is not None and (z[2] - 중) <= _갭문턱)
+        # ⭐ ㉥ (2026-09-21) — 그날 상한은 **맨 위 후보의 시장 지수**로 정한다
+        #    (시뮬·실전과 같은 자리). 후보가 없으면 상한도 뜻이 없다
+        _낙20 = next((z[3] for z in 앞 if z[3] is not None), None)
+        셈.append((다음, len(앞), min(살, R.오늘최대종목(_낙20))))
 
     print("=" * 74)
     print("  후보가 며칠에 한 번 나오나")
