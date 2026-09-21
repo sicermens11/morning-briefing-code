@@ -73,11 +73,11 @@ $env:BASE_SELL = "0.4,15,40 / 0.6,40,90"
 $env:BASE_PICKS = "120"
 $env:SIZE_HI = "999999"
 $env:ONLY = "Q19"
-$env:LAB_OUT = "2026-09-21_BAND6_다섯띠규칙.txt"
+$env:LAB_OUT = "2026-09-21_B1_규모다섯띠.txt"
 try { & $py "scripts\gate7_lab.py" 2>&1 | Select-Object -Last 6 | ForEach-Object { 적기 "    $_" } }
 catch { 적기 "⚠️ [REJUDGE] 터졌다: $($_.Exception.Message)" }
 foreach ($k in "BASE_GAP", "BASE_RELGAP", "BASE_SELL", "BASE_PICKS", "SIZE_HI", "LAB_OUT", "ONLY") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
-$밖 = Join-Path "data\_labs" "2026-09-21_BAND6_다섯띠규칙.txt"
+$밖 = Join-Path "data\_labs" "2026-09-21_B1_규모다섯띠.txt"
 if (Test-Path $밖) { 적기 "[REJUDGE] 끝 — $('{0:N0}' -f (Get-Item $밖).Length) B" } else { 적기 "⚠️ [REJUDGE] 결과 파일이 없다" }
 메모리적기 "판 끝난 뒤"
 적기 "===== queue_rejudge 끝 ====="

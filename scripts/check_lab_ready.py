@@ -192,6 +192,37 @@ if 걸린4:
     print("      소형 문턱을 늘리거나 소형 규칙 위에 얹는 것은 「따로 찾기」가 아니다.")
     print("      ⚠️ 이 검사는 **절 이름을 안 본다** — 이름을 바꿔도 못 빠져나간다.")
 
+# ── ⑤ **함수를 변수로 덮어쓰나** ──
+#    2026-09-21 20:00 BAND6 가 1시간 14분 돌다 죽었다:
+#        _기19 = 시뮬(_c(_H))  ->  TypeError: 'float' object is not callable
+#    `_c` 는 시뮬 설정을 만드는 **함수**인데 Q-19 에서 문턱 값 변수로 덮어썼다.
+#    검사 ①(이름이 살아 있나)은 못 잡는다 — 살아 있는데 **뜻이 바뀐** 것이다
+# ⚠️ **품은 함수 바로 아래** 함수만 본다. 더 깊이 갇힌 지역 함수는
+#    바깥에서 같은 이름을 써도 안 터진다 (2026-09-21 오탐 6건을 그렇게 냈다)
+_함수들 = {n.name for n in 품은.body
+           if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+           and (n.lineno or 0) < 시작}
+걸린5 = []
+for n in ast.walk(품은):
+    if not isinstance(n, ast.Assign) or (n.lineno or 0) < 시작:
+        continue
+    for t in n.targets:
+        for m in ast.walk(t):
+            if isinstance(m, ast.Name) and m.id in _함수들:
+                걸린5.append((n.lineno, m.id))
+# for 문의 풀기도 대입이다
+for n in ast.walk(품은):
+    if not isinstance(n, ast.For) or (n.lineno or 0) < 시작:
+        continue
+    for m in ast.walk(n.target):
+        if isinstance(m, ast.Name) and m.id in _함수들:
+            걸린5.append((n.lineno, m.id))
+print(f"⑤ 밖의 함수를 변수로 덮어쓰나 — {len(걸린5)}곳")
+for _ln, _이름 in 걸린5[:10]:
+    탈.append(f"⑤ {_ln}줄 {_이름} — 함수를 값으로 덮어썼다")
+    print(f"   ❌ {_ln}줄  **{_이름}** 는 함수인데 값으로 덮어썼다")
+    print(f"      그 뒤로 {_이름}(...) 가 터진다. 변수 이름을 바꿔라")
+
 print()
 if 탈:
     for z in 탈:

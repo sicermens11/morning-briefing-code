@@ -4556,11 +4556,11 @@ def main():
         _반 = len(_칸) // 2
         _좋 = []
         for _이름, _꺼, _방 in _재19:
-            _c = _문19.get((_라19, _이름))
-            if _c is None:
+            _컷 = _문19.get((_라19, _이름))
+            if _컷 is None:
                 continue
             _z = [x for x in _칸 if (_꺼(x) is not None)
-                  and ((_꺼(x) <= _c) if _방 == "아래" else (_꺼(x) >= _c))]
+                  and ((_꺼(x) <= _컷) if _방 == "아래" else (_꺼(x) >= _컷))]
             if len(_z) < 300:
                 continue
             _w = sum(1 for x in _z if x["_20"] > 0) / len(_z) * 100
@@ -4595,13 +4595,13 @@ def main():
         for _이름, _꺼, _방 in _재19:
             if _이름 not in 쓸것:
                 continue
-            _c = _문19.get((라, _이름))
-            if _c is None:
+            _컷 = _문19.get((라, _이름))
+            if _컷 is None:
                 return False
             _v = _꺼(x)
             if _v is None:
                 return False
-            if (_v > _c) if _방 == "아래" else (_v < _c):
+            if (_v > _컷) if _방 == "아래" else (_v < _컷):
                 return False
         return True
 
@@ -4734,11 +4734,11 @@ def main():
             # ⭐ 그 업종에서 센 재료를 **자료가 고른다**
             _좋 = []
             for _이름, _꺼, _방 in _재19:
-                _c = _문20.get((_섹, _이름))
-                if _c is None:
+                _컷 = _문20.get((_섹, _이름))
+                if _컷 is None:
                     continue
                 _z = [x for x in _칸 if (_꺼(x) is not None)
-                      and ((_꺼(x) <= _c) if _방 == "아래" else (_꺼(x) >= _c))]
+                      and ((_꺼(x) <= _컷) if _방 == "아래" else (_꺼(x) >= _컷))]
                 if len(_z) < 300:
                     continue
                 _w = sum(1 for x in _z if x["_20"] > 0) / len(_z) * 100
@@ -4768,13 +4768,13 @@ def main():
             for _이름, _꺼, _방 in _재19:
                 if _이름 not in 쓸것:
                     continue
-                _c = _문20.get((섹, _이름))
-                if _c is None:
+                _컷 = _문20.get((섹, _이름))
+                if _컷 is None:
                     return False
                 _v = _꺼(x)
                 if _v is None:
                     return False
-                if (_v > _c) if _방 == "아래" else (_v < _c):
+                if (_v > _컷) if _방 == "아래" else (_v < _컷):
                     return False
             return True
 
@@ -4897,11 +4897,11 @@ def main():
                 _갭21[_라칸] = _g[int(len(_g) * 0.20)]
             _좋 = []
             for _이름, _꺼, _방 in _재19:
-                _c = _문21.get((_라칸, _이름))
-                if _c is None:
+                _컷 = _문21.get((_라칸, _이름))
+                if _컷 is None:
                     continue
                 _z = [x for x in _칸 if (_꺼(x) is not None)
-                      and ((_꺼(x) <= _c) if _방 == "아래" else (_꺼(x) >= _c))]
+                      and ((_꺼(x) <= _컷) if _방 == "아래" else (_꺼(x) >= _컷))]
                 if len(_z) < 300:
                     continue
                 _w = sum(1 for x in _z if x["_20"] > 0) / len(_z) * 100
@@ -4930,13 +4930,13 @@ def main():
             for _이름, _꺼, _방 in _재19:
                 if _이름 not in 쓸것:
                     continue
-                _c = _문21.get((라칸, _이름))
-                if _c is None:
+                _컷 = _문21.get((라칸, _이름))
+                if _컷 is None:
                     return False
                 _v = _꺼(x)
                 if _v is None:
                     return False
-                if (_v > _c) if _방 == "아래" else (_v < _c):
+                if (_v > _컷) if _방 == "아래" else (_v < _컷):
                     return False
             return True
 
