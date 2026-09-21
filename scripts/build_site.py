@@ -92,107 +92,90 @@ body{font-family:__MONO__}
 /* ⚠️⚠️ **`box-sizing:border-box` 가 없으면 오른쪽이 잘린다** (2026-09-11).
    `max-width:430px` 에 좌우 패딩 22px 이 **더해져** 474px 이 되고,
    390px 폰에서 지수 값(「7,033.92」)과 갱신시각이 화면 밖으로 나갔다 */
-#home{justify-content:flex-start;align-items:flex-start;text-align:left;gap:0;
-  padding:24px 22px 22px;max-width:430px;margin:0 auto;width:100%;
-  box-sizing:border-box}
-/* ⚠️ 페이지 바탕(#e8e3d8)은 카드 바탕(#f2efe8)보다 어두워서 **같은 글자색이라도 대비가 낮다**.
-   그래서 페이지 UI의 흐린 글씨는 `card_theme.C["faint"]`(#6b665c, 대비 4.50)를 쓴다 ·
-   카드용 `muted`(#6f6a60)를 여기 쓰면 4.24로 기준 미달이다(2026-08-31 실측). */
-/* ⭐⭐ 아래는 **시안 그대로**다 (2026-09-11).
-   정본: design-share/reference/confirmed-design-source.dc.html
-   명세: 「이 문서와 그림이 어긋나면 **그림이 이긴다**」
-   ⚠️ 폰은 **날짜**(2026.09.11 FRI), 데스크톱은 **MORNING BRIEFING**.
-      둘 다 넣고 화면 폭으로 바꿔 보인다 */
-#home .eyebrow{font-size:12.5px;font-weight:700;letter-spacing:.24em;color:#6b665c}
-#home .eyebrow .pc{display:none}
-/* ⚠️ 폰에서는 **2줄**로 앉는다 (「깜댕의 / 주식 브리핑」) */
-#home h1{font-size:34px;font-weight:800;letter-spacing:-.045em;
-  color:#1c1813;margin:12px 0 0;line-height:1.06}
-/* ⚠️ 폰에서는 제목 아래 부제를 **숨긴다** · 시안에 없다. 한 화면에 들어가야
-   하는데 이 줄이 지수 블록을 아래로 밀어낸다. 데스크톱에서만 되살린다.
-   ⚠️⚠️ **`>` 를 반드시 붙인다.** `#home .sub` 로 쓰면 메뉴 칸의 부제
-      (`.big .sub`)까지 숨겨져 「뉴스·공시·수급으로 읽는 시장」이 사라진다 ·
-      실제로 그렇게 만들어 놓고 왜 안 보이나 한참 찾았다 (2026-09-11) */
-#home > .sub{display:none}
-/* ⭐⭐ **밤사이 지수** · 「지수는 줄로, 메뉴는 칸으로」.
-   ⚠️ 홈 3칸에는 **세로선을 넣지 않는다**(카드의 kv 와 다르다). 시안은 gap 만 쓴다 */
-#home .idxw{width:100%;max-width:none;margin:18px 0 0;padding:0 2px 14px;
-  border-bottom:1px solid #d5cec0}
-#home .idxh{display:flex;align-items:baseline;justify-content:space-between;
-  gap:8px;margin-bottom:10px}
-#home .idxh b{font-size:12px;font-weight:700;color:#8a7038}
-#home .idxh span{font-size:12px;color:#6b665c;font-weight:400}
-#home .idx{display:flex;gap:14px;text-align:left;width:100%}
-#home .idx > div{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
-#home .idx .il{font-size:12px;color:#6b665c}
-#home .idx .iv{font-size:18px;font-weight:800;letter-spacing:-.03em}
-#home .idx .ic{font-size:12.5px;font-weight:700}
-/* ⭐ 시안(2026-09-17) · 320px 에서 여유가 **0** 이었다 — 나스닥 「28,945.06」이 83px 칸을
-   정확히 83px 로 채워, 자릿수가 하나만 늘어도 넘친다. 좁은 폰에서만 조인다 */
-@media(max-width:360px){
-  #home .idx{gap:10px}
-  #home .idx .iv{font-size:16px}
-  #home .idx .il,#home .idx .ic{font-size:11.5px}
-}
-/* ⚠️ 시안에는 이 줄이 **없다**. 날짜·후보는 데스크톱 부제 한 줄에 들어가고,
-   폰에서는 위쪽 캡션(2026.09.11 FRI)이 그 몫을 한다 */
-#home .when{display:none}
-#home .btns{display:flex;flex-direction:column;gap:10px;margin-top:14px;width:100%}
-/* ⭐ 시안 · 칸 바탕 #f2efe8 · 모서리 14 · 테두리 1px #d5cec0 · 패딩 17/18 */
-.big{display:block;width:100%;box-sizing:border-box;padding:17px 18px;border-radius:14px;
-  font-family:inherit;letter-spacing:-.01em;cursor:pointer;
-  border:1px solid #d5cec0;background:#f2efe8;color:#1c1813;transition:.15s;text-align:left;
-  /* ⚠️⚠️ **세로 2줄**이다 (시안). 전에는 `align-items:center` 한 줄이라
-     부제가 옆으로 밀려 **안 보였다**.
-     1줄 = 제목 + 갱신시각 + 화살표 · 2줄 = 부제 **전폭**
-     ⚠️ 화살표는 `.lab` **바깥**에 있는데 1줄 오른쪽에 놓아야 한다.
-        HTML 을 안 건드리려고 `.lab` 을 `display:contents` 로 녹여
-        자식(`.t1`·`.sub`)을 직접 격자 칸에 앉힌다 */
-  display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:4px 10px;
-  /* ⚠️⚠️ **높이 고정을 풀었다** (2026-09-11 · 시안).
-     2026-09-09에 `height:78px`로 네 상자를 같게 맞췄는데, 부제를 9px -> 13px 로
-     키우면 그 안에 안 들어간다. 시안은 「높이 고정 금지 · 부제가 길어지면 칸이
-     늘어난다」다. ⚠️ 되돌리려면 `height:78px` 를 살린다 */
-  word-break:keep-all}
-/* ⭐ 시안 · 파랑은 하나다(#2050c8) — 전에는 화살표 #2050c8 과 내림 #2050c8 이 한 화면에 있었다 */
-.big:hover{border-color:#2050c8;color:#2050c8}
-/* 안쪽은 두 줄: ① 제목 + 갱신일시  ② 부제 */
-/* ⚠️ `contents` · 이 상자는 사라지고 자식이 바로 격자 칸에 앉는다 */
-.big > .lab{display:contents}
-/* ⭐ 시안(2026-09-17) · **갱신시각을 제목 위로**. 320px 에서 제목줄은 113px 이 필요한데
-   갱신시각이 같은 줄을 먹어 98px 만 남아 「오늘 브리핑 …」으로 잘렸다.
-   ⚠️ HTML 은 `<b>제목</b><i class="up">갱신</i>` 순서다 — `column-reverse` 면
-      **고치지 않고** 갱신시각이 위로 간다. 그러면 제목이 줄 전체를 쓴다 */
-.big .t1{grid-column:1;grid-row:1;min-width:0;
-  display:flex;flex-direction:column-reverse;align-items:flex-start;gap:2px}
-.big .arw2{grid-column:2;grid-row:1}
-.big .sub{grid-column:1/-1;grid-row:2}
-.big .t1 b{font-weight:700;font-size:17.5px;line-height:1.2;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.big .up,.big .sub{font-style:normal;font-weight:400;opacity:1}
-.big .up{font-size:12px;flex:none;color:#6b665c;white-space:nowrap;line-height:1.3}
-/* ⭐⭐ 부제 **9px -> 13px** (시안). 9px 은 폰에서 읽히지 않는다.
-   ⚠️ `white-space:nowrap` 을 뺀다 · 13px 이면 한 줄에 안 들어가고,
-      nowrap 이면 말줄임으로 잘려 **뜻이 사라진다** */
-.big .sub{font-size:13px;display:block;margin-top:4px;color:#6f6a60;
-  word-break:keep-all;line-height:1.5}
-/* ⭐ 시안 · 화살표는 **파랑**이고 흐리지 않다 */
-.big .arw2{font-size:16px;color:#2050c8;flex:none;opacity:1}
-#home .note{font-size:12.5px;color:#6b665c;margin-top:10px;line-height:1.7}
-#home .note .disc{display:block;font-size:15px;font-weight:700;color:#4a453c;
-  line-height:1.55;margin-bottom:5px;word-break:keep-all}
+/* ══════════════════════════════════════════════════════════════════
+   홈 화면 — **확정안 그대로** (2026-09-21)
+   정본: design-share/reference/home-source.dc.html
+   명세: design-share/reference/HOME-FINAL.md · 어긋나면 **정본이 이긴다**
+
+   ⚠️ 393px 에서 **세로 스크롤 0** 이어야 한다 (명세 7절 ①).
+      그래서 높이를 쓰는 규칙은 지수 블록 하나뿐이고(flex:1),
+      머리·메뉴·주의는 전부 flex:none 으로 제 내용만큼만 먹는다.
+   ⚠️ 데스크톱에서 **폭을 늘리지 않는다** (명세 6절) — 393~430px 고정, 좌우는 여백
+   ══════════════════════════════════════════════════════════════════ */
+#home{
+  /* 명세 1절: padding 24px 16px 20px · gap 16px · 세로 flex */
+  display:flex;flex-direction:column;gap:16px;
+  padding:24px 16px 20px;max-width:430px;margin:0 auto;width:100%;
+  box-sizing:border-box;background:#faf9f7;color:#333333;
+  /* ⚠️ 화면 높이를 꽉 채워야 지수 블록의 flex:1 이 먹는다 */
+  min-height:100dvh;justify-content:flex-start;align-items:stretch;text-align:left;
+  letter-spacing:-.015em;word-break:keep-all}
+/* 옛 조각들 — 확정안에 없다 */
+#home .eyebrow,#home > .sub,#home .when{display:none}
+
+/* ── 2절 머리 — 한 줄 ── */
+#home .hd{flex:none;display:flex;align-items:baseline;gap:10px}
+/* ⚠️ 연성(Yeon Sung)은 Google Fonts 로 따로 부른다 (아래 @import 는 쓰지 않고
+      HTML <head> 의 <link> 로 넣는다 — CSS @import 는 렌더를 막는다) */
+#home .hd .bn{font-family:'Yeon Sung','Pretendard Variable',system-ui,sans-serif;
+  font-size:31px;font-weight:400;letter-spacing:-.02em;line-height:1.2;color:#333333;
+  white-space:nowrap}
+#home .hd .st{font-size:11px;font-weight:700;color:#8A6425;white-space:nowrap;
+  margin-left:auto}
+
+/* ── 3절 지수 — 세 줄 표 · 남는 높이를 **여기서** 흡수한다 ── */
+#home .idxw{flex:1;min-height:0;display:flex;flex-direction:column;
+  justify-content:center;padding:14px 0 18px;border-bottom:2px solid #B8893B;
+  margin:0;max-width:none;border-top:0}
+#home .idxw .r{display:flex;align-items:baseline;gap:9px;padding:9px 0}
+/* ⚠️ 첫 줄에는 선이 없다 — 둘째·셋째만 */
+#home .idxw .r + .r{border-top:1px solid #E6E2D8}
+#home .idxw .k{font-size:13px;color:#5F5F5F;white-space:nowrap;flex:none}
+#home .idxw .sp{flex:1}
+#home .idxw .v{font-size:20px;font-weight:800;letter-spacing:-.045em;
+  font-feature-settings:'tnum';white-space:nowrap}
+#home .idxw .d{font-size:14px;font-weight:700;width:62px;text-align:right;
+  white-space:nowrap}
+
+/* ── 4절 메뉴 — 네 칸 세로 · 모두 같은 크기 ── */
+#home .btns{flex:none;display:flex;flex-direction:column;gap:12px;
+  margin:0;width:100%}
+/* ⚠️ 높이를 **고정하지 않는다.** 내용에 맡기되 네 칸의 내용 구조가 같아
+      결과적으로 높이가 같아진다 (명세 7절 ③). 남는 높이는 지수가 먹는다 */
+#home .big{display:flex;align-items:center;gap:13px;width:100%;box-sizing:border-box;
+  padding:15px;border-radius:16px;border:0;cursor:pointer;text-align:left;
+  font-family:inherit;letter-spacing:-.01em;word-break:keep-all;transition:.15s}
+#home .big:hover{filter:brightness(1.06)}
+#home .big .n{font-size:11px;font-weight:800;letter-spacing:.06em;flex:none}
+#home .big .lab{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+#home .big .t1{font-size:15.5px;font-weight:800;line-height:1.25;letter-spacing:-.03em}
+#home .big .sub{font-size:11.5px;line-height:1.4;font-style:normal;font-weight:400}
+#home .big .up{font-size:10.5px;font-weight:600;white-space:nowrap;flex:none;
+  font-style:normal}
+/* 칸 색 — 명세 4절. 글자색도 칸마다 다르다 */
+#home .big.c1{background:#0B3BF0}
+#home .big.c1 .t1{color:#FFFFFF}
+#home .big.c1 .n,#home .big.c1 .sub,#home .big.c1 .up{color:#F2F2F0}
+#home .big.c2{background:#0FD0A8}
+#home .big.c2 .t1{color:#04302A}
+#home .big.c2 .n,#home .big.c2 .sub,#home .big.c2 .up{color:#0A4A41}
+#home .big.c3{background:#B8893B}
+#home .big.c3 .t1{color:#2A1F0E}
+#home .big.c3 .n,#home .big.c3 .sub,#home .big.c3 .up{color:#241A06}
+#home .big.c4{background:#333333}
+#home .big.c4 .t1{color:#FFFFFF}
+#home .big.c4 .n,#home .big.c4 .sub,#home .big.c4 .up{color:#F2F2F0}
+
+/* ── 5절 주의 문구 — 두 줄 · 가운데 ── */
+#home .note{flex:none;display:flex;flex-direction:column;gap:3px;
+  padding-top:14px;border-top:1px solid #E8E8E6;margin:0}
+#home .note span{font-size:13.5px;font-weight:600;color:#333333;text-align:center;
+  line-height:1.5}
 #home .note .pconly{display:none}
 
-/* ⭐⭐ **데스크톱도 폰과 같은 크기다** (2026-09-11 지시서 5절).
-   「본문 열 `max-width:430px` 가운데 정렬, 좌우는 여백.
-    **글자·칸을 키우지 않는다.**」
-   ⚠️ 전에 데스크톱만 760px 로 넓히고 글자를 키웠는데 지시서와 어긋난다.
-      한 벌로 두면 폰에서 본 것과 PC 에서 본 것이 **같은 화면**이 된다 */
+/* ⚠️ 데스크톱도 **같은 크기**다 (명세 6절 마지막) — 폭만 가운데로 */
 @media(min-width:560px){
-  #home{padding:48px 20px 56px}
-  /* 데스크톱 캡션만 로마자로 바꾼다 (정본 소스) */
-  #home .eyebrow .mo{display:none}
-  #home .eyebrow .pc{display:inline}
+  #home{padding:40px 16px 36px;min-height:auto}
 }
 
 /* ── 위쪽 막대 (달력·브리핑 공통) ── */
@@ -1000,8 +983,10 @@ def _밤사이지수():
         return ""
     _지 = _j.get("지수") or {}
     _칸 = []
-    for _라, _src in (("S&P 500", _지.get("S&P500")),
-                      ("나스닥 100", _지.get("나스닥100")),
+    # ⭐⭐ **확정안 3절** (2026-09-21) — 세 지수는 **나스닥 100 · 다우존스 · 코스피** 순.
+    #    전에는 S&P 500 · 나스닥 100 · 코스피 였다. 정본이 다우존스를 쓴다
+    for _라, _src in (("나스닥 100", _지.get("나스닥100")),
+                      ("다우존스", _지.get("다우")),
                       ("코스피", _코스피())):
         if not isinstance(_src, dict) or _src.get("종가") is None:
             continue
@@ -1010,10 +995,13 @@ def _밤사이지수():
             _c = float(_src.get("등락률") or 0)
         except (TypeError, ValueError):
             continue
-        _색 = "#c8352b" if _c > 0 else ("#2050c8" if _c < 0 else "#6b665c")
-        _칸.append(f'<div><span class="il">{_라}</span>'
-                   f'<span class="iv">{_v:,.2f}</span>'
-                   f'<span class="ic" style="color:{_색}">{_c:+.2f}%</span></div>')
+        # ⚠️ 확정안: 상승 #C8352B · 하락 #2050C8 · 부호는 **+ 와 − (U+2212)**
+        _색 = "#C8352B" if _c > 0 else ("#2050C8" if _c < 0 else "#5F5F5F")
+        _부 = "+" if _c > 0 else ("\u2212" if _c < 0 else "")
+        _칸.append(f'<div class="r"><span class="k">{_라}</span>'
+                   f'<span class="sp"></span>'
+                   f'<span class="v">{_v:,.2f}</span>'
+                   f'<span class="d" style="color:{_색}">{_부}{abs(_c):.2f}%</span></div>')
     if len(_칸) < 2:
         return ""
     # ⚠️ 「밤사이 지수」 라벨과 **갱신시각**을 같이 둔다 (시안)
@@ -1023,9 +1011,9 @@ def _밤사이지수():
             os.path.getmtime(_벌들[-1])).strftime("%m/%d %H:%M")
     except Exception:  # noqa: BLE001
         pass
-    return ('<div class="idxw"><div class="idxh"><b>밤사이 지수</b>'
-            f'<span>{_때}</span></div>'
-            '<div class="idx">' + "".join(_칸) + '</div></div>')
+    # ⚠️ 확정안에는 「밤사이 지수」 머리글이 **없다** — 세 줄 표만 있다.
+    #    갱신시각은 머리(2절)의 오른쪽 [09.16 07:40] 이 맡는다
+    return '<div class="idxw">' + "".join(_칸) + '</div>'
 
 
 def build(out, days=DEFAULT_DAYS):
@@ -1085,6 +1073,23 @@ def build(out, days=DEFAULT_DAYS):
     #      `forward-log.jsonl` 은 **동시호가 기록**(08:50 예약)이지 후보 갱신이 아니고,
     #      `briefing-cards.html` 은 카드 **이미지** 만든 시각이다
     _브리핑갱신 = _갱신시각([os.path.join(_DATA, "briefing-daily-log.jsonl")])
+    # ⭐ 확정안(2026-09-21) — 머리 오른쪽 [09.16 07:40] 과 03 칸 갱신
+    _포트폴리오갱신 = _갱신시각([PF_FILE]) if _portfolio() else None
+    _브리핑시각 = None
+    try:
+        _p8 = os.path.join(_DATA, "briefing-daily-log.jsonl")
+        if os.path.exists(_p8):
+            _브리핑시각 = datetime.fromtimestamp(os.path.getmtime(_p8)).strftime("%H:%M")
+    except Exception:  # noqa: BLE001
+        _브리핑시각 = None
+
+    def _요일표시(_d8):
+        """'20260915' -> '09.15(화)' — 04 칸의 「…까지」에 쓴다"""
+        try:
+            _q8 = datetime.strptime(str(_d8)[:8], "%Y%m%d")
+            return f"{_q8.month:02d}.{_q8.day:02d}({WEEKDAY[_q8.weekday()]})"
+        except Exception:  # noqa: BLE001
+            return str(_d8)
     # ⚠️⚠️ **2026-09-11 고침** — 전에는 `today-rule.html` 의 **파일 시각**을 썼다.
     #    그런데 그 파일은 **화면에 한 글자도 안 쓰인다**
     #    (`_갱신시각` 이 그걸 읽는 곳이 여기뿐이다).
@@ -1120,58 +1125,56 @@ def build(out, days=DEFAULT_DAYS):
     shell = (PAGE_CSS + PAGE_JS).replace("__W__", str(CARD_W)).replace("__H__", str(CARD_H))
     css, js = shell.split("</style>", 1)
 
+    # ══ 홈 — **확정안 그대로** (2026-09-21) ══
+    #    정본: design-share/reference/home-source.dc.html
+    #    명세: design-share/reference/HOME-FINAL.md · 어긋나면 정본이 이긴다
+    #    블록 순서: 머리 → 지수 → 메뉴 네 칸 → 주의 문구
+    #    ⚠️ 393px 에서 **세로 스크롤 0** 이어야 한다 — 높이를 먹는 건 지수 블록뿐이다
+    _머리시각 = dt.strftime("%m.%d") + " " + (_브리핑시각 or dt.strftime("%H:%M"))
+
+    # ⭐ 메뉴 네 칸 — 명세 4절 표 순서. 자료가 없으면 그 칸을 빼고 번호를 다시 맨다
+    _메뉴 = []
+    _메뉴.append(("btn-today", f'data-d="{latest}"', "오늘 브리핑 보기",
+                  "뉴스·공시·수급으로 읽는 시장", _브리핑갱신 or ""))
+    if _quant():
+        _메뉴.append(("btn-qt", "", "퀀트 후보",
+                      "재무제표와 주가만 보는 기계 규칙", _퀀트갱신 or ""))
+    if _portfolio():
+        _메뉴.append(("btn-pf", "", "깜댕의 포트폴리오",
+                      "섹터별 비중으로 쏠림을 봅니다", _포트폴리오갱신 or ""))
+    _메뉴.append(("btn-past", "", "지난 브리핑 보기",
+                  "달력에서 날짜를 골라 봅니다",
+                  f"{_요일표시(latest)}까지"))
+    _칸들 = ""
+    for _i, (_id, _attr, _t, _sub, _up) in enumerate(_메뉴, 1):
+        _칸들 += (f'<button class="big c{_i}" id="{_id}" type="button"{" " + _attr if _attr else ""}>'
+                  f'<span class="n">{_i:02d}</span>'
+                  f'<span class="lab">'
+                  f'<span class="t1">{_t}</span>'
+                  f'<i class="sub">{_sub}</i></span>'
+                  f'<i class="up">{_up}</i></button>')
+
     home = (
         f'<section class="view" id="home">'
-        # ⚠️ 폰은 **날짜**, 데스크톱은 **MORNING BRIEFING** (시안).
-        #    둘 다 넣고 CSS 로 바꿔 보인다
-        f'<div class="eyebrow"><span class="mo">'
-        f'{dt.strftime("%Y.%m.%d")} {_ENG[dt.weekday()]}</span>'
-        f'<span class="pc">MORNING BRIEFING</span></div>'
-        # ⚠️ 폰에서 **2줄**로 앉힌다 (시안: 「깜댕의 / 주식 브리핑」)
-        # ⚠️ `<br>` **뒤에 공백을 남긴다.** 데스크톱에서는 br 을 숨기는데,
-        #    공백까지 없애면 「깜댕의주식 브리핑」으로 붙어 버린다 (실제로 그랬다)
-        f'<h1>{BRAND.replace(" ", "<br> ", 1)}</h1>'
-        # ⚠️ 데스크톱에서만 보인다. 시안은 날짜·후보까지 **한 줄**로 합쳐 둔다
-        f'<div class="sub">3분 만에 읽는 어제와 오늘의 시장 · '
-        f'{dt.strftime("%Y.%m.%d")} {WEEKDAY[dt.weekday()]}요일 · 후보 {n_pick}</div>'
-        f'<div class="when">{dt.strftime("%Y.%m.%d")} '
-        f'{WEEKDAY[dt.weekday()]}요일 · 후보 {n_pick}</div>'
+        # ── 2절 머리 — 한 줄 ──
+        f'<div class="hd">'
+        f'<span class="bn">{BRAND}</span>'
+        f'<span class="st">{_머리시각}</span>'
+        f'</div>'
+        # ── 3절 지수 — 세 줄 표 (남는 높이를 여기서 흡수한다) ──
         + _밤사이지수()
-        + f'<div class="btns">'
-        f'<button class="big" id="btn-today" type="button" data-d="{latest}">'
-        f'<span class="lab"><span class="t1"><b>오늘 브리핑 보기</b>'
-        f'<i class="up">{_브리핑갱신 or ""}</i></span>'
-        f'<i class="sub">뉴스·공시·수급으로 읽는 시장</i></span>'
-        f'<span class="arw2">→</span></button>'
-        # ⚠️ 후보가 없는 날은 단추를 안 만든다 — 눌렀는데 빈 화면이 뜨는 것보다 낫다
-        + (f'<button class="big" id="btn-qt" type="button">'
-           f'<span class="lab"><span class="t1"><b>퀀트 후보</b>'
-           f'<i class="up">{_퀀트갱신 or ""}</i></span>'
-           f'<i class="sub">재무·주가만 보는 데이터 분석</i></span>'
-           f'<span class="arw2">→</span></button>' if _quant() else "")
-        + f'<button class="big" id="btn-past" type="button">'
-        f'<span class="lab"><span class="t1"><b>지난 브리핑 보기</b></span>'
-        f'<i class="sub">달력에서 날짜 고르기</i></span>'
-        f'<span class="arw2">→</span></button>'
-        # ⚠️ 포트폴리오 파일이 없으면 **단추 자체를 안 만든다**
-        + (f'<button class="big" id="btn-pf" type="button">'
-           f'<span class="lab"><span class="t1"><b>깜댕의 포트폴리오</b></span>'
-           # ⚠️ 「—」(em dash)는 쓰지 않는다 — 명세 6절 ⑦ · `check_typo` 가 잡는다
-           f'<i class="sub">섹터별 비중 · 금액 비공개</i></span>'
-           f'<span class="arw2">→</span></button>' if _portfolio() else "")
-        + f'</div>'
-        # ⚠️ **만든 시각을 찍는다** (2026-08-27 추가). 카톡 인앱 브라우저처럼 캐시가 센
-        #    환경에서는 옛 화면이 그대로 뜨는데, 겉만 봐서는 옛것인지 알 수 없다.
-        #    이 줄이 있으면 "언제 만든 화면을 보고 있는지"가 바로 보인다.
-        # ⚠️ 폰에서는 **첫 줄만** 보인다 (시안). 수록 기간·생성 시각은
-        #    데스크톱에서만 — 폰은 한 화면에 들어가야 한다.
-        #    ⚠️ 생성 시각 자체는 없애지 않는다: 카톡 인앱처럼 캐시가 센 데서
-        #       옛 화면인지 가려내는 유일한 단서다 (2026-08-27)
-        # ⭐ 면책을 키웠다 (2026-09-17 · 사용자 「아래에 지금보다 크게」) — 12.5px 회색 한 줄 → 15px 굵게 · 두 문장
-        f'<div class="note"><b class="disc">투자 참고용이며 매수 권유가 아닙니다. '
-        f'투자 판단과 책임은 본인에게 있습니다.</b>'
-        f'<span class="pconly"> 수록 {len(kept)}일 '
-        f'({oldest_kept} ~ {latest}) · 화면 생성 {built}</span></div>'
+        # ── 4절 메뉴 — 네 칸 세로 ──
+        + f'<div class="btns">{_칸들}</div>'
+        # ── 5절 주의 문구 — 두 줄 · 가운데 ──
+        f'<div class="note">'
+        f'<span>매수 추천이 아닙니다.</span>'
+        f'<span>판단과 책임은 본인에게 있습니다.</span>'
+        # ⚠️ 수록 기간·생성 시각은 **폰에서 안 보인다**(확정안에 없다).
+        #    그래도 없애지는 않는다 — 카톡 인앱처럼 캐시가 센 데서 옛 화면인지
+        #    가려내는 유일한 단서다 (2026-08-27)
+        f'<span class="pconly">수록 {len(kept)}일 '
+        f'({oldest_kept} ~ {latest}) · 화면 생성 {built}</span>'
+        f'</div>'
         f'</section>')
 
     # ⚠️ 포트폴리오 화면은 달력과 나란한 형제다 — `cal` 문자열 앞에 붙인다.

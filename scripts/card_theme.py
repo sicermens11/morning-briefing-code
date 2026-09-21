@@ -88,6 +88,11 @@ C = {
 FONTS = (
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/'
     'pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">'
+    # ⭐ 연성(Yeon Sung) — 홈 화면 제목 전용 (2026-09-21 확정안 2절).
+    #    정본: design-share/reference/home-source.dc.html
+    #    ⚠️ 홈 제목 한 곳에만 쓴다. 다른 데에 번지면 「글꼴은 한 벌」 원칙이 깨진다
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2'
+    '?family=Yeon+Sung&display=swap">'
 )
 
 SANS = ("'Pretendard Variable','Pretendard','Apple SD Gothic Neo',"
