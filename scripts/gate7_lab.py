@@ -4840,8 +4840,160 @@ def main():
             print("\n     ⇒ 업종 전용 규칙을 더해도 **셋 다를 넘는 것이 없다**")
         print("=" * 122)
 
+    # ══ ⭐⭐⭐ **Q-21 규모·섹터 말고 다른 기준으로** (2026-09-21 · 사용자) ══
+    #    사용자: 「시총별 섹터별 말고 또 다른 구분할만한거 없어?」
+    #    안 나눠본 것: 거래 두께 · 변동성 · 주가 수준 · 회전율 · 외국인 지분율
+    #    ⚠️ 거래 두께가 특히 중요하다 — 큰 종목이 잘 되는 이유가
+    #       **크기 자체인가 거래가 두꺼워서인가**를 갈라야 규모 결과를 해석할 수 있다
+    if _ONLY in ("", "Q21"):
+        print("\n" + "=" * 122)
+        print("  ── Q-21 ⭐⭐⭐ **규모·섹터 말고 다른 기준으로 나눈다** ──")
+        print("     거래 두께 · 변동성 · 주가 수준 · 회전율 · 외국인 지분율")
+        print("     ⚠️ 거래 두께: 큰 종목이 잘 되는 이유가 **크기 자체인가 거래가 두꺼워서인가**")
+        print("     Q-19·Q-20 과 같은 방식 — 재료·문턱·상대갭 전부 그 칸 분포에서")
+        print("=" * 122)
+
+        # 나눌 잣대들 — 오분위로 갈라 **아래 20% · 가운데 · 위 20%** 셋씩
+        _잣21 = (
+            ("거래 두께", lambda x: x.get("대금억")),
+            ("변동성", lambda x: x.get("섹시그마")),
+            ("주가", lambda x: x.get("원시")),
+            ("회전율", lambda x: x.get("회전율")),
+            ("외국인 지분율", lambda x: x.get("지분율")),
+        )
+        _칸21 = []      # (칸이름, 그 칸에 드는 함수)
+        print("\n  ── Q-21a **잣대마다 오분위로 가른다** ──")
+        for _라21, _꺼21 in _잣21:
+            _v = sorted(z for z in (_꺼21(x) for x in 사건) if z is not None)
+            if len(_v) < len(사건) * 0.3:
+                print(f"     {_라21:<14}값이 {len(_v):,}개뿐 — 건너뜀")
+                continue
+            _아 = _v[len(_v) // 5]
+            _위 = _v[len(_v) * 4 // 5]
+            print(f"     {_라21:<14}{len(_v):>10,}개  아래20% ≤ {_아:,.2f} · 위20% ≥ {_위:,.2f}")
+            _칸21 += [
+                (f"{_라21} 아래20%", (lambda x, f=_꺼21, c=_아: f(x) is not None and f(x) <= c)),
+                (f"{_라21} 위20%", (lambda x, f=_꺼21, c=_위: f(x) is not None and f(x) >= c)),
+            ]
+
+        # ── Q-21b 칸마다 바탕과 **그 칸에서 센 재료** ──
+        print("\n  ── Q-21b **칸마다 바탕과 센 재료** (자료가 고른다) ──")
+        _문21, _갭21, _고른21 = {}, {}, {}
+        print(f"     {'칸':<20}{'사건':>10}{'바탕':>8}   그 칸에서 센 재료 둘")
+        for _라칸, _든21 in _칸21:
+            _칸 = [x for x in 사건 if _든21(x) and x.get("_20") is not None]
+            if len(_칸) < 20000:
+                print(f"     {_라칸:<20}{len(_칸):>10,}   표본 부족")
+                continue
+            _바 = sum(1 for x in _칸 if x["_20"] > 0) / len(_칸) * 100
+            for _이름, _꺼, _방 in _재19:
+                _v = sorted(z for z in (_꺼(x) for x in _칸) if z is not None)
+                if len(_v) < len(_칸) * 0.25:
+                    continue
+                _문21[(_라칸, _이름)] = (_v[len(_v) // 5] if _방 == "아래"
+                                         else _v[len(_v) * 4 // 5])
+            _g = sorted(z for z in (x.get("갭") for x in _칸) if z is not None)
+            if len(_g) > 1000:
+                _갭21[_라칸] = _g[int(len(_g) * 0.20)]
+            _좋 = []
+            for _이름, _꺼, _방 in _재19:
+                _c = _문21.get((_라칸, _이름))
+                if _c is None:
+                    continue
+                _z = [x for x in _칸 if (_꺼(x) is not None)
+                      and ((_꺼(x) <= _c) if _방 == "아래" else (_꺼(x) >= _c))]
+                if len(_z) < 300:
+                    continue
+                _w = sum(1 for x in _z if x["_20"] > 0) / len(_z) * 100
+                _a = [x for x in _z if 날[x["인"] - 1][:4] <= "2018"]
+                _b = [x for x in _z if 날[x["인"] - 1][:4] > "2018"]
+                if len(_a) < 100 or len(_b) < 100:
+                    continue
+                _wa = sum(1 for x in _a if x["_20"] > 0) / len(_a) * 100
+                _wb = sum(1 for x in _b if x["_20"] > 0) / len(_b) * 100
+                if (_w - _바) < 2.0 or (_wa - _바) * (_wb - _바) <= 0:
+                    continue
+                _좋.append((_w - _바, _이름, _w, len(_z)))
+            _좋.sort(reverse=True)
+            _고른21[_라칸] = [z[1] for z in _좋[:2]]
+            _글 = " · ".join(f"{r}{d:+.1f}({w:.1f}%)" for d, r, w, _ in _좋[:2]) or "없음"
+            print(f"     {_라칸:<20}{len(_칸):>10,}{_바:>7.1f}%   {_글}")
+
+        # ── Q-21c 칸 전용 규칙 혼자 ──
+        print("\n  ── Q-21c **칸 전용 규칙 혼자** ──")
+
+        def _칸규칙21(x, 라칸, 든, 쓸것):
+            if not 든(x):
+                return False
+            if not (재무통과(x) and 대금통과(x)):
+                return False
+            for _이름, _꺼, _방 in _재19:
+                if _이름 not in 쓸것:
+                    continue
+                _c = _문21.get((라칸, _이름))
+                if _c is None:
+                    return False
+                _v = _꺼(x)
+                if _v is None:
+                    return False
+                if (_v > _c) if _방 == "아래" else (_v < _c):
+                    return False
+            return True
+
+        _기21 = 시뮬(_c(_H))     # [견줌] 표에만
+        print(f"     {'설정':<32}{'끝 자산':>17}{'낙폭':>8}{'산 것':>7}")
+        print(f"     {'[견줌] 지금 규칙 Ⓗ':<32}{_기21['끝']:>16,.0f}원"
+              f"{_기21['낙']:>7.1f}%{_기21['산']:>7}")
+        _잰21 = {}
+        for _라칸, _든21 in _칸21:
+            _뽑 = _고른21.get(_라칸) or []
+            if not _뽑:
+                continue
+            for _쓸 in ([(_뽑[0],)] + ([(_뽑[0], _뽑[1])] if len(_뽑) >= 2 else [])):
+                _표 = f"{_라칸} · {'+'.join(_쓸)}"
+                _fn = (lambda x, a=_라칸, b=_든21, c=_쓸: _칸규칙21(x, a, b, c))
+                _옵 = {"상대갭": _갭21.get(_라칸, _밑상대갭)}   # [견줌] 그 칸 갭이 없을 때만
+                _r = 시뮬(_c(_fn, **_옵))
+                if not _r:
+                    continue
+                _잰21[_표] = (_r, _fn, _옵)
+                print(f"     {_표:<32}{_r['끝']:>16,.0f}원{_r['낙']:>7.1f}%{_r['산']:>7}")
+
+        # ── Q-21d [견줌] 지금 규칙 OR 칸 규칙 ──
+        print("\n  ── Q-21d **[견줌] 지금 규칙 OR 칸 규칙** — 반영을 정하는 물음 ──")
+        _좋은21 = sorted(_잰21.items(), key=lambda t: -t[1][0]["끝"])[:5]
+        print(f"     {'설정':<32}{'끝 자산':>17}{'지금의%':>9}{'낙폭':>8}{'산 것':>7}  판정")
+        _산21 = []
+        for _표, (_r0, _fn21, _옵21) in _좋은21:
+            _합 = (lambda x, f=_fn21: _H(x) or f(x))   # [견줌] 소형 OR 칸
+            _r = 시뮬(_c(_합))
+            if not _r:
+                continue
+            _ok = (_r["산"] > _기21["산"], _r["끝"] > _기21["끝"], _r["낙"] > 낙폭기준)
+            if all(_ok):
+                _산21.append((_표, _합))
+            print(f"     {('Ⓗ OR ' + _표):<32}{_r['끝']:>16,.0f}원"
+                  f"{_r['끝'] / _기21['끝'] * 100:>8.0f}%{_r['낙']:>7.1f}%{_r['산']:>7}  "
+                  + ("✅ 셋 다" if all(_ok) else "❌"))
+
+        for _표, _fn in _산21:
+            print(f"\n     ── [{_표}] 해마다 + 걷기 ──")
+            _차21, _낙21 = [], []
+            for _y21 in range(2016, 2027):
+                _a = 시뮬(_c(_H), 시작년=str(_y21), 끝년=str(_y21))
+                _b = 시뮬(_c(_fn), 시작년=str(_y21), 끝년=str(_y21))
+                if not _a or not _b:
+                    continue
+                _차21.append((_b["끝"] / _a["끝"] - 1) * 100 if _a["끝"] > 0 else 0)
+                _낙21.append(_b["낙"] - _a["낙"])
+            print("        해마다: " + _해마다판정(_차21, _낙21)[0])
+            _걷기찍기(_걷기(_fn))
+        if not _산21:
+            print("\n     ⇒ 다른 기준으로 나눠도 **셋 다를 넘는 것이 없다**")
+        print("=" * 122)
+
     # ⭐ ONLY=Q19 면 여기서 끝낸다 — 뒤의 옛 절 200개를 안 돈다 (48분 아낀다)
-    if _ONLY in ("Q19", "Q20"):
+    if _ONLY in ("Q19", "Q20", "Q21"):
         print("\n  ⭐ ONLY={_ONLY}Q19 — 여기서 끝낸다 (뒤의 옛 절은 건너뛴다)", flush=True)
         return 0
 
