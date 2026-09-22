@@ -6046,6 +6046,27 @@ def main():
             _칸키[_꼬] = {(x["code"], x["인"]) for x in _ev}
             _칸사건 += _ev
             print(f"     칸 [{_꼬}] 사건 {len(_ev):,}건")
+        # ⭐ Q-35 (2026-09-23 08:10) — 넷째 후보: 회전율 위20%·선물20 (그날 선물 · Q-28 ① 정의 그대로)
+        #    오늘 08:02:12 브리핑이 기준일 선물을 받아 왔다 → 실전에 쓸 수 있다. 같이 켠 값을 잰다
+        if os.environ.get("Q34_ROT"):
+            _회값 = sorted(z for z in (x.get("회전율") for x in 사건) if z is not None)
+            _회위 = _회값[len(_회값) * 4 // 5]
+            _회칸 = [x for x in 사건 if (x.get("회전율") or 0) >= _회위 and x.get("_20") is not None]
+            _선값 = sorted(z for z in (_선물19(x) for x in _회칸) if z is not None)
+            _선문 = _선값[len(_선값) // 5]
+
+            def _회전규칙35(x, 컷=_회위, 문=_선문):
+                _r = x.get("회전율")
+                if _r is None or _r < 컷:
+                    return False
+                if not (재무통과(x) and 대금통과(x)):
+                    return False
+                _f = _선물19(x)
+                return _f is not None and _f <= 문
+
+            _칸키["회전율선물20"] = {(x["code"], x["인"]) for x in 사건 if _회전규칙35(x)}
+            print(f"     칸 [회전율선물20] 사건 {len(_칸키['회전율선물20']):,}건"
+                  f"  (회전율 ≥ {_회위:.2f}% · 선물20 ≤ {_선문:.2f}% · 그날 선물 · Q-28 ① 재현: 얹으면 317,877,167 이어야)")
         if not _칸키:
             print("  ⚠️ c_events_*.jsonl 이 없다 — 먼저 DUMPC 를 돌려라")
             return 1
