@@ -35,7 +35,7 @@ import rule_def as R  # noqa: E402
 from day_lab import 연간재무  # noqa: E402
 # ⚠️ `record_pick` 은 `__main__` 가드가 있어 읽어도 아무것도 안 돈다.
 #    실전이 쓰는 **그 함수 그대로**를 써야 숫자가 어긋나지 않는다
-from record_pick import _섹터표, 섹터규칙맞나  # noqa: E402
+from record_pick import _섹터표, _업종명표, 섹터규칙맞나  # noqa: E402
 
 _시작 = "20160401"
 # ⚠️⚠️ **숫자를 여기 적지 않는다** (2026-09-11 전수조사 ⑦).
@@ -105,7 +105,9 @@ def main():
             _n20 = ((_c3 / _벌2[_j - 20][1] - 1) * 100) if _j >= 20 else None
             _n60 = ((_c3 / _벌2[_j - 60][1] - 1) * 100) if _j >= 60 else None
             지수낙.setdefault(_날3, {})[_키2] = (_n20, _n60)
-    print(f"  지수 {len(지수낙):,}일 · 섹터 규칙 {len(R.섹터규칙)}업종")
+    업종맵 = _업종명표()      # ⭐ 업종 규칙용 (2026-09-22)
+    print(f"  지수 {len(지수낙):,}일 · 섹터 규칙 {len(R.섹터규칙)}업종"
+          f" · 업종 규칙 {len(R.업종규칙)}업종 · 업종명 표 {len(업종맵):,}종목")
     섹터맵 = _섹터표()
 
     def 재무값(code, d8):
@@ -165,6 +167,10 @@ def main():
             #    실제보다 **적게** 나왔다
             _기존 = (볼 <= R.볼린저문턱 and 낙 <= R.낙폭20문턱)
             _섹, _ = 섹터규칙맞나(code, sq, kk, c1, 섹터맵)
+            # ⭐ 업종 규칙 (2026-09-22 반영 · record_pick 과 같게)
+            # ⚠️ `변동성자사주` 갈래는 **아직 여기 없다** (2026-09-17 에 실전만 고쳤다) —
+            #    그래서 이 파일의 「며칠에 한 번」은 지금도 실제보다 조금 적게 나온다
+            _업, _ = R.업종규칙맞나(업종맵.get(code), {"낙폭60": 낙60})
             _키2 = ("KOSDAQ" if ("닥" in str(bb.get("시장") or "")
                                  or "KOSDAQ" in str(bb.get("시장") or ""))
                     else "KOSPI")
@@ -173,10 +179,10 @@ def main():
                       or (_z60 is not None and _z60 <= R.지수낙60문턱))
                      and (볼 <= R.시장볼문턱 or 낙 <= R.시장낙20문턱
                           or (낙60 is not None and 낙60 <= R.시장낙60문턱)))
-            if not (_기존 or _섹 or _시장):
+            if not (_기존 or _섹 or _시장 or _업):
                 continue
             g = 하루갭.get(code)
-            칸.append((_기존 + _섹 + _시장, 낙, g, _z20))
+            칸.append((_기존 + _섹 + _시장 + _업, 낙, g, _z20))
         # ⚠️ 자르는 순서도 **실전과 같게** — 걸린 규칙 수가 많은 것 먼저,
         #    같은 층에서 깊게 빠진 순 (record_pick · 206차 P-2)
         칸.sort(key=lambda z: (-z[0], z[1]))
