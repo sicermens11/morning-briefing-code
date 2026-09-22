@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 r"""
 collect_krx_extra.py — **선물·유가·금·국고채를 받는다 (승인됐을 때만)** (2026-09-01 신설)
 
@@ -84,6 +84,16 @@ def 승인됐나(svc, ep, 날, key):
 
 def main():
     확인만 = "--확인" in sys.argv
+    # ⭐ 2026-09-22 — `--최근 N` 을 **진짜로** 만든다. 여태 없는 옵션이었다.
+    #    collect_evening 이 `--최근 10` 을 넘겨 왔지만 무시됐고, 「그 서비스 폴더에 없는 날」을
+    #    전부 두드렸다 — 주식선물코스닥은 옛날 1,385일이 영원히 빈날이라 매번 9분.
+    #    브리핑(08:02) 안에서 종가 직후에 받으려면 몇 초에 끝나야 한다 ⇒ 마지막 N일만.
+    최근N = None
+    if "--최근" in sys.argv:
+        try:
+            최근N = int(sys.argv[sys.argv.index("--최근") + 1])
+        except (IndexError, ValueError):
+            최근N = None
     key = config.get("KRX_API_KEY")
     거래일 = sorted(os.path.basename(f)[:-5] for f in glob.glob(os.path.join(KRX, "*.json")))
     if not 거래일:
@@ -110,6 +120,8 @@ def main():
         os.makedirs(OUT, exist_ok=True)
         받 = {os.path.basename(f)[:-5] for f in glob.glob(os.path.join(OUT, "*.json"))}
         할것 = [d for d in 거래일 if d not in 받]
+        if 최근N:
+            할것 = [d for d in 할것 if d in 거래일[-최근N:]]     # ⭐ 마지막 N일만
         찍기(f"  [{이름}] 받을 날 {len(할것)}일 · 예상 {len(할것)*len(eps)*(_쉼+0.25)/60:.0f}분")
         ok = 빈 = 0
         for i, 날 in enumerate(할것, 1):
