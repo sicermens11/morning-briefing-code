@@ -5993,6 +5993,233 @@ def main():
         print("\n  ⭐ ONLY=Q29 — 여기서 끝낸다 (Q-19 본체와 옛 절은 건너뛴다)", flush=True)
         return 0
 
+    # ══ ⭐ **DUMPH — Ⓗ+의료가 고르는 사건을 파일로 덜어 둔다** (2026-09-22) ══
+    #    Q-30 이 띠 풀에 얹어 쓴다. 보통 풀(OPENFIN 없음)에서 돌린다.
+    _덤프길 = os.path.join(O._DATA, "_labs", "h_events.jsonl")
+    if _ONLY == "DUMPH":
+        if _문열기:
+            print("  ⚠️ DUMPH 는 문을 안 연 보통 풀에서 돌려야 한다 (OPENFIN 빼라)")
+            return 1
+        _의이름D = next((k for k in {x.get("섹터") for x in 사건 if x.get("섹터")}
+                        if str(k).startswith("의료")), None)
+        _의칸D = [x for x in 사건 if x.get("섹터") == _의이름D and x.get("_20") is not None]
+        _낙값D = sorted(z for z in (x.get("낙폭60") for x in _의칸D) if z is not None)
+        _의문D = _낙값D[len(_낙값D) // 5] if _낙값D else None
+
+        def _의료D(x):
+            if _의문D is None or x.get("섹터") != _의이름D:
+                return False
+            if not (재무통과(x) and 대금통과(x)):
+                return False
+            _d = x.get("낙폭60")
+            return _d is not None and _d <= _의문D
+
+        _덤프 = [x for x in 사건 if _H(x) or _의료D(x)]
+        with io.open(_덤프길, "w", encoding="utf-8") as _f:
+            for x in _덤프:
+                _f.write(json.dumps(x, ensure_ascii=False, default=str) + "\n")
+        _r0 = 시뮬(_c(lambda x: _H(x) or _의료D(x)))
+        print(f"\n  DUMPH — Ⓗ 또는 의료에 맞는 사건 {len(_덤프):,}건을 {_덤프길} 에 덜었다")
+        print(f"         의료 문턱 낙폭60 ≤ {_의문D:.2f}%  ·  바탕(Ⓗ+의료) 시뮬 {_r0['끝']:,.0f}원"
+              f" · 낙폭 {_r0['낙']:.1f}% · 산 것 {_r0['산']}  (Q-28 ⓪ 262,871,069 과 같아야 한다)")
+        return 0
+
+    # ══ ⭐⭐⭐ **Q-30 칸 규칙을 Ⓗ+의료 위에 얹으면 빈 날을 채우나** (2026-09-22) ══
+    #    반영을 정하는 물음. 띠 풀(OPENFIN) + 덜어 둔 Ⓗ 사건을 합쳐 `묶2` 로 시뮬에 넘긴다.
+    if _ONLY == "Q30":
+        print("\n" + "=" * 122)
+        print("  ── Q-30 ⭐⭐⭐ **칸 규칙을 Ⓗ+의료 위에 얹으면 빈 날을 채우나** ──")
+        print("     바탕 = 덜어 둔 Ⓗ+의료 사건만 · 도전 = 그것 OR 칸 규칙 · 셋 다 + 증분 걷기")
+        print("=" * 122)
+        if not _문열기:
+            print("  ⚠️ Q-30 은 OPENFIN 띠 풀에서 돌려야 한다")
+            return 1
+        if not os.path.exists(_덤프길):
+            print(f"  ⚠️ {_덤프길} 이 없다 — 먼저 ONLY=DUMPH 를 돌려라")
+            return 1
+        _덤프 = [json.loads(z) for z in io.open(_덤프길, encoding="utf-8") if z.strip()]
+        _덤키 = {(x["code"], x["인"]) for x in _덤프}
+        _풀키 = {(x["code"], x["인"]) for x in 사건}
+        _합사건 = 사건 + [x for x in _덤프 if (x["code"], x["인"]) not in _풀키]
+        _합묶 = {}
+        for x in _합사건:
+            _합묶.setdefault(x["인"], []).append(x)
+        print(f"\n     띠 풀 {len(사건):,}건 + Ⓗ 사건 {len(_덤프):,}건 (겹침 {len(_덤키 & _풀키):,})"
+              f" = {len(_합사건):,}건 · {len(_합묶):,}일")
+
+        def _바탕30(x):
+            return (x["code"], x["인"]) in _덤키          # [견줌] 지금 실전 (Ⓗ+의료)
+
+        _열기30 = {"시총하한": 0, "시총상한": 999999999, "대금하한": 0}
+        _기30 = 시뮬(_c(_바탕30, **_열기30), 묶2=_합묶)
+        print(f"     바탕 재현 — {_기30['끝']:,.0f}원 · 낙폭 {_기30['낙']:.1f}% · 산 것 {_기30['산']}"
+              f"   (Q-28 ⓪ 262,871,069 · {'재현 ✅' if abs(_기30['끝'] - 262871069) < 2e6 else '⚠️ 재현 안 됨 — 결론 쓰지 마라'})")
+
+        # ── 이 띠의 위 5칸을 요약 파일에서 ──
+        _띠이름30 = {100: "초소형 100~300억", 300: "소형 300~800억", 800: "소형 800~2,000억",
+                     2000: "중형 2,000억~1조", 10000: "대형 1조~10조", 100000: "초대형 10조↑"
+                     }.get(int(_크기하한 / 1e8))
+        _요약길 = os.path.join(O._DATA, "_labs", "2026-09-22_Q29_칸별요약.txt")
+        _고를30 = []
+        _안 = False
+        for _ln in io.open(_요약길, encoding="utf-8"):
+            if _ln.startswith("══ "):
+                _안 = _ln.startswith(f"══ {_띠이름30}")
+                continue
+            if not _안 or not _ln.strip():
+                continue
+            import re as _re30
+            _m = _re30.match(r"^\s*(.+?)\s{2,}(.+?)\s{2,}비중(\d+)% 자리(\d+)\s+([\d,]+)원", _ln)
+            if _m and len(_고를30) < 5:
+                _고를30.append((_m.group(1).strip(), "+" in _m.group(2), int(_m.group(3)) / 100, int(_m.group(4))))
+        print(f"     이 띠({_띠이름30})의 위 {len(_고를30)}칸: " + " · ".join(k for k, _, _, _ in _고를30))
+
+        # ── 칸 만들기 (Q-29 와 같은 코드) ──
+        _아님30 = {"인", "code", "해", "_지수이름", "섹터", "매수", "재통과", "흑자",
+                   "_20", "_40", "_겹친", "갭", "시총억", "원시"}
+        _칸이름30 = [k for k in sorted(사건[0].keys()) if k not in _아님30
+                     and sum(1 for x in 사건[:5000] if isinstance(x.get(k), (int, float))) >= 1500]
+        _특수30 = ("자사주60", "코스피200선물20", "ETF괴리", "ETF괴리20", "기준금리20",
+                   "무역수지비", "금값20", "공시장중", "ETF시총20", "미국선거전5",
+                   "금통위변경후5", "봄", "여름", "가을", "겨울")
+        _재전부30 = ([(k, (lambda x, k=k: x.get(k))) for k in _칸이름30]
+                     + [(k, (lambda x, k=k: _값P(x, k))) for k in _특수30])
+        _재사전30 = dict(_재전부30)
+        _띠표30 = {"띠 초소형 100~300억": (100, 300), "띠 소형 300~2,000억": (300, 2000),
+                   "띠 중형 2,000억~1조": (2000, 10000), "띠 대형 1조~10조": (10000, 100000),
+                   "띠 초대형 10조↑": (100000, 9e12)}
+
+        def _칸든30(라):
+            if 라 in _띠표30:
+                lo, hi = _띠표30[라]
+                return lambda x: lo <= (x.get("시총억") or 0) < hi
+            if 라.startswith("업종 "):
+                _n = 라[3:]
+                return lambda x: str(x.get("섹터") or "")[:12] == _n[:12]
+            for _꼬, _쪽 in ((" 아래20%", "아래"), (" 위20%", "위")):
+                if 라.endswith(_꼬):
+                    _f = _재사전30.get(라[:-len(_꼬)])
+                    if _f is None:
+                        return None
+                    _v = sorted(z for z in (_f(x) for x in 사건) if z is not None)
+                    if not _v:
+                        return None
+                    _c0 = _v[len(_v) // 5] if _쪽 == "아래" else _v[len(_v) * 4 // 5]
+                    return (lambda x, f=_f, c=_c0: f(x) is not None and f(x) <= c) if _쪽 == "아래" \
+                        else (lambda x, f=_f, c=_c0: f(x) is not None and f(x) >= c)
+            return None
+
+        _산30 = []
+        for _라30, _둘30, _비30, _자30 in _고를30:
+            _든30 = _칸든30(_라30)
+            if _든30 is None:
+                print(f"\n     [{_라30}] 칸을 못 만들었다 — 건너뜀")
+                continue
+            _칸30 = [x for x in 사건 if _든30(x)]
+            _잉 = sorted(z for z in (x.get("잉여금") for x in _칸30) if z is not None)
+            _부 = sorted(z for z in (x.get("부채") for x in _칸30) if z is not None)
+            _대 = sorted(z for z in (x.get("대금억") for x in _칸30) if z is not None)
+            if not (_잉 and _부 and _대):
+                continue
+            _잉컷, _부컷, _대컷 = _잉[int(len(_잉) * .3)], _부[int(len(_부) * .7)], _대[int(len(_대) * .2)]
+
+            def _문30(x, a=_잉컷, b=_부컷, c=_대컷, 든=_든30):
+                if not 든(x):
+                    return False
+                _i, _p = x.get("잉여금"), x.get("부채")
+                if _i is None or _p is None or _i < a or _p > b or x.get("흑자") != 1.0:
+                    return False
+                return (x.get("대금억") or 0) >= c
+
+            _통30 = [x for x in _칸30 if _문30(x) and x.get("_20") is not None]
+            if len(_통30) < 3000:
+                print(f"\n     [{_라30}] 문 통과 {len(_통30):,}건 — 표본 부족")
+                continue
+            _바 = sum(1 for x in _통30 if x["_20"] > 0) / len(_통30) * 100
+            _재신호30 = [(k + "↓", f, "아래") for k, f in _재전부30] + [(k + "↑", f, "위") for k, f in _재전부30]
+            _문턱30, _좋30 = {}, []
+            for _이, _꺼, _방 in _재신호30:
+                _v = sorted(z for z in (_꺼(x) for x in _통30) if z is not None)
+                if len(_v) < len(_통30) * .25 or len(set(_v[::max(1, len(_v) // 2000)])) < 20:
+                    continue
+                _문턱30[_이] = _v[len(_v) // 5] if _방 == "아래" else _v[len(_v) * 4 // 5]
+            for _이, _꺼, _방 in _재신호30:
+                _컷 = _문턱30.get(_이)
+                if _컷 is None:
+                    continue
+                _z = [x for x in _통30 if _꺼(x) is not None and ((_꺼(x) <= _컷) if _방 == "아래" else (_꺼(x) >= _컷))]
+                if len(_z) < 300:
+                    continue
+                _w = sum(1 for x in _z if x["_20"] > 0) / len(_z) * 100
+                _a = [x for x in _z if 날[x["인"] - 1][:4] <= "2018"]
+                _b = [x for x in _z if 날[x["인"] - 1][:4] > "2018"]
+                if len(_a) < 100 or len(_b) < 100:
+                    continue
+                _wa = sum(1 for x in _a if x["_20"] > 0) / len(_a) * 100
+                _wb = sum(1 for x in _b if x["_20"] > 0) / len(_b) * 100
+                if (_w - _바) < 2.0 or (_wa - _바) * (_wb - _바) <= 0:
+                    continue
+                _좋30.append((_w - _바, _이))
+            _좋30.sort(reverse=True)
+            if not _좋30:
+                print(f"\n     [{_라30}] 센 재료 없음 — 건너뜀")
+                continue
+            _쓸30 = tuple(z[1] for z in _좋30[:2]) if _둘30 else (_좋30[0][1],)
+            _갭 = sorted(z for z in (x.get("갭") for x in _통30) if z is not None)
+            _갭컷30 = _갭[int(len(_갭) * .2)] if len(_갭) > 1000 else None
+
+            def _띠규칙30(x, 쓸=_쓸30, 문=_문30, 표=dict(_문턱30), 재=tuple(_재신호30)):
+                if not 문(x):
+                    return False
+                for _이, _꺼, _방 in 재:
+                    if _이 not in 쓸:
+                        continue
+                    _v = _꺼(x)
+                    if _v is None or ((_v > 표[_이]) if _방 == "아래" else (_v < 표[_이])):
+                        return False
+                return True
+
+            _도전30 = (lambda x, f=_띠규칙30: _바탕30(x) or f(x))       # [견줌] Ⓗ+의료 OR 칸
+            _옵30 = dict(_열기30)
+            # 바탕(Ⓗ) 상대갭 −3.5 는 그대로 두고, **이 띠 사건에만** 칸이 낸 상대갭을 배수로 준다.
+            # 배수를 내려면 바탕 값이 필요하다 — 바탕 쪽 값이지 띠 규칙에 소형 값을 넣는 게 아니다
+            if _크기하한 >= 2000e8 and _갭컷30 is not None and R.상대갭문턱:   # [견줌]
+                _옵30["갭무름"] = [(int(_크기하한 / 1e8), _갭컷30 / R.상대갭문턱)]   # [견줌] 이 띠 사건에만 칸의 상대갭
+            _r30 = 시뮬(_c(_도전30, **_옵30), 묶2=_합묶)
+            if not _r30:
+                continue
+            _ok30 = (_r30["산"] > _기30["산"], _r30["끝"] > _기30["끝"], _r30["낙"] > 낙폭기준)
+            _새날 = len({x["인"] for x in 사건 if _띠규칙30(x)} - {x["인"] for x in _덤프})
+            print(f"\n     ── [{_라30} · {'+'.join(_쓸30)}] 비중{_비30:.0%} 자리{_자30}"
+                  f" · 상대갭 {('%.2f' % _갭컷30) if _갭컷30 is not None else '?'}"
+                  f" · Ⓗ 가 안 사던 날 {_새날:,}일 열림 ──")
+            print(f"        Ⓗ+의료 OR 칸  {_r30['끝']:>16,.0f}원  (바탕의 {_r30['끝'] / _기30['끝'] * 100:.0f}%)"
+                  f"  낙폭 {_r30['낙']:.1f}%  산 것 {_r30['산']} (바탕 {_기30['산']})  "
+                  + ("✅ 셋 다" if all(_ok30) else "❌"))
+            if not all(_ok30):
+                continue
+            # 증분 걷기 — 밑거름도 바탕으로, 묶2 로
+            _a0 = 시뮬(_c(_바탕30, **_열기30), 시작년="2010", 끝년="2020", 묶2=_합묶)
+            _a1 = 시뮬(_c(_도전30, **_옵30), 시작년="2010", 끝년="2020", 묶2=_합묶)
+            _b0 = 시뮬(_c(_바탕30, **_열기30), 시작년="2021", 끝년="2026", 시드=_a0["끝"], 묶2=_합묶) if _a0 else None
+            _b1 = 시뮬(_c(_도전30, **_옵30), 시작년="2021", 끝년="2026", 시드=_a1["끝"], 묶2=_합묶) if _a1 else None
+            if _a0 and _a1 and _b0 and _b1:
+                _앞d = (_a1["끝"] / _a0["끝"] - 1) * 100
+                _뒤d = (_b1["끝"] / _b0["끝"] - 1) * 100
+                print(f"        앞 2010~2020: {_a0['끝']:,.0f} → {_a1['끝']:,.0f}원  {_앞d:+.1f}%"
+                      f"   뒤 2021~2026: {_b0['끝']:,.0f} → {_b1['끝']:,.0f}원  {_뒤d:+.1f}%")
+                _걷ok = _앞d > 0.1 and _뒤d > 0.1
+                print("        걷기: " + ("✅ 앞뒤 둘 다 늘렸다" if _걷ok else "❌ 한쪽이 안 늘었다") + "   (증분 · 뒤는 앞이 끝낸 돈으로)")
+                if _걷ok:
+                    _산30.append((_라30, _쓸30, _r30, _새날))
+        print(f"\n     ══ **[{_띠이름30}] Ⓗ+의료 위에 얹어 세 관문을 넘은 칸 {len(_산30)}개** ══")
+        for _라30, _쓸30, _r30, _새날 in sorted(_산30, key=lambda t: -t[2]["끝"]):
+            print(f"       {_라30} · {'+'.join(_쓸30)}  {_r30['끝']:,.0f}원 ({_r30['끝'] / _기30['끝'] * 100:.0f}%)"
+                  f" · 낙폭 {_r30['낙']:.1f}% · 산 것 {_r30['산']} · 새 날 {_새날}")
+        print("     ⚠️ 반영은 실전 코드를 건드리는 변경이다 — 사용자 확인 뒤에 넣는다")
+        print("=" * 122)
+        return 0
+
     # ══ ⭐⭐⭐ **Q-19 (이어서) 띠마다 제 문턱으로 규칙을 만든다** ══
     #    ⚠️ 이 한 줄은 **막개(check_lab_ready ④)를 위한 절 경계**다.
     #    Q-19 의 머리는 위에 있는데 Q-22~Q-27 을 머리와 본체 사이에 끼워 넣는 바람에
