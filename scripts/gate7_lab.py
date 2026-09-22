@@ -6218,6 +6218,235 @@ def main():
                   f" · 낙폭 {_r30['낙']:.1f}% · 산 것 {_r30['산']} · 새 날 {_새날}")
         print("     ⚠️ 반영은 실전 코드를 건드리는 변경이다 — 사용자 확인 뒤에 넣는다")
         print("=" * 122)
+
+        # ══ ⭐⭐ Q-32 — 왜 얹으면 낙폭이 -38% 가 되나 (중형·대형에서만 · Q30 1등 칸으로) ══
+        if os.environ.get("Q32") and _고를30:
+            print("\n" + "=" * 122)
+            print("  ── Q-32 ⭐⭐ **얹으면 낙폭 -38% — 장치인가 규칙인가** ──")
+            print("=" * 122)
+            _라32, _둘32, _비32, _자32 = _고를30[0]
+            _든32 = _칸든30(_라32)
+            _칸32 = [x for x in 사건 if _든32(x)]
+            _잉 = sorted(z for z in (x.get("잉여금") for x in _칸32) if z is not None)
+            _부 = sorted(z for z in (x.get("부채") for x in _칸32) if z is not None)
+            _대 = sorted(z for z in (x.get("대금억") for x in _칸32) if z is not None)
+            _잉컷, _부컷, _대컷 = _잉[int(len(_잉) * .3)], _부[int(len(_부) * .7)], _대[int(len(_대) * .2)]
+
+            def _문32(x, a=_잉컷, b=_부컷, c=_대컷, 든=_든32):
+                if not 든(x):
+                    return False
+                _i, _p = x.get("잉여금"), x.get("부채")
+                if _i is None or _p is None or _i < a or _p > b or x.get("흑자") != 1.0:
+                    return False
+                return (x.get("대금억") or 0) >= c
+
+            _통32 = [x for x in _칸32 if _문32(x) and x.get("_20") is not None]
+            _바32 = sum(1 for x in _통32 if x["_20"] > 0) / len(_통32) * 100
+            _재신호32 = [(k + "↓", f, "아래") for k, f in _재전부30] + [(k + "↑", f, "위") for k, f in _재전부30]
+            _문턱32, _좋32 = {}, []
+            for _이, _꺼, _방 in _재신호32:
+                _v = sorted(z for z in (_꺼(x) for x in _통32) if z is not None)
+                if len(_v) < len(_통32) * .25 or len(set(_v[::max(1, len(_v) // 2000)])) < 20:
+                    continue
+                _문턱32[_이] = _v[len(_v) // 5] if _방 == "아래" else _v[len(_v) * 4 // 5]
+            for _이, _꺼, _방 in _재신호32:
+                _컷 = _문턱32.get(_이)
+                if _컷 is None:
+                    continue
+                _z = [x for x in _통32 if _꺼(x) is not None and ((_꺼(x) <= _컷) if _방 == "아래" else (_꺼(x) >= _컷))]
+                if len(_z) < 300:
+                    continue
+                _w = sum(1 for x in _z if x["_20"] > 0) / len(_z) * 100
+                _a = [x for x in _z if 날[x["인"] - 1][:4] <= "2018"]
+                _b = [x for x in _z if 날[x["인"] - 1][:4] > "2018"]
+                if len(_a) < 100 or len(_b) < 100:
+                    continue
+                _wa = sum(1 for x in _a if x["_20"] > 0) / len(_a) * 100
+                _wb = sum(1 for x in _b if x["_20"] > 0) / len(_b) * 100
+                if (_w - _바32) < 2.0 or (_wa - _바32) * (_wb - _바32) <= 0:
+                    continue
+                _좋32.append((_w - _바32, _이))
+            _좋32.sort(reverse=True)
+            _쓸32 = tuple(z[1] for z in _좋32[:2]) if _둘32 else (_좋32[0][1],)
+            _갭 = sorted(z for z in (x.get("갭") for x in _통32) if z is not None)
+            _갭컷32 = _갭[int(len(_갭) * .2)] if len(_갭) > 1000 else None
+
+            def _띠규칙32(x, 쓸=_쓸32, 문=_문32, 표=dict(_문턱32), 재=tuple(_재신호32)):
+                if not 문(x):
+                    return False
+                for _이, _꺼, _방 in 재:
+                    if _이 not in 쓸:
+                        continue
+                    _v = _꺼(x)
+                    if _v is None or ((_v > 표[_이]) if _방 == "아래" else (_v < 표[_이])):
+                        return False
+                return True
+
+            _도전32 = (lambda x, f=_띠규칙32: _바탕30(x) or f(x))            # [견줌]
+            _옵32 = dict(_열기30)
+            if _크기하한 >= 2000e8 and _갭컷32 is not None and R.상대갭문턱:   # [견줌]
+                _옵32["갭무름"] = [(int(_크기하한 / 1e8), _갭컷32 / R.상대갭문턱)]   # [견줌]
+            print(f"     칸 [{_라32} · {'+'.join(_쓸32)}] · 상대갭 {_갭컷32}")
+
+            # ① 거래 기록 — 얹어서 새로 생긴 거래
+            _기록바 = []
+            _기록도 = []
+            _r바 = 시뮬(_c(_바탕30, **_열기30), 묶2=_합묶, 기록=_기록바)
+            _r도 = 시뮬(_c(_도전32, **_옵32), 묶2=_합묶, 기록=_기록도)
+            _키바 = {(t[0], t[1]) for t in _기록바}
+            _새거래 = [t for t in _기록도 if (t[0], t[1]) not in _키바]
+            _사라짐 = [t for t in _새거래 if t[4] <= -49.9]
+            print(f"\n     바탕 {_r바['끝']:,.0f}원 · 낙폭 {_r바['낙']:.1f}% · 거래 {len(_기록바)}"
+                  f"   →  얹음 {_r도['끝']:,.0f}원 · 낙폭 {_r도['낙']:.1f}% · 거래 {len(_기록도)}")
+            print(f"     얹어서 **새로 생긴 거래 {len(_새거래)}건** · 그중 결과 ≤ -49.9% (사라짐 -50%) **{len(_사라짐)}건**")
+            print(f"     새 거래 중 큰 종목(≥{int(_크기하한 / 1e8):,}억) {sum(1 for t in _새거래 if (t[2] or 0) >= _크기하한 / 1e8)}건")
+            print(f"     {'날':<10}{'code':<8}{'시총억':>10}{'원시':>10}{'결과%':>8}{'청산':>7}{'주수':>10}")
+            for t in sorted(_새거래, key=lambda t: t[4])[:25]:
+                print(f"     {t[0]:<10}{t[1]:<8}{(t[2] or 0):>10,.0f}{(t[3] or 0):>10,.0f}{t[4]:>8.1f}{str(t[5]):>7}{(t[6] or 0):>10,}")
+            # 새 거래 결과 분포
+            _rs = sorted(t[4] for t in _새거래)
+            if _rs:
+                print(f"     새 거래 결과% — 최소 {_rs[0]:.1f} · 하위25% {_rs[len(_rs)//4]:.1f} · 중앙 {_rs[len(_rs)//2]:.1f}"
+                      f" · 평균 {sum(_rs)/len(_rs):+.1f} · 이긴 비율 {sum(1 for z in _rs if z > 0)/len(_rs)*100:.0f}%")
+
+            # ② 해마다 끝 자산 나란히
+            print(f"\n     {'해':<6}{'바탕 끝':>16}{'얹음 끝':>16}{'바탕 낙폭':>10}{'얹음 낙폭':>10}")
+            for _y in range(2010, 2027):
+                _a = 시뮬(_c(_바탕30, **_열기30), 시작년=str(_y), 끝년=str(_y), 묶2=_합묶)
+                _b = 시뮬(_c(_도전32, **_옵32), 시작년=str(_y), 끝년=str(_y), 묶2=_합묶)
+                if _a and _b:
+                    print(f"     {_y:<6}{_a['끝']:>16,.0f}{_b['끝']:>16,.0f}{_a['낙']:>9.1f}%{_b['낙']:>9.1f}%")
+
+            # ③ 변형 — 어느 장치가 만드나
+            for _라v, _옵v in (("갭무름 뺌 (전부 -3.5)", dict(_열기30)),
+                               ("자리 3", {**_옵32, "하루상한": 3}),
+                               ("비중 10%", {**_옵32, "비중": 0.10}),
+                               ("칸 규칙만 (Ⓗ 없이)", None)):
+                if _옵v is None:
+                    _rv = 시뮬(_c(_띠규칙32, **_옵32), 묶2=_합묶)
+                else:
+                    _rv = 시뮬(_c(_도전32, **_옵v), 묶2=_합묶)
+                if _rv:
+                    print(f"     {_라v:<24}{_rv['끝']:>16,.0f}원  낙폭 {_rv['낙']:.1f}%  산 것 {_rv['산']}")
+            print("=" * 122)
+
+        # ══ ⭐⭐ Q-31 — 통과 칸의 문턱 자리를 흔들고, 파는 규칙을 그 칸에서 (소형 300~800억) ══
+        if os.environ.get("Q31") and _산30:
+            print("\n" + "=" * 122)
+            print("  ── Q-31 ⭐⭐ **통과 칸 흔들기 — 문턱 자리 · 파는 규칙** ──")
+            print("     자르는 자리(30·70·20분위)는 내가 고른 것이다 — 옆으로 옮겨도 서야 우연이 아니다")
+            print("=" * 122)
+            for _라31, _쓸31, _r0_31, _새날31 in _산30:
+                _든31 = _칸든30(_라31)
+                _칸31 = [x for x in 사건 if _든31(x)]
+                _잉 = sorted(z for z in (x.get("잉여금") for x in _칸31) if z is not None)
+                _부 = sorted(z for z in (x.get("부채") for x in _칸31) if z is not None)
+                _대 = sorted(z for z in (x.get("대금억") for x in _칸31) if z is not None)
+                print(f"\n     ══ [{_라31} · {'+'.join(_쓸31)}] 얹은 결과 {_r0_31['끝']:,.0f}원 ({_r0_31['끝'] / _기30['끝'] * 100:.0f}%) ══")
+                print(f"     {'변형':<34}{'끝 자산':>16}{'바탕의%':>9}{'낙폭':>8}{'산 것':>7}{'새 날':>7}  판정")
+                _변형들 = []
+                for _q잉 in (0.20, 0.30, 0.40):
+                    _변형들.append((f"잉여금 {int(_q잉 * 100)}분위", (_q잉, 0.70, 0.20, 0.20)))
+                for _q부 in (0.60, 0.80):
+                    _변형들.append((f"부채 {int(_q부 * 100)}분위", (0.30, _q부, 0.20, 0.20)))
+                for _q대 in (0.10, 0.30):
+                    _변형들.append((f"대금 {int(_q대 * 100)}분위", (0.30, 0.70, _q대, 0.20)))
+                for _q신 in (0.15, 0.25):
+                    _변형들.append((f"신호 {int(_q신 * 100)}분위", (0.30, 0.70, 0.20, _q신)))
+                for _라v, (_q잉, _q부, _q대, _q신) in _변형들:
+                    _잉컷, _부컷, _대컷 = _잉[int(len(_잉) * _q잉)], _부[int(len(_부) * _q부)], _대[int(len(_대) * _q대)]
+
+                    def _문31(x, a=_잉컷, b=_부컷, c=_대컷, 든=_든31):
+                        if not 든(x):
+                            return False
+                        _i, _p = x.get("잉여금"), x.get("부채")
+                        if _i is None or _p is None or _i < a or _p > b or x.get("흑자") != 1.0:
+                            return False
+                        return (x.get("대금억") or 0) >= c
+
+                    _통31 = [x for x in _칸31 if _문31(x) and x.get("_20") is not None]
+                    _재신호31 = [(k + "↓", f, "아래") for k, f in _재전부30] + [(k + "↑", f, "위") for k, f in _재전부30]
+                    _표31 = {}
+                    for _이, _꺼, _방 in _재신호31:
+                        if _이 not in _쓸31:
+                            continue
+                        _v = sorted(z for z in (_꺼(x) for x in _통31) if z is not None)
+                        if not _v:
+                            continue
+                        _표31[_이] = _v[int(len(_v) * _q신)] if _방 == "아래" else _v[int(len(_v) * (1 - _q신))]
+                    if len(_표31) < len(_쓸31):
+                        print(f"     {_라v:<34} 문턱을 못 냈다")
+                        continue
+
+                    def _띠규칙31(x, 쓸=_쓸31, 문=_문31, 표=dict(_표31), 재=tuple(_재신호31)):
+                        if not 문(x):
+                            return False
+                        for _이, _꺼, _방 in 재:
+                            if _이 not in 쓸:
+                                continue
+                            _v = _꺼(x)
+                            if _v is None or ((_v > 표[_이]) if _방 == "아래" else (_v < 표[_이])):
+                                return False
+                        return True
+
+                    _도전31 = (lambda x, f=_띠규칙31: _바탕30(x) or f(x))        # [견줌]
+                    _r31 = 시뮬(_c(_도전31, **_열기30), 묶2=_합묶)
+                    if not _r31:
+                        continue
+                    _ok31 = (_r31["산"] > _기30["산"], _r31["끝"] > _기30["끝"], _r31["낙"] > 낙폭기준)
+                    _새31 = len({x["인"] for x in 사건 if _띠규칙31(x)} - {x["인"] for x in _덤프})
+                    print(f"     {_라v:<34}{_r31['끝']:>16,.0f}{_r31['끝'] / _기30['끝'] * 100:>8.0f}%"
+                          f"{_r31['낙']:>7.1f}%{_r31['산']:>7}{_새31:>7}  " + ("✅" if all(_ok31) else "❌"))
+
+                # 파는 규칙 — 그 칸 규칙(원래 문턱)을 얹은 채로 몫들만 바꿔 본다
+                _잉컷, _부컷, _대컷 = _잉[int(len(_잉) * .3)], _부[int(len(_부) * .7)], _대[int(len(_대) * .2)]
+
+                def _문31b(x, a=_잉컷, b=_부컷, c=_대컷, 든=_든31):
+                    if not 든(x):
+                        return False
+                    _i, _p = x.get("잉여금"), x.get("부채")
+                    if _i is None or _p is None or _i < a or _p > b or x.get("흑자") != 1.0:
+                        return False
+                    return (x.get("대금억") or 0) >= c
+
+                _통31b = [x for x in _칸31 if _문31b(x) and x.get("_20") is not None]
+                _재신호31b = [(k + "↓", f, "아래") for k, f in _재전부30] + [(k + "↑", f, "위") for k, f in _재전부30]
+                _표31b = {}
+                for _이, _꺼, _방 in _재신호31b:
+                    if _이 not in _쓸31:
+                        continue
+                    _v = sorted(z for z in (_꺼(x) for x in _통31b) if z is not None)
+                    if _v:
+                        _표31b[_이] = _v[len(_v) // 5] if _방 == "아래" else _v[len(_v) * 4 // 5]
+
+                def _띠규칙31b(x, 쓸=_쓸31, 문=_문31b, 표=dict(_표31b), 재=tuple(_재신호31b)):
+                    if not 문(x):
+                        return False
+                    for _이, _꺼, _방 in 재:
+                        if _이 not in 쓸:
+                            continue
+                        _v = _꺼(x)
+                        if _v is None or ((_v > 표[_이]) if _방 == "아래" else (_v < 표[_이])):
+                            return False
+                    return True
+
+                _도전31b = (lambda x, f=_띠규칙31b: _바탕30(x) or f(x))       # [견줌]
+                print(f"\n     ── 파는 규칙 (얹은 채로 · ⚠️ 몫은 Ⓗ 사건에도 같이 적용된다 — 실전이 그렇다) ──")
+                print(f"     {'몫들':<34}{'바탕(같은 몫)':>16}{'얹음':>16}{'차이':>8}{'낙폭':>8}")
+                for _라m, _몫 in (("지금 40%@+15/40일 · 60%@+40/90일", None),
+                                  ("40%@+10/40 · 60%@+30/90", ((0.4, 10.0, 40), (0.6, 30.0, 90))),
+                                  ("40%@+20/40 · 60%@+50/90", ((0.4, 20.0, 40), (0.6, 50.0, 90))),
+                                  ("40%@+15/60 · 60%@+40/120", ((0.4, 15.0, 60), (0.6, 40.0, 120))),
+                                  ("100%@+20/60", ((1.0, 20.0, 60),))):
+                    _옵m = dict(_열기30)
+                    if _몫 is not None:
+                        _옵m["나눔"] = _몫
+                    _a = 시뮬(_c(_바탕30, **_옵m), 묶2=_합묶)
+                    _b = 시뮬(_c(_도전31b, **_옵m), 묶2=_합묶)
+                    if _a and _b:
+                        print(f"     {_라m:<34}{_a['끝']:>16,.0f}{_b['끝']:>16,.0f}"
+                              f"{(_b['끝'] / _a['끝'] - 1) * 100:>+7.1f}%{_b['낙']:>7.1f}%")
+            print("=" * 122)
         return 0
 
     # ══ ⭐⭐⭐ **Q-19 (이어서) 띠마다 제 문턱으로 규칙을 만든다** ══
