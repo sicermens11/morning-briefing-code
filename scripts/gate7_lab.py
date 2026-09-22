@@ -6024,6 +6024,96 @@ def main():
               f" · 낙폭 {_r0['낙']:.1f}% · 산 것 {_r0['산']}  (Q-28 ⓪ 262,871,069 과 같아야 한다)")
         return 0
 
+    # ══ ⭐⭐⭐ **Q-34 후보 셋을 같이 켜면** (2026-09-23) ══
+    #    [[compare-candidates-before-adopting]] — 하나 넣고 견주면 되돌리게 된다.
+    #    DUMPC 로 덜어 둔 칸 사건 파일들 + Ⓗ 사건을 보통 풀에 합쳐 하나·둘·셋을 잰다
+    if _ONLY == "Q34":
+        import itertools as _it34
+        print("\n" + "=" * 122)
+        print("  ── Q-34 ⭐⭐⭐ **후보 셋을 같이 켜면** ──")
+        print("=" * 122)
+        if not os.path.exists(_덤프길):
+            print("  ⚠️ h_events.jsonl 이 없다")
+            return 1
+        _덤프 = [json.loads(z) for z in io.open(_덤프길, encoding="utf-8") if z.strip()]
+        _덤키 = {(x["code"], x["인"]) for x in _덤프}
+        _칸파일들 = sorted(glob.glob(os.path.join(O._DATA, "_labs", "c_events_*.jsonl")))
+        _칸키 = {}
+        _칸사건 = []
+        for _f34 in _칸파일들:
+            _꼬 = os.path.basename(_f34)[len("c_events_"):-len(".jsonl")]
+            _ev = [json.loads(z) for z in io.open(_f34, encoding="utf-8") if z.strip()]
+            _칸키[_꼬] = {(x["code"], x["인"]) for x in _ev}
+            _칸사건 += _ev
+            print(f"     칸 [{_꼬}] 사건 {len(_ev):,}건")
+        if not _칸키:
+            print("  ⚠️ c_events_*.jsonl 이 없다 — 먼저 DUMPC 를 돌려라")
+            return 1
+        _풀키 = {(x["code"], x["인"]) for x in 사건}
+        _합 = list(사건)
+        _본 = set(_풀키)
+        for x in _덤프 + _칸사건:
+            k = (x["code"], x["인"])
+            if k not in _본:
+                _합.append(x)
+                _본.add(k)
+        _합묶34 = {}
+        for x in _합:
+            _합묶34.setdefault(x["인"], []).append(x)
+        print(f"     보통 풀 {len(사건):,} + Ⓗ {len(_덤프):,} + 칸 {len(_칸사건):,} → 합 {len(_합):,}건")
+        _열기34 = {"시총하한": 0, "시총상한": 999999999, "대금하한": 0}
+
+        def _바탕34(x):
+            return (x["code"], x["인"]) in _덤키          # [견줌] 지금 실전 (Ⓗ+의료)
+
+        _기34 = 시뮬(_c(_바탕34, **_열기34), 묶2=_합묶34)
+        print(f"     바탕 재현 — {_기34['끝']:,.0f}원 · 낙폭 {_기34['낙']:.1f}% · 산 것 {_기34['산']}"
+              f"   ({'재현 ✅' if abs(_기34['끝'] - 262871069) < 2e6 else '⚠️ 재현 안 됨 — 결론 쓰지 마라'})")
+        _꼬들 = sorted(_칸키)
+        print(f"\n     {'조합':<40}{'끝 자산':>16}{'바탕의%':>9}{'낙폭':>8}{'산 것':>7}{'새 날':>7}  판정")
+        _결과34 = {}
+        for _n in range(1, len(_꼬들) + 1):
+            for _조 in _it34.combinations(_꼬들, _n):
+                _키합 = set().union(*(_칸키[t] for t in _조))
+                _도전 = (lambda x, K=_키합: _바탕34(x) or (x["code"], x["인"]) in K)     # [견줌]
+                _r = 시뮬(_c(_도전, **_열기34), 묶2=_합묶34)
+                if not _r:
+                    continue
+                _새 = len({인 for (_, 인) in _키합} - {인 for (_, 인) in _덤키})
+                _ok = (_r["산"] > _기34["산"], _r["끝"] > _기34["끝"], _r["낙"] > 낙폭기준)
+                _결과34[_조] = (_r, _도전, _새)
+                print(f"     {'+'.join(_조):<40}{_r['끝']:>16,.0f}{_r['끝'] / _기34['끝'] * 100:>8.0f}%"
+                      f"{_r['낙']:>7.1f}%{_r['산']:>7}{_새:>7}  " + ("✅ 셋 다" if all(_ok) else "❌"))
+        # 더해서 더 나아지나 — 둘·셋이 그 부분집합 최고보다 나은가
+        print("\n     ── 더하면 나아지나 (부분집합 최고와 견줌) ──")
+        for _조, (_r, _, _) in sorted(_결과34.items(), key=lambda kv: (len(kv[0]), kv[0])):
+            if len(_조) < 2:
+                continue
+            _부분 = [(_결과34[c][0]["끝"], c) for c in _결과34 if set(c) < set(_조)]
+            if not _부분:
+                continue
+            _최, _c최 = max(_부분)
+            print(f"     {'+'.join(_조):<40} vs {'+'.join(_c최):<28} {_r['끝'] / _최 * 100:>6.1f}%"
+                  + ("  ⭐ 더 낫다" if _r["끝"] > _최 + 1000 else ("  ⚠️ 같다 — 흡수" if abs(_r["끝"] - _최) < 1000 else "  — 나을 게 없다")))
+        # 셋 다 넘은 조합은 증분 걷기
+        print("\n     ── 셋 다 넘은 조합의 증분 걷기 (뒤는 앞이 끝낸 돈으로) ──")
+        for _조, (_r, _도전, _새) in sorted(_결과34.items(), key=lambda kv: -kv[1][0]["끝"]):
+            _ok = (_r["산"] > _기34["산"], _r["끝"] > _기34["끝"], _r["낙"] > 낙폭기준)
+            if not all(_ok):
+                continue
+            _a0 = 시뮬(_c(_바탕34, **_열기34), 시작년="2010", 끝년="2020", 묶2=_합묶34)
+            _a1 = 시뮬(_c(_도전, **_열기34), 시작년="2010", 끝년="2020", 묶2=_합묶34)
+            _b0 = 시뮬(_c(_바탕34, **_열기34), 시작년="2021", 끝년="2026", 시드=_a0["끝"], 묶2=_합묶34) if _a0 else None
+            _b1 = 시뮬(_c(_도전, **_열기34), 시작년="2021", 끝년="2026", 시드=_a1["끝"], 묶2=_합묶34) if _a1 else None
+            if _a0 and _a1 and _b0 and _b1:
+                _앞d = (_a1["끝"] / _a0["끝"] - 1) * 100
+                _뒤d = (_b1["끝"] / _b0["끝"] - 1) * 100
+                print(f"     {'+'.join(_조):<40} 앞 {_앞d:+6.1f}% · 뒤 {_뒤d:+6.1f}%  "
+                      + ("✅" if (_앞d > 0.1 and _뒤d > 0.1) else "❌"))
+        print("\n     ⚠️ 반영은 실전 코드를 건드리는 변경이다 — 사용자 확인 뒤에 넣는다")
+        print("=" * 122)
+        return 0
+
     # ══ ⭐⭐⭐ **Q-30 칸 규칙을 Ⓗ+의료 위에 얹으면 빈 날을 채우나** (2026-09-22) ══
     #    반영을 정하는 물음. 띠 풀(OPENFIN) + 덜어 둔 Ⓗ 사건을 합쳐 `묶2` 로 시뮬에 넘긴다.
     if _ONLY == "Q30":
@@ -6108,6 +6198,81 @@ def main():
                     return (lambda x, f=_f, c=_c0: f(x) is not None and f(x) <= c) if _쪽 == "아래" \
                         else (lambda x, f=_f, c=_c0: f(x) is not None and f(x) >= c)
             return None
+
+        # ⭐ DUMPC — 지정한 칸 규칙에 맞는 사건을 파일로 덜어 둔다 (Q-34 가 합친다)
+        _덤칸 = os.environ.get("DUMPC_CELL")
+        if _덤칸:
+            _꼬 = os.environ.get("DUMPC_TAG") or "cell"
+            _맞 = [g for g in _고를30 if g[0].startswith(_덤칸)]
+            if not _맞:
+                print(f"  ⚠️ DUMPC — 요약 위 5칸에 「{_덤칸}」 이 없다: " + " · ".join(g[0] for g in _고를30))
+                return 1
+            _라D, _둘D, _, _ = _맞[0]
+            _든D = _칸든30(_라D)
+            _칸D = [x for x in 사건 if _든D(x)]
+            _잉 = sorted(z for z in (x.get("잉여금") for x in _칸D) if z is not None)
+            _부 = sorted(z for z in (x.get("부채") for x in _칸D) if z is not None)
+            _대 = sorted(z for z in (x.get("대금억") for x in _칸D) if z is not None)
+            _잉컷, _부컷, _대컷 = _잉[int(len(_잉) * .3)], _부[int(len(_부) * .7)], _대[int(len(_대) * .2)]
+
+            def _문D(x, a=_잉컷, b=_부컷, c=_대컷, 든=_든D):
+                if not 든(x):
+                    return False
+                _i, _p = x.get("잉여금"), x.get("부채")
+                if _i is None or _p is None or _i < a or _p > b or x.get("흑자") != 1.0:
+                    return False
+                return (x.get("대금억") or 0) >= c
+
+            _통D = [x for x in _칸D if _문D(x) and x.get("_20") is not None]
+            _바D = sum(1 for x in _통D if x["_20"] > 0) / len(_통D) * 100
+            _재신호D = [(k + "↓", f, "아래") for k, f in _재전부30] + [(k + "↑", f, "위") for k, f in _재전부30]
+            _문턱D, _좋D = {}, []
+            for _이, _꺼, _방 in _재신호D:
+                _v = sorted(z for z in (_꺼(x) for x in _통D) if z is not None)
+                if len(_v) < len(_통D) * .25 or len(set(_v[::max(1, len(_v) // 2000)])) < 20:
+                    continue
+                _문턱D[_이] = _v[len(_v) // 5] if _방 == "아래" else _v[len(_v) * 4 // 5]
+            for _이, _꺼, _방 in _재신호D:
+                _컷 = _문턱D.get(_이)
+                if _컷 is None:
+                    continue
+                _z = [x for x in _통D if _꺼(x) is not None and ((_꺼(x) <= _컷) if _방 == "아래" else (_꺼(x) >= _컷))]
+                if len(_z) < 300:
+                    continue
+                _w = sum(1 for x in _z if x["_20"] > 0) / len(_z) * 100
+                _a = [x for x in _z if 날[x["인"] - 1][:4] <= "2018"]
+                _b = [x for x in _z if 날[x["인"] - 1][:4] > "2018"]
+                if len(_a) < 100 or len(_b) < 100:
+                    continue
+                _wa = sum(1 for x in _a if x["_20"] > 0) / len(_a) * 100
+                _wb = sum(1 for x in _b if x["_20"] > 0) / len(_b) * 100
+                if (_w - _바D) < 2.0 or (_wa - _바D) * (_wb - _바D) <= 0:
+                    continue
+                _좋D.append((_w - _바D, _이))
+            _좋D.sort(reverse=True)
+            _쓸D = tuple(z[1] for z in _좋D[:2]) if _둘D else (_좋D[0][1],)
+
+            def _띠규칙D(x, 쓸=_쓸D, 문=_문D, 표=dict(_문턱D), 재=tuple(_재신호D)):
+                if not 문(x):
+                    return False
+                for _이, _꺼, _방 in 재:
+                    if _이 not in 쓸:
+                        continue
+                    _v = _꺼(x)
+                    if _v is None or ((_v > 표[_이]) if _방 == "아래" else (_v < 표[_이])):
+                        return False
+                return True
+
+            _덤D = [dict(x, _칸=_꼬) for x in 사건 if _띠규칙D(x)]
+            _길D = os.path.join(O._DATA, "_labs", f"c_events_{_꼬}.jsonl")
+            with io.open(_길D, "w", encoding="utf-8") as _f:
+                for x in _덤D:
+                    _f.write(json.dumps(x, ensure_ascii=False, default=str) + "\n")
+            _rD = 시뮬(_c(lambda x: _바탕30(x) or _띠규칙D(x), **_열기30), 묶2=_합묶)   # [견줌]
+            print(f"\n  DUMPC — [{_라D} · {'+'.join(_쓸D)}] 맞는 사건 {len(_덤D):,}건 → {_길D}")
+            print(f"         재현: Ⓗ+의료 OR 이 칸 = {_rD['끝']:,.0f}원 · 낙폭 {_rD['낙']:.1f}% · 산 것 {_rD['산']}"
+                  f"  (Q-33/Q-30 값과 같아야 한다)")
+            return 0
 
         _산30 = []
         for _라30, _둘30, _비30, _자30 in _고를30:
