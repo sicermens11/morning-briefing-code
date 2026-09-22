@@ -6330,6 +6330,124 @@ def main():
                     print(f"     {_라v:<24}{_rv['끝']:>16,.0f}원  낙폭 {_rv['낙']:.1f}%  산 것 {_rv['산']}")
             print("=" * 122)
 
+        # ══ ⭐⭐ Q-33 — 중형·대형 칸을 **상대갭 빡빡하게 · 중복금지**로 다시 얹는다 ══
+        #    Q-32: -38% 는 칸 상대갭(20분위)이 느슨해 새 거래가 188~243건으로 불고,
+        #    떨어지는 종목을 열 번 넘게 반복 매수한 탓. 갭무름 뺌(-3.5)이면 대형이 셋 다 ✅ 였다
+        if os.environ.get("Q33") and _고를30:
+            print("\n" + "=" * 122)
+            print("  ── Q-33 ⭐⭐ **상대갭 {Ⓗ -3.5 · 칸 5분위 · 칸 10분위} × 중복금지 {끔·켬}** ──")
+            print("     ⚠️ 5·10분위는 내가 고른 자리다 — 통과하면 흔들어야 한다")
+            print("=" * 122)
+            _산33 = []
+            for _라33, _둘33, _비33, _자33 in _고를30:
+                _든33 = _칸든30(_라33)
+                if _든33 is None:
+                    continue
+                _칸33 = [x for x in 사건 if _든33(x)]
+                _잉 = sorted(z for z in (x.get("잉여금") for x in _칸33) if z is not None)
+                _부 = sorted(z for z in (x.get("부채") for x in _칸33) if z is not None)
+                _대 = sorted(z for z in (x.get("대금억") for x in _칸33) if z is not None)
+                if not (_잉 and _부 and _대):
+                    continue
+                _잉컷, _부컷, _대컷 = _잉[int(len(_잉) * .3)], _부[int(len(_부) * .7)], _대[int(len(_대) * .2)]
+
+                def _문33(x, a=_잉컷, b=_부컷, c=_대컷, 든=_든33):
+                    if not 든(x):
+                        return False
+                    _i, _p = x.get("잉여금"), x.get("부채")
+                    if _i is None or _p is None or _i < a or _p > b or x.get("흑자") != 1.0:
+                        return False
+                    return (x.get("대금억") or 0) >= c
+
+                _통33 = [x for x in _칸33 if _문33(x) and x.get("_20") is not None]
+                if len(_통33) < 3000:
+                    continue
+                _바33 = sum(1 for x in _통33 if x["_20"] > 0) / len(_통33) * 100
+                _재신호33 = [(k + "↓", f, "아래") for k, f in _재전부30] + [(k + "↑", f, "위") for k, f in _재전부30]
+                _문턱33, _좋33 = {}, []
+                for _이, _꺼, _방 in _재신호33:
+                    _v = sorted(z for z in (_꺼(x) for x in _통33) if z is not None)
+                    if len(_v) < len(_통33) * .25 or len(set(_v[::max(1, len(_v) // 2000)])) < 20:
+                        continue
+                    _문턱33[_이] = _v[len(_v) // 5] if _방 == "아래" else _v[len(_v) * 4 // 5]
+                for _이, _꺼, _방 in _재신호33:
+                    _컷 = _문턱33.get(_이)
+                    if _컷 is None:
+                        continue
+                    _z = [x for x in _통33 if _꺼(x) is not None and ((_꺼(x) <= _컷) if _방 == "아래" else (_꺼(x) >= _컷))]
+                    if len(_z) < 300:
+                        continue
+                    _w = sum(1 for x in _z if x["_20"] > 0) / len(_z) * 100
+                    _a = [x for x in _z if 날[x["인"] - 1][:4] <= "2018"]
+                    _b = [x for x in _z if 날[x["인"] - 1][:4] > "2018"]
+                    if len(_a) < 100 or len(_b) < 100:
+                        continue
+                    _wa = sum(1 for x in _a if x["_20"] > 0) / len(_a) * 100
+                    _wb = sum(1 for x in _b if x["_20"] > 0) / len(_b) * 100
+                    if (_w - _바33) < 2.0 or (_wa - _바33) * (_wb - _바33) <= 0:
+                        continue
+                    _좋33.append((_w - _바33, _이))
+                _좋33.sort(reverse=True)
+                if not _좋33:
+                    continue
+                _쓸33 = tuple(z[1] for z in _좋33[:2]) if _둘33 else (_좋33[0][1],)
+                _갭 = sorted(z for z in (x.get("갭") for x in _통33) if z is not None)
+                _갭5 = _갭[int(len(_갭) * .05)] if len(_갭) > 1000 else None
+                _갭10 = _갭[int(len(_갭) * .10)] if len(_갭) > 1000 else None
+
+                def _띠규칙33(x, 쓸=_쓸33, 문=_문33, 표=dict(_문턱33), 재=tuple(_재신호33)):
+                    if not 문(x):
+                        return False
+                    for _이, _꺼, _방 in 재:
+                        if _이 not in 쓸:
+                            continue
+                        _v = _꺼(x)
+                        if _v is None or ((_v > 표[_이]) if _방 == "아래" else (_v < 표[_이])):
+                            return False
+                    return True
+
+                _도전33 = (lambda x, f=_띠규칙33: _바탕30(x) or f(x))        # [견줌]
+                _새날33 = len({x["인"] for x in 사건 if _띠규칙33(x)} - {x["인"] for x in _덤프})
+                print(f"\n     ══ [{_라33} · {'+'.join(_쓸33)}] 칸 갭 5분위 {_갭5} · 10분위 {_갭10} · 켜지는 새 날 {_새날33} ══")
+                print(f"     {'상대갭':<14}{'중복금지':<8}{'끝 자산':>16}{'바탕의%':>9}{'낙폭':>8}{'산 것':>7}  판정")
+                for _라g, _g in (("Ⓗ -3.5 그대로", None), ("칸 5분위", _갭5), ("칸 10분위", _갭10)):
+                    if _라g != "Ⓗ -3.5 그대로" and _g is None:
+                        continue
+                    for _중 in (False, True):
+                        _옵33 = dict(_열기30)
+                        if _g is not None and _크기하한 >= 2000e8 and R.상대갭문턱:          # [견줌]
+                            _옵33["갭무름"] = [(int(_크기하한 / 1e8), _g / R.상대갭문턱)]   # [견줌]
+                        if _중:
+                            _옵33["중복금지"] = True
+                        _r33 = 시뮬(_c(_도전33, **_옵33), 묶2=_합묶)
+                        if not _r33:
+                            continue
+                        # ⚠️ 중복금지를 켜면 바탕도 같은 설정으로 견줘야 공평하다
+                        _기33 = 시뮬(_c(_바탕30, **{**_열기30, **({"중복금지": True} if _중 else {})}), 묶2=_합묶) if _중 else _기30
+                        _ok33 = (_r33["산"] > _기33["산"], _r33["끝"] > _기33["끝"], _r33["낙"] > 낙폭기준)
+                        print(f"     {_라g:<14}{('켬' if _중 else '끔'):<8}{_r33['끝']:>16,.0f}"
+                              f"{_r33['끝'] / _기33['끝'] * 100:>8.0f}%{_r33['낙']:>7.1f}%{_r33['산']:>7}  "
+                              + ("✅ 셋 다" if all(_ok33) else "❌")
+                              + (f"  (바탕도 중복금지: {_기33['끝']:,.0f})" if _중 else ""))
+                        if all(_ok33):
+                            _a0 = 시뮬(_c(_바탕30, **{k: v for k, v in _옵33.items() if k != "갭무름"}), 시작년="2010", 끝년="2020", 묶2=_합묶)
+                            _a1 = 시뮬(_c(_도전33, **_옵33), 시작년="2010", 끝년="2020", 묶2=_합묶)
+                            _b0 = 시뮬(_c(_바탕30, **{k: v for k, v in _옵33.items() if k != "갭무름"}), 시작년="2021", 끝년="2026", 시드=_a0["끝"], 묶2=_합묶) if _a0 else None
+                            _b1 = 시뮬(_c(_도전33, **_옵33), 시작년="2021", 끝년="2026", 시드=_a1["끝"], 묶2=_합묶) if _a1 else None
+                            if _a0 and _a1 and _b0 and _b1:
+                                _앞d = (_a1["끝"] / _a0["끝"] - 1) * 100
+                                _뒤d = (_b1["끝"] / _b0["끝"] - 1) * 100
+                                _걷ok = _앞d > 0.1 and _뒤d > 0.1
+                                print(f"        증분 걷기 — 앞 {_앞d:+.1f}% · 뒤 {_뒤d:+.1f}%  "
+                                      + ("✅ 둘 다 늘렸다" if _걷ok else "❌"))
+                                if _걷ok:
+                                    _산33.append((_라33, _쓸33, _라g, _중, _r33, _새날33))
+            print(f"\n     ══ **[{_띠이름30}] 세 관문(셋 다 + 증분 걷기)을 넘은 것 {len(_산33)}개** ══")
+            for _라33, _쓸33, _라g, _중, _r33, _새날33 in sorted(_산33, key=lambda t: -t[4]["끝"]):
+                print(f"       {_라33} · {'+'.join(_쓸33)} · 상대갭 {_라g} · 중복금지 {'켬' if _중 else '끔'}"
+                      f"  {_r33['끝']:,.0f}원 ({_r33['끝'] / _기30['끝'] * 100:.0f}%) · 낙폭 {_r33['낙']:.1f}% · 산 것 {_r33['산']} · 새 날 {_새날33}")
+            print("=" * 122)
+
         # ══ ⭐⭐ Q-31 — 통과 칸의 문턱 자리를 흔들고, 파는 규칙을 그 칸에서 (소형 300~800억) ══
         if os.environ.get("Q31") and _산30:
             print("\n" + "=" * 122)
