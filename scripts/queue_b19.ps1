@@ -19,7 +19,7 @@ $env:PYTHONIOENCODING = "utf-8"
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 $OutputEncoding = [Text.Encoding]::UTF8
 $py = "C:\Users\mrblue\AppData\Local\Programs\Python\Python313\python.exe"
-$log = "run-logs\queue_b18_$(Get-Date -f yyyyMMdd_HHmm).log"
+$log = "run-logs\queue_b19_$(Get-Date -f yyyyMMdd_HHmm).log"
 function 적기($s) {
     $줄 = "$(Get-Date -f 'MM-dd HH:mm')  $s"
     Write-Output $줄
@@ -50,13 +50,13 @@ function 메모리관문($필요GB = 18) {
     if ($ㅁ -gt 0) { 적기 "[메모리] $ㅁ 분 기다렸다" }
 }
 # ⚠️ 메모리 — 판 하나가 24GB 다. 앞줄이 끝나고 커밋이 돌아온 뒤에만 시작한다
-$앞파일 = "data\_labs\2026-09-22_B17_문열고_초소형_고침.txt"
+$앞파일 = "data\_labs\2026-09-22_B18_문열고_소형앞반_고침.txt"
 function 앞줄끝났나 {
     if (-not (Test-Path $앞파일)) { return $false }
     if ((큰파이썬) -gt 0) { return $false }
     return $true
 }
-적기 "[0] 앞줄(B17)이 끝나길 기다린다"
+적기 "[0] 앞줄(B18)이 끝나길 기다린다"
 $분 = 0
 while (-not (앞줄끝났나) -and ($분 -lt 900)) { Start-Sleep -Seconds 60; $분 = $분 + 1 }
 적기 "[0] $분 분 기다림"
@@ -72,7 +72,7 @@ while ((아침인가) -and ($ㅇ -lt 180)) {
 $chk = & $py "scripts\check_lab_ready.py" 2>&1
 $chk | Select-Object -Last 3 | ForEach-Object { 적기 "    $_" }
 if ($LASTEXITCODE -ne 0) { 적기 "❌ 실행 전 검사에서 걸렸다 — 판을 띄우지 않는다"; exit 1 }
-적기 "[B18] Q-29 문 열고 · 소형 앞반 300~800억 · 메모리 때문에 반으로 - 시작"
+적기 "[B19] Q-29 문 열고 · 소형 뒷반 800~2,000억 · 메모리 때문에 반으로 - 시작"
 $env:BASE_GAP = "표본만+실전표본"
 $env:BASE_RELGAP = "-3.5"
 $env:BASE_SELL = "0.4,15,40 / 0.6,40,90"
@@ -80,13 +80,13 @@ $env:BASE_PICKS = "120"
 $env:SIZE_HI = "999999"
 $env:ONLY = "Q29"
 $env:OPENFIN = "1"
-$env:SIZE_LO = "300"
-$env:SIZE_HI2 = "800"
-$env:LAB_OUT = "2026-09-22_B18_문열고_소형앞반_고침.txt"
+$env:SIZE_LO = "800"
+$env:SIZE_HI2 = "2000"
+$env:LAB_OUT = "2026-09-22_B19_문열고_소형뒷반_고침.txt"
 try { & $py "scripts\gate7_lab.py" 2>&1 | Select-Object -Last 6 | ForEach-Object { 적기 "    $_" } }
-catch { 적기 "⚠️ [B18] 터졌다: $($_.Exception.Message)" }
+catch { 적기 "⚠️ [B19] 터졌다: $($_.Exception.Message)" }
 foreach ($k in "BASE_GAP", "BASE_RELGAP", "BASE_SELL", "BASE_PICKS", "SIZE_HI", "SIZE_LO", "SIZE_HI2", "OPENFIN", "LAB_OUT", "ONLY") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
-$밖 = Join-Path "data\_labs" "2026-09-22_B18_문열고_소형앞반_고침.txt"
-if (Test-Path $밖) { 적기 "[B18] 끝 — $('{0:N0}' -f (Get-Item $밖).Length) B" } else { 적기 "⚠️ [B18] 결과 파일이 없다" }
+$밖 = Join-Path "data\_labs" "2026-09-22_B19_문열고_소형뒷반_고침.txt"
+if (Test-Path $밖) { 적기 "[B19] 끝 — $('{0:N0}' -f (Get-Item $밖).Length) B" } else { 적기 "⚠️ [B19] 결과 파일이 없다" }
 메모리적기 "판 끝난 뒤"
-적기 "===== queue_b18 끝 ====="
+적기 "===== queue_b19 끝 ====="
