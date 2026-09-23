@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 r"""
 peek.py — **자료를 쓰기 전에 구조부터 찍어본다** (2026-09-04 신설)
 
@@ -29,6 +29,10 @@ import json
 import os
 import sys
 
+# ⚠️ 콘솔이 cp949 면 「⚠」 한 글자에 죽는다 (2026-09-23 확인 — selfcheck 도 같은 이유로 죽어 있었다)
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -50,7 +54,13 @@ def 값꼴(v, 길이=70):
 def 파일찍기(p, 깊이=2):
     print(f"\n  ── {p} ──")
     try:
-        d = json.load(io.open(p, encoding="utf-8-sig"))
+        if p.endswith(".jsonl"):
+            # ⭐ 한 줄에 한 덧에 (2026-09-23) — 전엔 json.load 로 읽어 **항상 터졌다**
+            _줄 = [z for z in io.open(p, encoding="utf-8-sig") if z.strip()]
+            print(f"     jsonl — 줄 {len(_줄):,}개 · 마지막 줄을 본다")
+            d = json.loads(_줄[-1]) if _줄 else {}
+        else:
+            d = json.load(io.open(p, encoding="utf-8-sig"))
     except Exception as e:
         print(f"     ⚠️ 못 읽음: {type(e).__name__} {str(e)[:60]}")
         return None
