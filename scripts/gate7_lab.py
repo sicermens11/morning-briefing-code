@@ -6334,6 +6334,56 @@ def main():
             return 0
         print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
+    # ══ ⭐⭐⭐ **TRACE — 한 종목을 문마다 끝까지 따라간다** (2026-09-23 · A4 후속) [TRACE] ══
+    #    [한 종목 따라가기] = 시총을 찍기만 하고 **시뭄을 안 부른다** — 막개 ④ 가 코드로 확인하고 봐준다
+    if _ONLY == "TRACE" or "TRACE" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── TRACE ⭐⭐⭐ **실전이 잡았는데 판이 안 잡은 종목 — 어느 문에서 갈라지나** ──")
+        print("=" * 122)
+        _볼코드 = [z.strip() for z in (os.environ.get("TRACE_CODES") or
+                                      "002870,032850,051160,068790,100030,205100,348350,214150").split(",") if z.strip()]
+        print(f"     따라갈 종목 {len(_볼코드)}개: {' '.join(_볼코드)}")
+        _끝인 = max((x["인"] for x in 사건), default=0)
+        print(f"     판의 마지막 인 {_끝인} = 매수일 {날[_끝인] if _끝인 < len(날) else '?'}"
+              f" (신호기준일 {날[_끝인 - 1] if 0 < _끝인 < len(날) else '?'})")
+        _인들T = [i for i in range(max(0, _끝인 - 11), _끝인 + 1)]
+        _풀T = {}
+        for x in 사건:
+            if x["code"] in _볼코드 and x["인"] in _인들T:
+                _풀T[(x["code"], x["인"])] = x
+        print(f"     그 종목·그 날이 **풀(사건)에 있는 것** {len(_풀T)}건 / 바라는 것 {len(_볼코드) * len(_인들T)}건")
+        print(f"\n     {'종목':<9}{'매수일':<11}{'풀':>4}{'시총억':>10}{'대금억':>8}{'잉여금':>8}{'부채':>8}"
+              f"{'흑자':>5}{'문':>4}{'시장변동성':>10}{'자사주60':>9}{'낙폭20':>8}{'볼린저':>8}{'Ⓗ':>4}")
+        for _code in _볼코드:
+            for _인 in _인들T:
+                x = _풀T.get((_code, _인))
+                if x is None:
+                    print(f"     {_code:<9}{날[_인]:<11}{'✗':>4}   — 풀에 없다 (문 앞에서 이미 빠졌거나 자료가 없다)")
+                    continue
+                try:
+                    _문 = 문통과(x)
+                except Exception:  # noqa: BLE001
+                    _문 = "?"
+                try:
+                    _자 = _자사H(x) if R.변동성자사주_켬 else 0
+                except Exception as _e:  # noqa: BLE001
+                    _자 = f"err:{type(_e).__name__}"
+                try:
+                    _h = _H(x)          # [견줌] 실전과 같은 함수로 본다
+                except Exception as _e:  # noqa: BLE001
+                    _h = f"err:{type(_e).__name__}"
+                print(f"     {_code:<9}{날[_인]:<11}{'○':>4}{(x.get('시총억') or 0):>10,.0f}{(x.get('대금억') or 0):>8.1f}"
+                      f"{(x.get('잉여금') or 0):>8.1f}{(x.get('부채') or 0):>8.1f}{str(x.get('흑자')):>5}"
+                      f"{str(_문):>4}{(x.get('시장변동성') if x.get('시장변동성') is not None else -9):>10.2f}"
+                      f"{str(_자):>9}{(x.get('낙폭20') or 0):>8.1f}{(x.get('볼린저') or 0):>8.2f}{str(_h):>4}")
+        print(f"\n     참고 — 시장변동성 문턱 {R.시장변동성문턱:g} · 자사주 창 {R.자사주창일}거래일"
+              f" · 시총 문 {R.시총하한억:g}억↑ · 대금 문 {R.대금하한억:g}억↑ · 변동성자사주 켬 {R.변동성자사주_켬}")
+        print("     ⇒ 「풀에 없다」면 사건을 만드는 단계에서 빠진 것이고, 「문 False」면 재무·대금·시총이다")
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
     # ══ ⭐⭐⭐ **CAP — 시작 자본이 작아도 새 규칙이 쓸모 있나** (2026-09-23 · D-4 후속) ══
     if _ONLY == "CAP" or "CAP" in _ONLY.split("+"):
         print("\n" + "=" * 122)

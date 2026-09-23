@@ -16,6 +16,7 @@ import io
 import json
 import os
 import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 뿌리 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -36,7 +37,14 @@ for 줄 in io.open(판길, encoding="utf-8", errors="replace"):
     조각 = z.split()
     if len(조각) < 2:
         continue
-    날 = 조각[1].replace("-", "")
+    # ⚠️ 판이 찍는 날짜는 **매수일**이고, forward-log 는 **신호기준일**이다.
+    #    하루 어\ea8를 맞추지 않으면 전부 다르게 보인다 (2026-09-23 첫 돌림에서 당했다)
+    import datetime as _dt
+    import krx_calendar as _K
+    _매 = 조각[1]
+    _d = _dt.date.fromisoformat(_매) if "-" in _매 else _dt.date(int(_매[:4]), int(_매[4:6]), int(_매[6:8]))
+    _신 = _K.직전거래일(_d)
+    날 = (_신.isoformat() if hasattr(_신, "isoformat") else str(_신)).replace("-", "")
     판[날] = set(조각[2].split(",")) if len(조각) > 2 else set()
 
 실전 = {}

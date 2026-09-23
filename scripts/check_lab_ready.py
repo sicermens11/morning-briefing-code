@@ -163,6 +163,13 @@ for _k in range(len(절머리) - 1):
     #    새 절에 이 표시를 붙이면 막개를 무력화하는 것이니 붙이면 안 된다
     if any("[지난 절]" in z for z in _몸[:4]):
         continue
+    # [TRACE] 시총을 **찍기만** 하는 진단 절 — 이름표만으로는 안 봐준다.
+    #  TRACE_CODES 로 종목을 받고, 그 절이 시뭄을 한 번도 안 부를 때만 봐준다.
+    #  돈을 안 재면 소형 규칙을 띄 결과로 둔갑할 수가 없다 (2026-09-23)
+    if (any("[TRACE]" in z for z in _몸[:4])
+            and any("TRACE_CODES" in z for z in _몸)
+            and not any("시뭄(" in z for z in _몸 if not z.lstrip().startswith("#"))):
+        continue
     # ⚠️ [바탕 덜기] — **지금 실전 바탕**을 파일로 덜어 두는 절(DUMPH). _H 를 쓰는 게 정의다.
     #    이름표만으로는 안 봐준다: 그 절이 실제로 `_덤프길` 에 json.dumps 로 **써야** 예외다 (2026-09-23)
     if (any("[바탕 덜기]" in z for z in _몸[:4])
