@@ -89,13 +89,13 @@ while ((아침인가) -and ($ㅇ -lt 180)) {
 $chk = & $py "scripts\check_lab_ready.py" 2>&1
 $chk | Select-Object -Last 3 | ForEach-Object { 적기 "    $_" }
 if ($LASTEXITCODE -ne 0) { 적기 "❌ 실행 전 검사에서 걸렸다 — 판을 띄우지 않는다"; exit 1 }
-적기 "[B79] 묶음5 — SIZE 비중·자리 · CAP 자본 크기별 · TRACE 한 종목 따라가기 - 시작"
+적기 "[B79] 묶음5 — SIZE 비중자리 · CAP 자본크기 · TRACE 종목추적 · BAD 악재매도 흔들기 - 시작"
 $env:BASE_GAP = "표본만+실전표본"
 $env:BASE_RELGAP = "-3.5"
 $env:BASE_SELL = "0.4,15,40 / 0.6,40,90"
 $env:BASE_PICKS = "120"
 $env:SIZE_HI = "999999"
-$env:ONLY = "SIZE+CAP+TRACE"
+$env:ONLY = "SIZE+CAP+TRACE+BAD"
 $env:LAB_OUT = "2026-09-25_B79_묶음5.txt"
 try { & $py "scripts\gate7_lab.py" 2>&1 | Select-Object -Last 6 | ForEach-Object { 적기 "    $_" } }
 catch { 적기 "⚠️ [B79] 터졌다: $($_.Exception.Message)" }
