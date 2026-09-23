@@ -44,6 +44,11 @@ import subprocess
 import sys
 import warnings
 
+# ⚠️ 예약으로 돌 때는 콘솔이 없어 파이썬이 cp949 로 찍는다 — 첫 소제목(═)에서 죽었다.
+#    2026-09-04 만든 뒤 SelfCheck 예약 셋이 **매번 결과 1 로 끝났고 아무도 못 읽었다** (2026-09-23 A1 에서 찾음)
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DATA = os.path.join(_BASE, "data")
 _SHAPE = os.path.join(_DATA, "_shape.json")
