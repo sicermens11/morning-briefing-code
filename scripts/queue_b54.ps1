@@ -43,8 +43,12 @@ function 큰파이썬 {
       Where-Object { $_.WorkingSet64 -gt 1GB }).Count
 }
 function 아침인가 {
+    # ⭐ 2026-09-23 — 휴장일엔 브리핑이 안 돈다. 연휴 나흘 × 1시간 50분을 그냥 버리고 있었다
     $h = (Get-Date).Hour; $m = (Get-Date).Minute
-    return (($h -eq 7 -and $m -ge 20) -or ($h -eq 8) -or ($h -eq 9 -and $m -lt 10))
+    if (-not ((($h -eq 7) -and ($m -ge 20)) -or ($h -eq 8) -or (($h -eq 9) -and ($m -lt 10)))) { return $false }
+    & $py "scripts\krx_calendar.py" *> $null
+    if ($LASTEXITCODE -ne 0) { return $false }   # 휴장 — 비켜 줄 이유가 없다
+    return $true
 }
 function 메모리여유GB {
     return [math]::Round((Get-CimInstance Win32_OperatingSystem).FreeVirtualMemory / 1MB, 1)
