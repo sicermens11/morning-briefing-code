@@ -83,10 +83,11 @@ def 장서는날():
     ⚠️ 공휴일은 여기서 안 본다. **krx-daily의 마지막 날짜**로 판단한다 —
        달력을 따로 두면 그게 또 틀린다 (설·추석은 해마다 움직인다)
     """
-    오 = dt.date.today()
-    if 오.weekday() >= 5:
-        return False, f"{'토일'[오.weekday()-5]}요일 — 장이 안 선다"
-    return True, ""
+    # ⭐ 2026-09-23 — 공휴일도 본다. 주석엔 「krx-daily 마지막 날짜로 판단」이라 적혀 있었는데
+    #    코드는 주말만 봤다 → 2026-09-24(추석)에 장 없는 날의 후보를 만들 참이었다.
+    #    단일 원본은 data/krx-holidays-2026.md (krx_calendar 가 읽는다)
+    from krx_calendar import 장서는날 as _달력
+    return _달력()
 
 
 def main():

@@ -73,6 +73,12 @@ def 찍기(s):
 
 def main():
     확인만 = "--확인" in sys.argv
+    # ⭐ 2026-09-23 — 휴장일이면 아무것도 안 한다
+    from krx_calendar import 장서는날 as _달력
+    _선다, _왜 = _달력()
+    if not _선다 and not 확인만:
+        찍기(f"  {_왜} — 동시호가 판정을 하지 않는다")
+        return 0
     이제 = dt.datetime.now()
     때 = 이제.strftime("%H:%M")
     if not 확인만 and not ("08:30" <= 때 <= "09:00"):

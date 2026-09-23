@@ -37,6 +37,18 @@ function Write-Log([string]$msg) {
 }
 
 Write-Log "=== morning-sector-briefing 시작 (Mode=$Mode) ==="
+# ⭐ 2026-09-23 (사용자 「고쳐!」) — 휴장일이면 브리핑을 만들지 않는다.
+#    예약은 평일마다 돌고, 이 파일엔 휴일 검사가 없었다 → 추석(9/24·25)에 장 없는 날의 브리핑을
+#    올리고 forward-log 에 기준일 20260923 줄을 목요일에 써서 월요일 08:02 가 못 덮어쓸 참이었다.
+#    단일 원본 data/krx-holidays-2026.md · krx_calendar.py 가 「장선다」 아니면 사유를 찍는다
+if ($Mode -eq 'auto') {
+    $cal = & (Join-Path $PSScriptRoot 'scripts\run-py.ps1') -Script 'krx_calendar.py'
+    if ("$cal" -notmatch '장선다') {
+        Write-Log "휴장 — 브리핑을 만들지 않는다: $cal"
+        Write-Log "=== 종료 (휴장) ==="
+        exit 0
+    }
+}
 
 if (-not (Test-Path $claude)) {
     Write-Log "치명적: claude CLI를 찾을 수 없음 ($claude). 실행 중단."
