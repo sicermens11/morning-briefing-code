@@ -6115,6 +6115,168 @@ def main():
               + f"  ⇒ 지금 {len(_키표['지금']):,} · 옛(Ⓗ+의료) {len(_키표['옛']):,}")
         return _합, _묶D, {"시총하한": 0, "시총상한": 999999999, "대금하한": 0}, _키표
 
+    # ══ ⭐⭐⭐ **REGIME — 이 규칙은 언제 잘 드나** (2026-09-23) ══
+    if _ONLY == "REGIME" or "REGIME" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── REGIME ⭐⭐⭐ **국면별 성적 — 화면의 「국면」 칸이 정말 성적을 가르나** ──")
+        print("=" * 122)
+        _합, _묶D, _열기D, _키표 = _D준비()
+        _지금키 = _키표["지금"]
+
+        def _지금G2(x):
+            return (x["code"], x["인"]) in _지금키        # [견줌] 덜어 둔 열쇠
+
+        _기G2 = 시뮬(_c(_지금G2, **_열기D), 묶2=_묶D)
+        print(f"\n     바탕 — {_기G2['끝']:,.0f}원 · 낙폭 {_기G2['낙']:.1f}% · 산 것 {_기G2['산']}")
+        _맵G2 = {}
+        for x in _합:
+            _맵G2[(x["code"], x["인"])] = x
+        _날인G2 = {_d: _i for _i, _d in enumerate(날)}
+        _기록G2 = []
+        시뮬(_c(_지금G2, **_열기D), 묶2=_묶D, 기록=_기록G2)
+
+        def _칸찍기(제목, 칸함수, 이름들):
+            _벌 = {이: [] for 이 in 이름들}
+            for _거래 in _기록G2:
+                _x = _맵G2.get((_거래[1], _날인G2.get(_거래[0])))
+                if _x is None:
+                    continue
+                _칸 = 칸함수(_x)
+                if _칸 in _벌:
+                    _벌[_칸].append(_거래[4])
+            print(f"\n     {제목}")
+            print(f"     {'칸':<22}{'건수':>7}{'평균 수익':>11}{'가운데':>10}{'이긴 비율':>11}")
+            for 이 in 이름들:
+                _v = sorted(_벌[이])
+                if not _v:
+                    print(f"     {이:<22}{0:>7}")
+                    continue
+                print(f"     {이:<22}{len(_v):>7}{sum(_v) / len(_v):>10.1f}%{_v[len(_v) // 2]:>9.1f}%"
+                      f"{sum(1 for z in _v if z > 0) / len(_v) * 100:>10.0f}%")
+            return _벌
+
+        # ① 시장 20일 낙폭
+        try:
+            _이름1 = ["≤ -15%", "-15 ~ -10%", "-10 ~ -5%", "-5 ~ 0%", "> 0%", "모름"]
+
+            def _칸1(x):
+                v = x.get("시장낙폭")
+                if v is None:
+                    return "모름"
+                return ("≤ -15%" if v <= -15 else "-15 ~ -10%" if v <= -10 else
+                        "-10 ~ -5%" if v <= -5 else "-5 ~ 0%" if v <= 0 else "> 0%")
+
+            _칸찍기("① 그날 시장(제 지수)의 20일 낙폭", _칸1, _이름1)
+            # 그 국면에서만 샀을 때 자본 시뮬
+            print(f"\n     그 국면에서만 산다면 (자본 시뮬)")
+            print(f"     {'칸':<22}{'끝 자산':>16}{'바탕의%':>9}{'낙폭':>8}{'산 것':>7}")
+            for 이 in _이름1[:-1]:
+                _r = 시뮬(_c((lambda x, a=이: _지금G2(x) and _칸1(x) == a), **_열기D), 묶2=_묶D)
+                if _r:
+                    print(f"     {이:<22}{_r['끝']:>16,.0f}{_r['끝'] / _기G2['끝'] * 100:>8.0f}%"
+                          f"{_r['낙']:>7.1f}%{_r['산']:>7}")
+        except Exception as _e:  # noqa: BLE001
+            print(f"     ⚠️ ① 터졌다: {_e}")
+
+        # ② 시장 변동성
+        try:
+            _값2 = sorted(z for z in (x.get("시장변동성") for x in _합) if z is not None)
+            _컷2 = [_값2[len(_값2) * k // 4] for k in (1, 2, 3)] if _값2 else [0, 0, 0]
+            _이름2 = ["낮음(1분위)", "2분위", "3분위", "높음(4분위)", "모름"]
+
+            def _칸2(x, c=_컷2):
+                v = x.get("시장변동성")
+                if v is None:
+                    return "모름"
+                return ("낮음(1분위)" if v <= c[0] else "2분위" if v <= c[1] else
+                        "3분위" if v <= c[2] else "높음(4분위)")
+
+            print(f"\n     (변동성 사분위 자리: {_컷2[0]:.2f} · {_컷2[1]:.2f} · {_컷2[2]:.2f})")
+            _칸찍기("② 그날 시장 변동성", _칸2, _이름2)
+        except Exception as _e:  # noqa: BLE001
+            print(f"     ⚠️ ② 터졌다: {_e}")
+
+        # ③ 계절 · ④ 금리 방향
+        try:
+            _칸찍기("③ 계절", (lambda x: {"03": "봄", "04": "봄", "05": "봄", "06": "여름", "07": "여름",
+                                       "08": "여름", "09": "가을", "10": "가을", "11": "가을"}.get(
+                날[x["인"]][4:6], "겨울")), ["봄", "여름", "가을", "겨울"])
+
+            def _칸4(x):
+                v = _값P(x, "기준금리20")
+                if v is None:
+                    return "모름"
+                return "오름" if v > 0.01 else ("내림" if v < -0.01 else "그대로")
+
+            _칸찍기("④ 기준금리 20일 방향", _칸4, ["오름", "그대로", "내림", "모름"])
+        except Exception as _e:  # noqa: BLE001
+            print(f"     ⚠️ ③④ 터졌다: {_e}")
+        print("\n     ⚠️ 국면으로 **거르면** 기회가 준다 — 여기서 좋은 칸이 보여도 「그 국면에만 산다」로 바로 못 간다")
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
+    # ══ ⭐⭐⭐ **DUP — 같은 종목을 얼마나 다시 사나 · 그 성적은** (2026-09-23) ══
+    if _ONLY == "DUP" or "DUP" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── DUP ⭐⭐⭐ **같은 종목 반복 매수 — 사용자가 중복금지를 안 켜기로 했으니, 실태를 본다** ──")
+        print("     Q-32 에서 떨어지는 종목을 열 번 반복해 사서 −38% 가 난 적이 있다. 지금 규칙에서도 그런가")
+        print("=" * 122)
+        _합, _묶D, _열기D, _키표 = _D준비()
+        _지금키 = _키표["지금"]
+
+        def _지금U(x):
+            return (x["code"], x["인"]) in _지금키        # [견줌] 덜어 둔 열쇠
+
+        _기록U = []
+        _rU = 시뮬(_c(_지금U, **_열기D), 묶2=_묶D, 기록=_기록U)
+        _날인U = {_d: _i for _i, _d in enumerate(날)}
+        _종목별 = {}
+        for _거래 in sorted(_기록U, key=lambda z: z[0]):
+            _종목별.setdefault(_거래[1], []).append(_거래)
+        print(f"\n     산 것 {len(_기록U):,}건 · 서로 다른 종목 {len(_종목별):,}개"
+              f" · 한 종목 평균 {len(_기록U) / max(1, len(_종목별)):.2f}번")
+        _여러번 = {c: v for c, v in _종목별.items() if len(v) >= 2}
+        print(f"     두 번 이상 산 종목 {len(_여러번):,}개 ({len(_여러번) / max(1, len(_종목별)) * 100:.1f}%)"
+              f" · 가장 많이 산 종목 {max((len(v) for v in _종목별.values()), default=0)}번")
+        _첫, _다시 = [], []
+        _간격 = []
+        for c, v in _종목별.items():
+            for k, _거래 in enumerate(v):
+                (_첫 if k == 0 else _다시).append(_거래[4])
+                if k:
+                    _a, _b = _날인U.get(v[k - 1][0]), _날인U.get(_거래[0])
+                    if _a is not None and _b is not None:
+                        _간격.append(_b - _a)
+        for 이, _v in (("처음 산 것", _첫), ("다시 산 것", _다시)):
+            if not _v:
+                continue
+            _v2 = sorted(_v)
+            print(f"     {이:<12}{len(_v2):>7}건 · 평균 {sum(_v2) / len(_v2):>6.1f}% · 가운데 {_v2[len(_v2) // 2]:>6.1f}%"
+                  f" · 이긴 비율 {sum(1 for z in _v2 if z > 0) / len(_v2) * 100:>5.0f}%")
+        if _간격:
+            _g = sorted(_간격)
+            print(f"     다시 사기까지 걸린 날 — 가운데 {_g[len(_g) // 2]}일 · 가장 짧은 {_g[0]}일"
+                  f" · 20일 안에 다시 산 것 {sum(1 for z in _g if z <= 20) / len(_g) * 100:.0f}%")
+        # 같은 종목을 한 해에 셋 이상 산 경우
+        _나쁜 = []
+        for c, v in _여러번.items():
+            _해별 = {}
+            for _거래 in v:
+                _해별.setdefault(str(_거래[0])[:4], []).append(_거래[4])
+            for _y, _벌 in _해별.items():
+                if len(_벌) >= 3:
+                    _나쁜.append((c, _y, len(_벌), sum(_벌) / len(_벌)))
+        print(f"\n     한 해에 **셋 이상** 산 (종목, 해) 짝 {len(_나쁜)}개")
+        for c, _y, _n, _m in sorted(_나쁜, key=lambda z: z[3])[:12]:
+            print(f"        {c} · {_y}년 {_n}번 · 평균 {_m:+.1f}%")
+        print("\n     ⇒ 「다시 산 것」이 「처음 산 것」보다 크게 나쁘지 않으면 중복금지를 안 켜는 게 맞다")
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
     # ══ ⭐⭐⭐ **WEIGHT (F5) — 신호가 셀수록 더 싣는다** (2026-09-23) ══
     if _ONLY == "WEIGHT" or "WEIGHT" in _ONLY.split("+"):
         print("\n" + "=" * 122)
