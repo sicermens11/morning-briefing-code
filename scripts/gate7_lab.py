@@ -6110,7 +6110,7 @@ def main():
         return _합, _묶D, {"시총하한": 0, "시총상한": 999999999, "대금하한": 0}, _키표
 
     # ══ ⭐⭐⭐ **FUNNEL — 기회가 어느 단계에서 사라지나** (2026-09-23 · 실전 기록 후속) ══
-    if _ONLY == "FUNNEL":
+    if _ONLY == "FUNNEL" or "FUNNEL" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── FUNNEL ⭐⭐⭐ **갈래에 걸린 것 → 상대갭 → 자리·돈 — 어디서 사라지나** ──")
         print("     실전 11일 동안 산 것이 10건이다. 문턱이 병목인지 돈이 병목인지 여기서 갈린다")
@@ -6186,10 +6186,12 @@ def main():
         except Exception as _e:  # noqa: BLE001
             print(f"     ⚠️ ④ 터졌다: {_e}")
         print("=" * 122)
-        return 0
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
     # ══ ⭐⭐⭐ **OR1 (R1) — 재료 전수를 지금 실전 위에 OR 로 얹는다** (2026-09-23) ══
-    if _ONLY == "OR1":
+    if _ONLY == "OR1" or "OR1" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── OR1 ⭐⭐⭐ **재료 전부 × 아래20%/위20% 를 지금 실전 위에 하나씩 얹는다** ──")
         print("     옛 P절(69쌍)은 옛 Ⓗ 위에서 골랐다. 바탕이 바뀌었으니 다시 고른다")
@@ -6283,10 +6285,12 @@ def main():
                   f" ({_끝 / _기O['끝'] * 100:.0f}%) · 새 날 {_새날O} · 걷기 앞 {_앞:+.1f}% 뒤 {_뒤:+.1f}%")
         print("     ⚠️ 여기까지는 ①②다. 넣으려면 문턱 흔들기(Q-31)와 같이 켜기(Q-34)가 남았다")
         print("=" * 122)
-        return 0
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
     # ══ ⭐⭐⭐ **EXIT (G3) — 파는 쪽 재료를 새 바탕에서 다시** (2026-09-23) ══
-    if _ONLY == "EXIT":
+    if _ONLY == "EXIT" or "EXIT" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── EXIT ⭐⭐⭐ **손절 · 악재 매도 · 회복 신호 매도 — 바탕이 바뀌었으니 다시** ──")
         print("     옛 답: 손절 없음이 낫다 · 회복 신호로 팔면 돈이 반 난다 (둘 다 **옛 Ⓗ**에서 잰 값)")
@@ -6355,10 +6359,12 @@ def main():
 
         print("\n     ⚠️ 파는 규칙은 실전 코드(rule_def.몫들)다 — 여기서 안 바꾼다. 월요일 보고")
         print("=" * 122)
-        return 0
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
     # ══ ⭐⭐⭐ **GAP — 상대갭이 병목이다 · 풀면 돈이 되나** (2026-09-23 · 실전 기록 E3·E8 이 시킨 판) ══
-    if _ONLY == "GAP":
+    if _ONLY == "GAP" or "GAP" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── GAP ⭐⭐⭐ **상대갭을 풀면 — 기회가 늘까, 떨어지는 걸 반복해서 살까** ──")
         print("     실전 11일 동안 −3.5%p 를 넘은 후보가 모두 10개(하루 0.9개)다. 자리가 아니라 **여기가 병목**이다")
@@ -6431,10 +6437,12 @@ def main():
         print("\n     ⚠️ 중복금지가 필요해야만 서는 변형은 **넣을 수 없다** — 사용자가 중복금지를 안 켜기로 했다")
         print("        (그 경우의 뜻: 「푸는 것 자체가 위험하다」)")
         print("=" * 122)
-        return 0
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
     # ══ ⭐⭐⭐ **A4 — 판이 고른 것을 날짜별로 찍는다 (실전과 대조하려고)** (2026-09-23) ══
-    if _ONLY == "A4":
+    if _ONLY == "A4" or "A4" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── A4 ⭐⭐⭐ **판이 고른 종목 — 마지막 12거래일** (실전 forward-log 와 대조한다) ──")
         print("     같은 날 같은 규칙이면 같은 종목이 나와야 한다. 9/22 에 실전에만 남아 있던 줄을 이렇게 잡는다")
@@ -6460,10 +6468,12 @@ def main():
                 print(f"        {_code}  {_시:>12}  {'+'.join(_것[_code])}")
         print("\n     ⇒ `python scripts/diff_pick.py <이 파일>` 로 실전 기록과 대조한다")
         print("=" * 122)
-        return 0
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
     # ══ ⭐⭐⭐ **SIG — B2 섹시그마를 「그날까지」로 다시 만든다** (2026-09-23) ══
-    if _ONLY == "SIG":
+    if _ONLY == "SIG" or "SIG" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── SIG ⭐⭐⭐ **섹시그마 다시 — 16년 전체 통계(미래 봄) → 그날까지 통계** ──")
         print("     셋째 후보(대형 섹시그마 위20%)는 이 이유 하나로 뺐다. 다시 만들면 서나?")
@@ -6539,10 +6549,12 @@ def main():
                   + ("✅" if all(_ok) else "❌") + _걷)
         print("\n     ⚠️ 서더라도 바로 안 넣는다 — 문턱 흔들기까지 한 뒤 월요일 보고")
         print("=" * 122)
-        return 0
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
     # ══ ⭐⭐⭐ **SELL — B5 파는 규칙 · 규모별 진단** (2026-09-23) ══
-    if _ONLY == "SELL":
+    if _ONLY == "SELL" or "SELL" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── SELL ⭐⭐⭐ **파는 규칙을 바꾸면 · 띠마다 얼마나 오르나** ──")
         print("     지금: 반 +15%/40일 · 반 +40%/90일 · 손절 없음")
@@ -6630,7 +6642,9 @@ def main():
         except Exception as _e:  # noqa: BLE001
             print(f"     ⚠️ ② 터졌다: {_e}")
         print("=" * 122)
-        return 0
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
     # ══ **F 절 준비 — 업종 규칙의 문만 떼어 낸다** (2026-09-23 · F1·F2) ══
     #    ⚠️ 진단용이다. 곡선의 꼭대기로 문턱을 옮기지 않는다
@@ -6651,7 +6665,7 @@ def main():
         return 대 is not None and 대 >= (규.get("대금하한억") or 0)
 
     # ══ ⭐⭐⭐ **FC — F1 문턱 곡선 · F2 창 길이** (2026-09-23 · 진단) ══
-    if _ONLY == "FC":
+    if _ONLY == "FC" or "FC" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── FC ⭐⭐⭐ **문턱을 연속으로 옮기면 — 칼날인가 언덕인가** (진단용 · 옮기지 않는다) ──")
         print("=" * 122)
@@ -6739,10 +6753,12 @@ def main():
             print(f"     ⚠️ F2 터졌다: {_e}")
         print("\n     ⚠️ 진단이다 — 꼭대기가 나와도 문턱을 옮기지 않는다. 옮길 이유가 보이면 월요일 보고")
         print("=" * 122)
-        return 0
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
     # ══ ⭐⭐⭐ **FP — F3 산 뒤 경로 · F4 갈래 겹침** (2026-09-23) ══
-    if _ONLY == "FP":
+    if _ONLY == "FP" or "FP" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── FP ⭐⭐⭐ **산 뒤 어떻게 가나(D+1…D+120 · MAE/MFE) · 갈래는 어디서 겹치나** ──")
         print("=" * 122)
@@ -6819,10 +6835,12 @@ def main():
         except Exception as _e:  # noqa: BLE001
             print(f"     ⚠️ F4 터졌다: {_e}")
         print("=" * 122)
-        return 0
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
     # ══ ⭐⭐⭐ **RK — 손잡이 넷을 새 바탕 위에서 다시** (2026-09-23 · R2·B4·R3/R4·B3) ══
-    if _ONLY == "RK":
+    if _ONLY == "RK" or "RK" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── RK ⭐⭐⭐ **후보수 · 상대갭 · 빠지는 장 문턱 · 비중×자리 — 지금 실전 바탕 위에서** ──")
         print("     넷 다 시뮬 인자다. 옛 판은 **옛 Ⓗ** 위에서 골랐다 — 바탕이 바뀌었으니 다시 잰다")
@@ -6910,10 +6928,12 @@ def main():
         print("\n     ⚠️ 여기서 좋은 값이 나와도 **바로 넣지 않는다** — 월요일 보고에서 이유와 함께 꺼낸다")
         print("     ⚠️ R5(시총 하한 낮추기)는 이 판으로 못 잰다 — 풀 밖 사건이 필요해 **문 연 풀**로 따로 돈다")
         print("=" * 122)
-        return 0
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
     # ══ ⭐⭐⭐ **D-1 체결 오차 — 산 값이 흔들려도 버티나** (2026-09-23 · 연휴 계획 D1) ══
-    if _ONLY == "D1":
+    if _ONLY == "D1" or "D1" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── D-1 ⭐⭐⭐ **체결 오차 ±0.5% · ±1% 를 10번씩 — 지금 실전(Ⓗ+의료+금속+운송장비)** ──")
         print("=" * 122)
@@ -6944,10 +6964,12 @@ def main():
                   + ("✅ 가장 나쁜 판도 바탕의 80%↑" if _ok else "❌ 가장 나쁜 판이 바탕의 80% 밑"))
         print(f"\n     ⇒ {'✅ 체결 오차를 버틴다' if _샌D else '❌ 체결 오차에 약하다 — 월요일 보고'}")
         print("=" * 122)
-        return 0
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
     # ══ ⭐⭐⭐ **D-2 VANISH_KIND — 합병·공개매수는 마지막 종가** (2026-09-23 · 연휴 계획 D2) ══
-    if _ONLY == "D2":
+    if _ONLY == "D2" or "D2" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── D-2 ⭐⭐⭐ **사라진 종목을 어떻게 치나 — VANISH_KIND=1(합병은 마지막 종가) vs 전부 −50%** ──")
         print("     ⚠️ 이 판은 VANISH_KIND=1 쪽만 찍는다. 견줄 쪽(전부 −50%)은 **D-1 의 「오차 없음」 줄**이다")
@@ -6973,10 +6995,12 @@ def main():
             if _ry:
                 print(f"     {_y:<8}{_ry['산']:>7}{_ry['끝']:>14,.0f}{(_ry['끝'] / 5000000 - 1) * 100:>9.1f}%")
         print("=" * 122)
-        return 0
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
     # ══ ⭐⭐⭐ **D-3 걷기 세 토막** (2026-09-23 · 연휴 계획 D3) ══
-    if _ONLY == "D3":
+    if _ONLY == "D3" or "D3" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── D-3 ⭐⭐⭐ **걷기 세 토막 — 2010~2015 / 2016~2020 / 2021~2026 · 옛(Ⓗ+의료) vs 지금(+금속+운송장비)** ──")
         print("     뒤 토막은 앞 토막이 끝낸 돈으로 이어 간다. **세 토막 다** 지금이 옛보다 많아야 ✅")
@@ -7019,10 +7043,12 @@ def main():
                   + ("✅" if _ok else "❌"))
         print(f"\n     ⇒ {'✅ 세 토막 다 지금이 낫다' if _샌D else '❌ 진 토막이 있다 — 월요일 보고'}")
         print("=" * 122)
-        return 0
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
     # ══ ⭐⭐⭐ **D-4 해마다 표 · 갈래별 채점 (새 바탕)** (2026-09-23 · 연휴 계획 D4) ══
-    if _ONLY == "D4":
+    if _ONLY == "D4" or "D4" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── D-4 ⭐⭐⭐ **해마다 표(옛 vs 지금) · 산 것이 어느 갈래에서 나왔나** ──")
         print("=" * 122)
@@ -7069,6 +7095,11 @@ def main():
             print(f"     {_갈:<18}{len(_v):>7}{sum(_v) / len(_v):>10.1f}%{_v[len(_v) // 2]:>9.1f}%"
                   f"{sum(1 for z in _v if z > 0) / len(_v) * 100:>10.0f}%{_v[0]:>10.1f}%")
         print("=" * 122)
+        return 0
+
+    # ⭐ 묶음 ONLY(D2+D3+D4 …) 이면 여기서 끝낸다 — 옛 절로 새지 않게 (2026-09-23)
+    if "+" in _ONLY:
+        print("\n  ⭐ 묶음 ONLY 끝 — 옛 절은 안 돈다", flush=True)
         return 0
 
     # ══ ⭐⭐⭐ **Q-38 회전율·선물20 문턱 흔들기** (2026-09-23 · 넣기 전 마지막 단계) ══
