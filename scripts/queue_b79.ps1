@@ -89,18 +89,18 @@ while ((아침인가) -and ($ㅇ -lt 180)) {
 $chk = & $py "scripts\check_lab_ready.py" 2>&1
 $chk | Select-Object -Last 3 | ForEach-Object { 적기 "    $_" }
 if ($LASTEXITCODE -ne 0) { 적기 "❌ 실행 전 검사에서 걸렸다 — 판을 띄우지 않는다"; exit 1 }
-적기 "[B79] SIZE — 비중·자리를 제대로 흔든다 (B70 의 142% 를 의심한다) - 시작"
+적기 "[B79] 묶음5 — SIZE 비중·자리 흔들기 · CAP 자본 크기별 쓸모 - 시작"
 $env:BASE_GAP = "표본만+실전표본"
 $env:BASE_RELGAP = "-3.5"
 $env:BASE_SELL = "0.4,15,40 / 0.6,40,90"
 $env:BASE_PICKS = "120"
 $env:SIZE_HI = "999999"
-$env:ONLY = "SIZE"
-$env:LAB_OUT = "2026-09-25_B79_SIZE_비중자리.txt"
+$env:ONLY = "SIZE+CAP"
+$env:LAB_OUT = "2026-09-25_B79_묶음5.txt"
 try { & $py "scripts\gate7_lab.py" 2>&1 | Select-Object -Last 6 | ForEach-Object { 적기 "    $_" } }
 catch { 적기 "⚠️ [B79] 터졌다: $($_.Exception.Message)" }
 foreach ($k in "BASE_GAP", "BASE_RELGAP", "BASE_SELL", "BASE_PICKS", "SIZE_HI", "VANISH_KIND", "OPENFIN", "SIZE_LO", "SIZE_HI2", "LAB_OUT", "ONLY") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
-$밖 = Join-Path "data\_labs" "2026-09-25_B79_SIZE_비중자리.txt"
+$밖 = Join-Path "data\_labs" "2026-09-25_B79_묶음5.txt"
 if (Test-Path $밖) { 적기 "[B79] 끝 — $('{0:N0}' -f (Get-Item $밖).Length) B" } else { 적기 "⚠️ [B79] 결과 파일이 없다" }
 메모리적기 "판 끝난 뒤"
 적기 "===== queue_b79 끝 ====="
