@@ -323,7 +323,13 @@ def main():
         하루갭 = 갭표.get(다음) or {}
         for code, v in 주가[d1].items():
             c1, 시총, 대금 = v
-            if 시총 < _시총하한 or 대금 < O._MIN_AMT:
+            if 시총 < _시총하한:
+                continue
+            # ⭐ 2026-09-23 — 제 문을 가진 업종 규칙(금속·운송장비)은 바깥 문을 건너뛴다 (record_pick 과 같게)
+            _업명 = _업종.get(code)
+            _업따로 = R.업종문따로(_업명)
+            _대금ok = 대금 >= O._MIN_AMT
+            if not _대금ok and not _업따로:
                 continue
             # ⭐ ㉣ (2026-09-16 반영) — 큰 회사는 섹터규칙으로만 (rule_def.섹터규칙_큰회사 · record_pick 과 같게)
             _큰회사 = 시총 >= 확정["시총"]
@@ -336,9 +342,11 @@ def main():
             if g is None:
                 continue
             fm = 재무값(code, d1)
-            if not (fm and fm.get("잉여금비율", -9e9) >= 30
-                    and fm.get("부채비율", 9e9) <= 80 and fm.get("흑자") == 1.0):
+            _지금문 = bool(fm and fm.get("잉여금비율", -9e9) >= 30
+                         and fm.get("부채비율", 9e9) <= 80 and fm.get("흑자") == 1.0)
+            if not _지금문 and not _업따로:
                 continue
+            _지금문통과 = _지금문 and _대금ok
             bb = 기본.get(code) or {}
             부 = str(bb.get("업종") or "")
             if (("관리종목" in 부) or ("SPAC" in 부)
@@ -430,7 +438,17 @@ def main():
                 # ⭐⭐⭐ **업종 규칙** (2026-09-22 반영 · record_pick 과 같게)
                 #    그 업종 자료로만 낸 재료·문턱 — 지금은 의료·정밀기기 낙폭60 하나
                 #    ⚠️ `_업종` 은 이 파일이 위에서 이미 읽은 industry.json 업종명이다
-                _업맞나, _ = R.업종규칙맞나(_업종.get(code), {"낙폭60": 낙60})
+                _낙120업 = ((c1 / sq[kk - 120] - 1) * 100
+                           if kk >= 120 and sq[kk - 120] > 0 else None)
+                _업맞나, _ = R.업종규칙맞나(_업명, {
+                    "시총억": 시총 / 1e8, "대금억": 대금 / 1e8, "_지금문통과": _지금문통과,
+                    "잉여금비율": (fm or {}).get("잉여금비율"), "부채비율": (fm or {}).get("부채비율"),
+                    "흑자": (fm or {}).get("흑자"), "낙폭60": 낙60, "낙120": _낙120업})
+                if not _지금문통과:          # ⭐ 2026-09-23 — 지금 문을 못 넘은 종목은 업종 갈래로만
+                    _기존맞나 = False
+                    _섹맞나 = False
+                    _때맞나 = False
+                    _변자맞나 = False
                 if _큰회사:                  # ⭐ ㉣ 큰 회사는 섹터규칙으로만 (기존·시장 갈래는 소형만)
                     _기존맞나 = False
                     _때맞나 = False
