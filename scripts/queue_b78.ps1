@@ -89,13 +89,13 @@ while ((아침인가) -and ($ㅇ -lt 180)) {
 $chk = & $py "scripts\check_lab_ready.py" 2>&1
 $chk | Select-Object -Last 3 | ForEach-Object { 적기 "    $_" }
 if ($LASTEXITCODE -ne 0) { 적기 "❌ 실행 전 검사에서 걸렸다 — 판을 띄우지 않는다"; exit 1 }
-적기 "[B78] 묶음4 — WEIGHT 신호세기 비중 · REGIME 국면별 · DUP 반복매수 - 시작"
+적기 "[B78] 묶음4 — WEIGHT 비중 · REGIME 국면 · DUP 반복매수 · NEWSF 악재거르개 - 시작"
 $env:BASE_GAP = "표본만+실전표본"
 $env:BASE_RELGAP = "-3.5"
 $env:BASE_SELL = "0.4,15,40 / 0.6,40,90"
 $env:BASE_PICKS = "120"
 $env:SIZE_HI = "999999"
-$env:ONLY = "WEIGHT+REGIME+DUP"
+$env:ONLY = "WEIGHT+REGIME+DUP+NEWSF"
 $env:LAB_OUT = "2026-09-25_B78_묶음4.txt"
 try { & $py "scripts\gate7_lab.py" 2>&1 | Select-Object -Last 6 | ForEach-Object { 적기 "    $_" } }
 catch { 적기 "⚠️ [B78] 터졌다: $($_.Exception.Message)" }
