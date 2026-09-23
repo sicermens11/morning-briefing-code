@@ -241,6 +241,31 @@ for n in ast.walk(품은):
     for m in ast.walk(n.target):
         if isinstance(m, ast.Name) and m.id in _함수들:
             걸린5.append((n.lineno, m.id))
+# ── ⑤-2 **바깥(모듈) 값을 안에서 다시 쓰나** (2026-09-23 · B50 이 30분 돌다 죽었다) ──
+#    D-3 절이 `_시드 = None` 이라고 썼다. `_시드`(5,000,000)는 **모듈 값**인데
+#    품은 함수 안에서 한 번이라도 대입하면 그 이름은 **함수 전체에서 지역**이 된다.
+#    그래서 시뮬이 훨씬 앞에서 `시드 = 시드 or _시드` 를 할 때
+#      NameError: cannot access free variable '_시드'
+#    로 죽는다 — 절을 안 켰어도 죽는다. **파일 하나가 통째로 못 돈다**
+_모듈값 = {t.id for n in 나무.body if isinstance(n, ast.Assign)
+           for t in n.targets if isinstance(t, ast.Name)}
+_쓰는곳 = {}
+for n in ast.walk(품은):
+    if isinstance(n, ast.Assign):
+        _자리 = [m for t in n.targets for m in ast.walk(t) if isinstance(m, ast.Name)]
+    elif isinstance(n, ast.For):
+        _자리 = [m for m in ast.walk(n.target) if isinstance(m, ast.Name)]
+    else:
+        continue
+    for m in _자리:
+        if m.id in _모듈값 and m.id not in _함수들:
+            _쓰는곳.setdefault(m.id, n.lineno)
+print(f"⑤-2 모듈 값을 함수 안에서 다시 쓰나 — {len(_쓰는곳)}곳")
+for _이름, _ln in sorted(_쓰는곳.items(), key=lambda z: z[1]):
+    탈.append(f"⑤-2 {_ln}줄 {_이름} — 모듈 값을 지역으로 만들었다")
+    print(f"   ❌ {_ln}줄  **{_이름}** 은 모듈 값인데 함수 안에서 대입했다")
+    print(f"      그 이름은 함수 전체에서 지역이 된다 → 앞쪽 코드가 NameError 로 죽는다. 이름을 바꿔라")
+
 print(f"⑤ 밖의 함수를 변수로 덮어쓰나 — {len(걸린5)}곳")
 for _ln, _이름 in 걸린5[:10]:
     탈.append(f"⑤ {_ln}줄 {_이름} — 함수를 값으로 덮어썼다")
