@@ -189,6 +189,9 @@ for 이름 in sorted(os.listdir(자료방)):
     평소 = 사이[len(사이) // 2] or 1
     마지막 = 날들[-1]
     쉰날 = (_dt.date.fromisoformat(직전) - _dt.date.fromisoformat(마지막)).days
+    # 일부러 꺼 둔 예약은 봐준다 (2026-09-23): _krx_when2 = KrxArrivalFine — 한 번짜리 측정이었고 9/16 에 꺼다
+    if 이름 in {"_krx_when2.log", "_krx_when.log"}:
+        continue
     if 쉰날 > max(평소 * 3, 평소 + 2):
         안돈것.append((이름, 마지막, 쉰날, 평소))
 
