@@ -5993,7 +5993,8 @@ def main():
         print("\n  ⭐ ONLY=Q29 — 여기서 끝낸다 (Q-19 본체와 옛 절은 건너뛴다)", flush=True)
         return 0
 
-    # ══ ⭐ **DUMPH — Ⓗ+의료가 고르는 사건을 파일로 덜어 둔다** (2026-09-22) ══
+    # ══ ⭐ **DUMPH — 지금 실전 바탕이 고르는 사건을 파일로 덜어 둔다** (2026-09-22) [바탕 덜기] ══
+    #    [바탕 덜기] = 이 절은 Ⓗ(+업종 규칙)를 그대로 쓴다 — 막개 ④가 코드로 확인하고 봐준다 (덤프 파일을 실제로 쓸 때만)
     #    Q-30 이 띠 풀에 얹어 쓴다. 보통 풀(OPENFIN 없음)에서 돌린다.
     _덤프길 = os.path.join(O._DATA, "_labs", "h_events.jsonl")
     if _ONLY == "DUMPH":
@@ -6014,14 +6015,37 @@ def main():
             _d = x.get("낙폭60")
             return _d is not None and _d <= _의문D
 
-        _덤프 = [x for x in 사건 if _H(x) or _의료D(x)]
+        # ⭐ R0 (2026-09-23 · 연휴 계획) — DUMPH_LIVE=1 이면 **rule_def.업종규칙맞나() 를 그대로 불러**
+        #    지금 실전(Ⓗ + 업종 규칙 셋: 의료·금속·운송장비)을 덜어 둔다. 시험과 실전이 한 함수를 쓴다.
+        #    아니면 예전처럼 Ⓗ + 의료(판 안 정의) — 옛 바탕 재현용
+        _실전으로 = bool(os.environ.get("DUMPH_LIVE"))
+
+        def _업종실전D(x):
+            _지금문 = 재무통과(x) and 대금통과(x) and (x.get("시총억") or 0) >= R.시총하한억
+            _맞, _ = R.업종규칙맞나(_산업.get(x["code"]), {
+                "시총억": x.get("시총억"), "대금억": x.get("대금억"), "_지금문통과": _지금문,
+                "잉여금비율": x.get("잉여금"), "부채비율": x.get("부채"), "흑자": x.get("흑자"),
+                "낙폭60": x.get("낙폭60"), "낙120": x.get("낙120")})
+            return bool(_맞)
+
+        _바탕D = (lambda x: _H(x) or _업종실전D(x)) if _실전으로 else (lambda x: _H(x) or _의료D(x))
+        _덤프 = [x for x in 사건 if _바탕D(x)]
         with io.open(_덤프길, "w", encoding="utf-8") as _f:
             for x in _덤프:
                 _f.write(json.dumps(x, ensure_ascii=False, default=str) + "\n")
-        _r0 = 시뮬(_c(lambda x: _H(x) or _의료D(x)))
-        print(f"\n  DUMPH — Ⓗ 또는 의료에 맞는 사건 {len(_덤프):,}건을 {_덤프길} 에 덜었다")
-        print(f"         의료 문턱 낙폭60 ≤ {_의문D:.2f}%  ·  바탕(Ⓗ+의료) 시뮬 {_r0['끝']:,.0f}원"
-              f" · 낙폭 {_r0['낙']:.1f}% · 산 것 {_r0['산']}  (Q-28 ⓪ 262,871,069 과 같아야 한다)")
+        _r0 = 시뮬(_c(_바탕D))
+        import datetime as _dtD
+        import subprocess as _sp
+        try:
+            _커밋 = _sp.check_output(["git", "rev-parse", "--short", "HEAD"],
+                                   cwd=os.path.dirname(O._DATA)).decode().strip()
+        except Exception:  # noqa: BLE001
+            _커밋 = "?"
+        print(f"\n  DUMPH — {'지금 실전(Ⓗ + rule_def 업종규칙 ' + '·'.join(R.업종규칙) + ')' if _실전으로 else 'Ⓗ + 의료(판 안 정의)'}"
+              f" 에 맞는 사건 {len(_덤프):,}건을 {_덤프길} 에 덜었다")
+        print(f"         ⭐ 바탕 = {_dtD.date.today().isoformat()} · 커밋 {_커밋} · 시뮬 {_r0['끝']:,.0f}원"
+              f" · 낙폭 {_r0['낙']:.1f}% · 산 것 {_r0['산']}"
+              + ("  (Q-34 소형운송장비+중형금속 341,296,340 근처여야 한다)" if _실전으로 else "  (Q-28 ⓪ 262,871,069 과 같아야 한다)"))
         return 0
 
     # ══ ⭐⭐⭐ **Q-38 회전율·선물20 문턱 흔들기** (2026-09-23 · 넣기 전 마지막 단계) ══

@@ -163,6 +163,11 @@ for _k in range(len(절머리) - 1):
     #    새 절에 이 표시를 붙이면 막개를 무력화하는 것이니 붙이면 안 된다
     if any("[지난 절]" in z for z in _몸[:4]):
         continue
+    # ⚠️ [바탕 덜기] — **지금 실전 바탕**을 파일로 덜어 두는 절(DUMPH). _H 를 쓰는 게 정의다.
+    #    이름표만으로는 안 봐준다: 그 절이 실제로 `_덤프길` 에 json.dumps 로 **써야** 예외다 (2026-09-23)
+    if (any("[바탕 덜기]" in z for z in _몸[:4])
+            and any("_덤프길" in z for z in _몸) and any("json.dumps" in z for z in _몸)):
+        continue
     띠절수 += 1
     _제목 = re.sub(r"[`*]", "", 줄들[_a]).strip()[:56]
     # ② 그 절에 **띠 전용 규칙이 있나** — 없으면 [견줌] 도 봐주지 않는다
