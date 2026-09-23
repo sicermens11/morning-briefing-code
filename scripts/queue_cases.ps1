@@ -32,10 +32,16 @@ function 메모리여유GB {
     return [math]::Round((Get-CimInstance Win32_OperatingSystem).FreeVirtualMemory / 1MB, 1)
 }
 
-$앞파일 = "data\_labs\2026-09-25_B54_RK_손잡이넷.txt"
-적기 "[0] 앞줄(B54)이 끝났나 본다 — 판이 비면 간다"
+# ⚠️ 앞줄 파일 하나로 기다리면, 내가 판을 더 붙일 때마다 자리가 어긋난다.
+#    그래서 **판 사슬이 통째로 빌 때까지** 기다린다 — queue_b*.ps1 가 하나도 없고 큰 파이썬도 없을 때
+function 사슬도나 {
+    $n = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
+           Where-Object { $_.CommandLine -match "queue_b\d+\.ps1" }).Count
+    return ($n -gt 0)
+}
+적기 "[0] 판 사슬이 통째로 빌 때까지 기다린다 (queue_b*.ps1 0개 · 큰 파이썬 0개)"
 $분 = 0
-while ((-not (Test-Path $앞파일) -or (큰파이썬) -gt 0) -and ($분 -lt 2880)) {
+while (((사슬도나) -or (큰파이썬) -gt 0) -and ($분 -lt 4320)) {
     Start-Sleep -Seconds 60; $분 = $분 + 1
 }
 적기 "[0] $분 분 기다림 · 메모리 여유 $(메모리여유GB) GB"
