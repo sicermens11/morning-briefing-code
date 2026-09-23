@@ -34,6 +34,28 @@ print(f"E3·E8 — 실전 기록 {len(줄들)}일 "
 if len(줄들) < 15:
     print(f"⚠️ **표본이 얇다 ({len(줄들)}일).** 자리·문턱을 이 값으로 바꾸지 않는다")
 
+# ── A6 무결성 — 거래일마다 한 줄씩 있나 · 되메운 줄은 없나 ──
+import datetime as _dt
+import krx_calendar as K
+
+_날들 = [str(d.get("신호기준일") or "") for d in 줄들]
+_겹 = sorted({z for z in _날들 if _날들.count(z) > 1})
+_처음 = _dt.date.fromisoformat(f"{_날들[0][:4]}-{_날들[0][4:6]}-{_날들[0][6:]}") if _날들 and len(_날들[0]) == 8 else None
+_끝 = _dt.date.fromisoformat(f"{_날들[-1][:4]}-{_날들[-1][4:6]}-{_날들[-1][6:]}") if _날들 and len(_날들[-1]) == 8 else None
+_빠짐 = []
+if _처음 and _끝:
+    _보 = _처음
+    while _보 <= _끝:
+        if K.장서는날(_보)[0] and _보.strftime("%Y%m%d") not in _날들:
+            _빠짐.append(_보.isoformat())
+        _보 += _dt.timedelta(days=1)
+_되메움 = [str(d.get("신호기준일")) for d in 줄들
+           if not ((d.get("동시호가") or {}).get("종목별"))]
+print(f"   A6 무결성 — 빠진 거래일 {len(_빠짐)}개 {_빠짐[:5] if _빠짐 else ''}"
+      f" · 같은 날 두 줄 {len(_겹)}개 · 동시호가가 빈 줄 {len(_되메움)}개 {_되메움[:5]}")
+if _되메움:
+    print("      (동시호가가 비면 그날은 상대갭·체결 검산에서 빠진다 — 나중에 손으로 메운 줄이다)")
+
 문턱 = R.상대갭문턱
 자리 = R.하루최대종목
 print(f"   지금: 상대갭 {문턱:+.1f}%p · 하루 {자리}자리\n")
