@@ -321,6 +321,41 @@ for _이름, _줄들 in _대입줄.items():
     _첫쓴 = min(_쓴줄[_이름])
     if _첫쓴 < _줄들[0]:
         걸린7.append((_첫쓴, _줄들[0], _이름))
+# ⑦-2 **안쪽 함수가 쓰는 바깥 값이, 그 함수를 부르는 때에 이미 있나** (2026-09-25)
+#    `_D준비` 를 칸 판 앞으로 옮겼는데 그 함수가 쓰는 `_덤프길` 은 뒤에 두었다.
+#    부르는 자리(6054줄)가 대입(6110줄)보다 앞이라 **NameError 로 25번 삼켜졌다.**
+#    ⑦ 은 안쪽 함수 속을 안 본다(헛경보 때문). 그래서 **부르는 때**로 따로 본다
+걸린72 = []
+for _f in ast.iter_child_nodes(품은):
+    if not isinstance(_f, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        continue
+    _제것 = {a.arg for a in _f.args.args} | {a.arg for a in _f.args.kwonlyargs}
+    for _n in ast.walk(_f):
+        if isinstance(_n, (ast.Assign, ast.For)):
+            _tt = _n.targets if isinstance(_n, ast.Assign) else [_n.target]
+            for _t in _tt:
+                for _m in ast.walk(_t):
+                    if isinstance(_m, ast.Name):
+                        _제것.add(_m.id)
+    _쓰는것 = {_n.id for _n in ast.walk(_f)
+              if isinstance(_n, ast.Name) and isinstance(_n.ctx, ast.Load) and _n.id not in _제것}
+    _부른줄 = [_n.lineno for _n in _마디들
+              if isinstance(_n, ast.Call) and isinstance(_n.func, ast.Name) and _n.func.id == _f.name]
+    if not _부른줄:
+        continue
+    _처음부름 = min(_부른줄)
+    for _이름 in sorted(_쓰는것):
+        _줄들 = _대입줄.get(_이름)
+        if not _줄들 or len(_줄들) != 1:
+            continue
+        if _줄들[0] > _처음부름:
+            걸린72.append((_f.name, _처음부름, _이름, _줄들[0]))
+print(f"⑦-2 안쪽 함수가 쓰는 바깥 값의 자리 — 어긋난 것 {len(걸린72)}개")
+for _fn, _부, _이름, _댐 in sorted(걸린72, key=lambda z: z[1])[:10]:
+    탈.append(f"⑦-2 {_부}줄 {_fn}() 가 {_이름} 를 쓰는데 대입은 {_댐}줄")
+    print(f"   ❌ {_부}줄에서 **{_fn}()** 를 부르는데, 그 함수가 쓰는 **{_이름}** 의 대입은 {_댐}줄이다")
+    print(f"      NameError 로 죽는다. try 안이면 **조용히 삼켜진다** — 더 나쁘다")
+
 print(f"⑦ 쓰기 전에 대입했나 — 어긋난 이름 {len(걸린7)}개")
 for _쓴, _댐, _이름 in sorted(걸린7)[:10]:
     # ⚠️ 아직은 **경고만** 한다 — 헛경보를 다 잡기 전에 판을 멈추면 더 나쁜다 (2026-09-24)
