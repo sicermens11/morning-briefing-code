@@ -305,6 +305,12 @@ for n in _마디들:
                 _대입줄.setdefault(m.id, []).append(getattr(m, "lineno", 0))
     elif isinstance(n, ast.AugAssign) and isinstance(n.target, ast.Name):
         _대입줄.setdefault(n.target.id, []).append(n.target.lineno)
+# ⚠️ **안쪽 함수도 그 줄에서야 생긴다** (2026-09-25).
+#    `_D준비` 정의를 칸 판 **뒤**로 옮겨 놓고 칸 판에서 불렀다 — 25번 다 같은 예외로 삼켜졌다.
+#    함수 정의도 대입이다. 이름이 있어도 **자리가 뒤면** UnboundLocalError 로 죽는다
+for n in ast.iter_child_nodes(품은):
+    if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        _대입줄.setdefault(n.name, []).append(n.lineno)
 for n in _마디들:
     if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load):
         _쓴줄.setdefault(n.id, []).append(n.lineno)
