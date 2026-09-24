@@ -5994,6 +5994,49 @@ def main():
                         print("           걷기: " + ("✅ 앞뒤 둘 다 늘고 낙폭 안" if (_앞ok29 and _뒤ok29)
                                                     else "❌ 한 토막이 안 늘거나 낙폭 밖")
                               + "   (혼자 서는 규칙 · 절대 기준)")
+
+                    # ⭐ CELL_OR (2026-09-24) — 혼자 선 칸을 **그 자리에서 지금 실전 위에 얹어** 본다.
+                    #    「혼자 선다」는 기준이 아니다 — 빈 날을 채우고 돈이 늘어야 한다
+                    if os.environ.get("CELL_OR") and _r29["끝"] >= float(os.environ.get("CELL_OR_MIN") or 4e7):
+                        if _ORCELL[0] < int(os.environ.get("CELL_OR_MAX") or 25):
+                            _ORCELL[0] += 1
+                            try:
+                                if _ORCELL[1] is None:
+                                    _ORCELL[1] = _D준비()
+                                _합OR, _묶OR, _열OR, _키OR = _ORCELL[1]
+                                _지OR = _키OR["지금"]
+                                if _ORCELL[2] is None:
+                                    _ORCELL[2] = 시뮬(_c((lambda x: (x["code"], x["인"]) in _지OR), **_열OR), 묶2=_묶OR)
+                                _기OR = _ORCELL[2]
+                                _새OR = {(x["code"], x["인"]) for x in 사건 if _fn29(x)}
+                                _날OR = {인 for (_, 인) in _지OR}
+                                _새날OR = len({인 for (_, 인) in _새OR} - _날OR)
+                                _도OR = (lambda x, _k=_새OR, _b=_지OR:
+                                         (x["code"], x["인"]) in _b or (x["code"], x["인"]) in _k)   # [견줌]
+                                _rOR = 시뮬(_c(_도OR, **_열OR), 묶2=_묶OR)
+                                if _rOR and _기OR:
+                                    _okOR = (_rOR["산"] > _기OR["산"], _rOR["끝"] > _기OR["끝"],
+                                             _rOR["낙"] > 낙폭기준)
+                                    _걷OR = ""
+                                    if all(_okOR):
+                                        _a0 = 시뮬(_c((lambda x: (x["code"], x["인"]) in _지OR), **_열OR),
+                                                   시작년="2016", 끝년="2020", 묶2=_묶OR)
+                                        _a1 = 시뮬(_c(_도OR, **_열OR), 시작년="2016", 끝년="2020", 묶2=_묶OR)
+                                        _b0 = 시뮬(_c((lambda x: (x["code"], x["인"]) in _지OR), **_열OR),
+                                                   시작년="2021", 끝년="2026", 시드=_a0["끝"], 묶2=_묶OR) if _a0 else None
+                                        _b1 = 시뮬(_c(_도OR, **_열OR), 시작년="2021", 끝년="2026",
+                                                   시드=_a1["끝"], 묶2=_묶OR) if _a1 else None
+                                        if _a0 and _a1 and _b0 and _b1:
+                                            _앞OR = (_a1["끝"] / _a0["끝"] - 1) * 100
+                                            _뒤OR = (_b1["끝"] / _b0["끝"] - 1) * 100
+                                            _걷OR = (f" · 걷기 앞 {_앞OR:+.1f}% 뒤 {_뒤OR:+.1f}% "
+                                                     + ("✅" if (_앞OR > 0.1 and _뒤OR > 0.1) else "❌"))
+                                    print(f"           ⭐ 지금 실전 위에 얹으면 — 새 날 {_새날OR}"
+                                          f" · {_rOR['끝']:,.0f}원 ({_rOR['끝'] / _기OR['끝'] * 100:.0f}%)"
+                                          f" · 낙폭 {_rOR['낙']:.1f}% · 산 것 {_rOR['산']} (바탕 {_기OR['산']})  "
+                                          + ("✅ 셋 다" if all(_okOR) else "❌") + _걷OR, flush=True)
+                            except Exception as _eOR:  # noqa: BLE001
+                                print(f"           ⚠️ 얹기 터졌다: {type(_eOR).__name__} {_eOR}")
                         if _앞ok29 and _뒤ok29:
                             _모은29.append((_라칸29, _표29, _r29))
                     else:
@@ -6009,8 +6052,57 @@ def main():
         print("=" * 122)
 
     if _ONLY == "Q29":
+        _ORCELL = [0, None, None]   # [센 칸 수, _D준비 결과, 바탕 시뮬] — CELL_OR 용 그릇
         print("\n  ⭐ ONLY=Q29 — 여기서 끝낸다 (Q-19 본체와 옛 절은 건너뛴다)", flush=True)
         return 0
+
+    # ══ **D 절 준비 — 지금 실전 바탕을 판 안에 다시 세운다** (2026-09-23 · 연휴 계획 D) ══
+    #    R0(DUMPH_LIVE)가 덜어 둔 h_events.jsonl = Ⓗ + 업종 셋 · c_events_* = 칸(띠) 사건
+    #    ⚠️ 여기서는 지금 규칙을 **다시 계산하지 않는다** — 덜어 둔 열쇠로만 가른다 (막개 ④ 지킴)
+    def _D준비():
+        """돌려주는 것: (합, 합묶, 열기, 키표) · 키표 = {"Ⓗ": set, 업종이름: set, "지금": set, "옛": set}"""
+        _덤 = [json.loads(z) for z in io.open(_덤프길, encoding="utf-8") if z.strip()]
+        _덤키 = {(x["code"], x["인"]) for x in _덤}
+        _칸 = []
+        for _꼬 in ("중형금속", "소형운송장비"):
+            _길 = os.path.join(O._DATA, "_labs", f"c_events_{_꼬}.jsonl")
+            if os.path.exists(_길):
+                _칸 += [json.loads(z) for z in io.open(_길, encoding="utf-8") if z.strip()]
+        _본 = {(x["code"], x["인"]) for x in 사건}
+        _합 = list(사건)
+        _밖 = 0
+        for x in _덤 + _칸:
+            k = (x["code"], x["인"])
+            if k not in _본:
+                _합.append(x)
+                _본.add(k)
+                _밖 += 1
+        _묶D = {}
+        for x in _합:
+            _묶D.setdefault(x["인"], []).append(x)
+        _키표 = {이: set() for 이 in R.업종규칙}
+        for x in _합:
+            _지금문 = 재무통과(x) and 대금통과(x) and (x.get("시총억") or 0) >= R.시총하한억
+            _맞, _이 = R.업종규칙맞나(_산업.get(x["code"]), {
+                "시총억": x.get("시총억"), "대금억": x.get("대금억"), "_지금문통과": _지금문,
+                "잉여금비율": x.get("잉여금"), "부채비율": x.get("부채"), "흑자": x.get("흑자"),
+                "낙폭60": x.get("낙폭60"), "낙120": x.get("낙120")})
+            if _맞 and _이 in _키표:
+                _키표[_이].add((x["code"], x["인"]))
+        _업전체 = set()
+        for 이 in _키표:
+            _업전체 |= _키표[이]
+        _키표["Ⓗ"] = _덤키 - _업전체              # 덤프에 있는데 업종이 아닌 것 = Ⓗ
+        _키표["지금"] = _덤키 | _업전체            # 지금 실전 (Ⓗ + 업종 셋)
+        _키표["옛"] = _키표["Ⓗ"] | _키표.get("의료·정밀기기", set())
+        import time as _tD
+        _덤때 = _tD.strftime("%m-%d %H:%M", _tD.localtime(os.path.getmtime(_덤프길)))
+        print(f"     바탕 = {_덤프길.split(chr(92))[-1]} ({_덤때} · {len(_덤):,}건) + 칸 {len(_칸):,}건"
+              f" · 보통 풀 밖에서 더한 사건 {_밖:,}건 · 합 {len(_합):,}건")
+        print(f"     열쇠 — Ⓗ {len(_키표['Ⓗ']):,} · "
+              + " · ".join(f"{이} {len(_키표[이]):,}" for 이 in R.업종규칙)
+              + f"  ⇒ 지금 {len(_키표['지금']):,} · 옛(Ⓗ+의료) {len(_키표['옛']):,}")
+        return _합, _묶D, {"시총하한": 0, "시총상한": 999999999, "대금하한": 0}, _키표
 
     # ══ ⭐ **DUMPH — 지금 실전 바탕이 고르는 사건을 파일로 덜어 둔다** (2026-09-22) [바탕 덜기] ══
     #    [바탕 덜기] = 이 절은 Ⓗ(+업종 규칙)를 그대로 쓴다 — 막개 ④가 코드로 확인하고 봐준다 (덤프 파일을 실제로 쓸 때만)
@@ -6066,54 +6158,6 @@ def main():
               f" · 낙폭 {_r0['낙']:.1f}% · 산 것 {_r0['산']}"
               + ("  (Q-34 소형운송장비+중형금속 341,296,340 근처여야 한다)" if _실전으로 else "  (Q-28 ⓪ 262,871,069 과 같아야 한다)"))
         return 0
-
-    # ══ **D 절 준비 — 지금 실전 바탕을 판 안에 다시 세운다** (2026-09-23 · 연휴 계획 D) ══
-    #    R0(DUMPH_LIVE)가 덜어 둔 h_events.jsonl = Ⓗ + 업종 셋 · c_events_* = 칸(띠) 사건
-    #    ⚠️ 여기서는 지금 규칙을 **다시 계산하지 않는다** — 덜어 둔 열쇠로만 가른다 (막개 ④ 지킴)
-    def _D준비():
-        """돌려주는 것: (합, 합묶, 열기, 키표) · 키표 = {"Ⓗ": set, 업종이름: set, "지금": set, "옛": set}"""
-        _덤 = [json.loads(z) for z in io.open(_덤프길, encoding="utf-8") if z.strip()]
-        _덤키 = {(x["code"], x["인"]) for x in _덤}
-        _칸 = []
-        for _꼬 in ("중형금속", "소형운송장비"):
-            _길 = os.path.join(O._DATA, "_labs", f"c_events_{_꼬}.jsonl")
-            if os.path.exists(_길):
-                _칸 += [json.loads(z) for z in io.open(_길, encoding="utf-8") if z.strip()]
-        _본 = {(x["code"], x["인"]) for x in 사건}
-        _합 = list(사건)
-        _밖 = 0
-        for x in _덤 + _칸:
-            k = (x["code"], x["인"])
-            if k not in _본:
-                _합.append(x)
-                _본.add(k)
-                _밖 += 1
-        _묶D = {}
-        for x in _합:
-            _묶D.setdefault(x["인"], []).append(x)
-        _키표 = {이: set() for 이 in R.업종규칙}
-        for x in _합:
-            _지금문 = 재무통과(x) and 대금통과(x) and (x.get("시총억") or 0) >= R.시총하한억
-            _맞, _이 = R.업종규칙맞나(_산업.get(x["code"]), {
-                "시총억": x.get("시총억"), "대금억": x.get("대금억"), "_지금문통과": _지금문,
-                "잉여금비율": x.get("잉여금"), "부채비율": x.get("부채"), "흑자": x.get("흑자"),
-                "낙폭60": x.get("낙폭60"), "낙120": x.get("낙120")})
-            if _맞 and _이 in _키표:
-                _키표[_이].add((x["code"], x["인"]))
-        _업전체 = set()
-        for 이 in _키표:
-            _업전체 |= _키표[이]
-        _키표["Ⓗ"] = _덤키 - _업전체              # 덤프에 있는데 업종이 아닌 것 = Ⓗ
-        _키표["지금"] = _덤키 | _업전체            # 지금 실전 (Ⓗ + 업종 셋)
-        _키표["옛"] = _키표["Ⓗ"] | _키표.get("의료·정밀기기", set())
-        import time as _tD
-        _덤때 = _tD.strftime("%m-%d %H:%M", _tD.localtime(os.path.getmtime(_덤프길)))
-        print(f"     바탕 = {_덤프길.split(chr(92))[-1]} ({_덤때} · {len(_덤):,}건) + 칸 {len(_칸):,}건"
-              f" · 보통 풀 밖에서 더한 사건 {_밖:,}건 · 합 {len(_합):,}건")
-        print(f"     열쇠 — Ⓗ {len(_키표['Ⓗ']):,} · "
-              + " · ".join(f"{이} {len(_키표[이]):,}" for 이 in R.업종규칙)
-              + f"  ⇒ 지금 {len(_키표['지금']):,} · 옛(Ⓗ+의료) {len(_키표['옛']):,}")
-        return _합, _묶D, {"시총하한": 0, "시총상한": 999999999, "대금하한": 0}, _키표
 
     # ══ ⭐⭐⭐ **NEWSF (B6) — 악재 공시가 있는 종목을 빼면** (2026-09-23) ══
     if _ONLY == "NEWSF" or "NEWSF" in _ONLY.split("+"):
