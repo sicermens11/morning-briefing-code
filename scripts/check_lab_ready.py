@@ -273,6 +273,54 @@ for _이름, _ln in sorted(_쓰는곳.items(), key=lambda z: z[1]):
     print(f"   ❌ {_ln}줄  **{_이름}** 은 모듈 값인데 함수 안에서 대입했다")
     print(f"      그 이름은 함수 전체에서 지역이 된다 → 앞쪽 코드가 NameError 로 죽는다. 이름을 바꿔라")
 
+# ── ⑦ **쓰기 전에 대입했나** (2026-09-24 · CELL_OR 가 세 시간을 날렸다) ──
+#    `_ORCELL` 초기화를 **안 도는 자리**에 넣었더니 판 다섯이 전부
+#      UnboundLocalError: cannot access local variable '_ORCELL'
+#    로 죽었다. 문법 검사도, ①(이름이 있나)도 못 잡는다 — 이름은 있는데 **자리가 뒤**였다.
+#    ⚠️ **같은 자리(main 본문)만** 본다 — 안쪽 함수·람다는 나중에 불리므로 세면 헛경보가 난다
+#       (처음 만들 때 os·오차·_덤프길 로 여섯 번 헛경보를 냈다)
+def _같은자리(마디):
+    """안쪽 def·lambda 로는 안 들어가고 이 자리의 마디만 돌려준다"""
+    _벌 = []
+    def _파기(n):
+        for _자 in ast.iter_child_nodes(n):
+            if isinstance(_자, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                continue
+            _벌.append(_자)
+            _파기(_자)
+    _파기(마디)
+    return _벌
+
+_마디들 = _같은자리(품은)
+_대입줄, _쓴줄 = {}, {}
+for n in _마디들:
+    if isinstance(n, ast.Assign):
+        for t in n.targets:
+            for m in ast.walk(t):
+                if isinstance(m, ast.Name):
+                    _대입줄.setdefault(m.id, []).append(m.lineno)
+    elif isinstance(n, ast.For):
+        for m in ast.walk(n.target):
+            if isinstance(m, ast.Name):
+                _대입줄.setdefault(m.id, []).append(getattr(m, "lineno", 0))
+    elif isinstance(n, ast.AugAssign) and isinstance(n.target, ast.Name):
+        _대입줄.setdefault(n.target.id, []).append(n.target.lineno)
+for n in _마디들:
+    if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load):
+        _쓴줄.setdefault(n.id, []).append(n.lineno)
+걸린7 = []
+for _이름, _줄들 in _대입줄.items():
+    if len(_줄들) != 1 or _이름 not in _쓴줄:
+        continue
+    _첫쓴 = min(_쓴줄[_이름])
+    if _첫쓴 < _줄들[0]:
+        걸린7.append((_첫쓴, _줄들[0], _이름))
+print(f"⑦ 쓰기 전에 대입했나 — 어긋난 이름 {len(걸린7)}개")
+for _쓴, _댐, _이름 in sorted(걸린7)[:10]:
+    # ⚠️ 아직은 **경고만** 한다 — 헛경보를 다 잡기 전에 판을 멈추면 더 나쁜다 (2026-09-24)
+    print(f"   ⚠️ {_쓴}줄에서 **{_이름}** 를 쓰는데 대입은 {_댐}줄이다")
+    print(f"      그 자리가 안 돌면 UnboundLocalError 로 죽는다 (판 하나를 통째로 날린다)")
+
 print(f"⑤ 밖의 함수를 변수로 덮어쓰나 — {len(걸린5)}곳")
 for _ln, _이름 in 걸린5[:10]:
     탈.append(f"⑤ {_ln}줄 {_이름} — 함수를 값으로 덮어썼다")
