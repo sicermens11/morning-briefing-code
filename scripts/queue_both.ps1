@@ -62,6 +62,15 @@ while ((아침인가) -and ($ㅇ -lt 180)) {
 메모리관문 18
 메모리적기 "판 시작 전"
 
+# ⭐ 2026-09-24 — **멈춤 깃발**. 앞 판이 터졌으면 같은 벽에 또 부딪히지 않는다
+#    (12:15 에 건 다섯 판이 전부 같은 UnboundLocalError 로 죽었는데 사슬이 그냥 돌았다)
+$멈춤깃발 = "data\_labs\_STOP.txt"
+if (Test-Path $멈춤깃발) {
+    적기 "🛑 멈춤 깃발이 있다 — 이 판은 돌지 않는다. 먼저 고치고 깃발을 지워라"
+    적기 ("   " + ((Get-Content $멈춤깃발 -Raw -ErrorAction SilentlyContinue) -replace "`r`n", " "))
+    적기 "===== queue_both 비켜남 ====="
+    exit 0
+}
 적기 "[0] 실행 전 검사 (이름·거름 겹침·짝 풀기)"
 $chk = & $py "scripts\check_lab_ready.py" 2>&1
 $chk | Select-Object -Last 3 | ForEach-Object { 적기 "    $_" }

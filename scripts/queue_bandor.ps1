@@ -33,6 +33,15 @@ function 앞줄끝났나 {
     return ((Get-Content $l.FullName -Raw -Encoding UTF8) -match 'queue_band2 끝')
 }
 
+# ⭐ 2026-09-24 — **멈춤 깃발**. 앞 판이 터졌으면 같은 벽에 또 부딪히지 않는다
+#    (12:15 에 건 다섯 판이 전부 같은 UnboundLocalError 로 죽었는데 사슬이 그냥 돌았다)
+$멈춤깃발 = "data\_labs\_STOP.txt"
+if (Test-Path $멈춤깃발) {
+    적기 "🛑 멈춤 깃발이 있다 — 이 판은 돌지 않는다. 먼저 고치고 깃발을 지워라"
+    적기 ("   " + ((Get-Content $멈춤깃발 -Raw -ErrorAction SilentlyContinue) -replace "`r`n", " "))
+    적기 "===== queue_bandor 비켜남 ====="
+    exit 0
+}
 적기 "[0] 앞줄(queue_band2)이 끝나길 기다린다"
 $분 = 0
 while (-not (앞줄끝났나) -and ($분 -lt 600)) { Start-Sleep -Seconds 60; $분 = $분 + 1 }
@@ -53,4 +62,13 @@ catch { 적기 "⚠️ [PAIRS] 터졌다: $($_.Exception.Message)" }
 foreach ($k in "BASE_GAP", "BASE_RELGAP", "BASE_SELL", "BASE_PICKS", "SIZE_HI", "LAB_OUT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
 $밖 = Join-Path "data\_labs" "2026-09-18_BANDOR_띠마다더하기.txt"
 if (Test-Path $밖) { 적기 "[PAIRS] 끝 — $('{0:N0}' -f (Get-Item $밖).Length) B" } else { 적기 "⚠️ [PAIRS] 결과 파일이 없다" }
+# ⭐ 2026-09-24 — 제 로그를 제가 읽는다. 터졌으면 깃발을 세워 **뒤 판을 멈춘다**
+$끝줄 = @(Get-Content $log -Tail 40 -ErrorAction SilentlyContinue)
+$터짐 = @($끝줄 | Where-Object { $_ -match "Traceback|[A-Za-z]+Error|터졌다" })
+if ($터짐.Count -gt 0) {
+    $쪽지 = "BANDOR 이 터졌다 ($(Get-Date -f 'MM-dd HH:mm')) — " + ($터짐[-1])
+    Set-Content -Path "data\_labs\_STOP.txt" -Value $쪽지 -Encoding UTF8
+    적기 "🛑 이 판이 터졌다 — 멈춤 깃발을 세웠다 (뒤 판은 안 돈다)"
+    적기 "   $($터짐[-1])"
+}
 적기 "===== queue_bandor 끝 ====="

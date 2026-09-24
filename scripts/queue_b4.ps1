@@ -61,6 +61,15 @@ function 앞줄끝났나 {
     if ((큰파이썬) -gt 0) { return $false }
     return $true
 }
+# ⭐ 2026-09-24 — **멈춤 깃발**. 앞 판이 터졌으면 같은 벽에 또 부딪히지 않는다
+#    (12:15 에 건 다섯 판이 전부 같은 UnboundLocalError 로 죽었는데 사슬이 그냥 돌았다)
+$멈춤깃발 = "data\_labs\_STOP.txt"
+if (Test-Path $멈춤깃발) {
+    적기 "🛑 멈춤 깃발이 있다 — 이 판은 돌지 않는다. 먼저 고치고 깃발을 지워라"
+    적기 ("   " + ((Get-Content $멈춤깃발 -Raw -ErrorAction SilentlyContinue) -replace "`r`n", " "))
+    적기 "===== queue_b4 비켜남 ====="
+    exit 0
+}
 적기 "[0] 앞줄(B3)이 끝나길 기다린다"
 $분 = 0
 while (-not (앞줄끝났나) -and ($분 -lt 300)) { Start-Sleep -Seconds 60; $분 = $분 + 1 }
