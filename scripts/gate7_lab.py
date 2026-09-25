@@ -5921,6 +5921,7 @@ def main():
                 _재신호29 = [(k + "↓", f, "아래") for k, f in _재전부29] \
                           + [(k + "↑", f, "위") for k, f in _재전부29]
                 _문턱29, _좋29 = {}, []
+                _값29 = {}   # ⭐ 2026-09-25 — 문턱을 흔들려면 값 목록이 있어야 한다
                 for _이29, _꺼29, _방29 in _재신호29:
                     _v29 = sorted(z for z in (_꺼29(x) for x in _든29)
                                   if z is not None)
@@ -5928,6 +5929,7 @@ def main():
                         continue
                     if len(set(_v29[::max(1, len(_v29) // 2000)])) < 20:
                         continue    # 이진 재료 — 분위수 컷이 뜻이 없다
+                    _값29[_이29] = _v29
                     _문턱29[_이29] = (_v29[len(_v29) // 5] if _방29 == "아래"
                                       else _v29[len(_v29) * 4 // 5])
                 for _이29, _꺼29, _방29 in _재신호29:
@@ -6006,7 +6008,7 @@ def main():
                             _ok29 = (_r29["끝"] > 5_000_000
                                      and _r29["낙"] > 낙폭기준 and _r29["산"] >= 30)
                             if _ok29:
-                                _산29.append((_표29, _fn29, _옵29, _r29))
+                                _산29.append((_표29, _fn29, _옵29, _r29, _쓸29))
                             print(f"        {_표29:<32}{_r29['끝']:>16,.0f}원"
                                   f"{_r29['낙']:>7.1f}%{_r29['산']:>7}  "
                                   + ("✅ 돈 늘고 낙폭 안" if _ok29 else "❌"))
@@ -6014,7 +6016,7 @@ def main():
                     print(f"\n        ⇒ **[{_라칸29}] 혼자 서는 규칙이 없다**")
                     continue
                 _산29.sort(key=lambda t: -t[3]["끝"])
-                for _표29, _fn29, _옵29, _r29 in _산29[:2]:
+                for _표29, _fn29, _옵29, _r29, _쓸29 in _산29[:2]:
                     print(f"\n        ── [{_라칸29} · {_표29}] 해마다 + 걷기 ──")
                     _차29 = []
                     for _y29 in range(2016, 2027):
@@ -6088,6 +6090,37 @@ def main():
                                           f" · {_rOR['끝']:,.0f}원 ({_rOR['끝'] / _기OR['끝'] * 100:.0f}%)"
                                           f" · 낙폭 {_rOR['낙']:.1f}% · 산 것 {_rOR['산']} (바탕 {_기OR['산']})  "
                                           + ("✅ 셋 다" if all(_okOR) else "❌") + _걷OR, flush=True)
+                                    # ⭐ CELL_SHAKE (2026-09-25) — 얹기까지 ✅ 인 칸만 **문턱을 옮겨** 다시 얹는다.
+                                    #    칸 문턱은 「그 칸 값의 20분위」다. 10~30분위로 옮겨도 서야 우연이 아니다
+                                    if os.environ.get("CELL_SHAKE") and _걷OR.endswith("✅"):
+                                        print("           ── 문턱 흔들기 (이 칸 값의 분위를 옮긴다) ──", flush=True)
+                                        for _qS in (0.10, 0.15, 0.20, 0.25, 0.30):
+                                            try:
+                                                _표S = {}
+                                                for _이S in _쓸29:
+                                                    _vS = _값29.get(_이S)
+                                                    if not _vS:
+                                                        continue
+                                                    _표S[_이S] = (_vS[int(len(_vS) * _qS)] if _이S.endswith("↓")
+                                                                  else _vS[int(len(_vS) * (1 - _qS))])
+                                                if len(_표S) != len(_쓸29):
+                                                    continue
+                                                _fnS = (lambda x, c=_쓸29, mm=_표S: _띠규칙29(x, c, 표=mm))
+                                                _새S = {(x["code"], x["인"]) for x in 사건 if _fnS(x)}
+                                                _도S = (lambda x, _k=_새S, _b=_지OR:
+                                                        (x["code"], x["인"]) in _b or (x["code"], x["인"]) in _k)   # [견줌]
+                                                _rS = 시뮬(_c(_도S, **_열OR), 묶2=_묶OR)
+                                                if not _rS:
+                                                    continue
+                                                _새날S = len({인 for (_, 인) in _새S} - _날OR)
+                                                _okS = (_rS["산"] > _기OR["산"], _rS["끝"] > _기OR["끝"], _rS["낙"] > 낙폭기준)
+                                                print(f"              {int(_qS * 100):>3}분위 — 새 날 {_새날S:>3}"
+                                                      f" · {_rS['끝']:>15,.0f}원 ({_rS['끝'] / _기OR['끝'] * 100:>3.0f}%)"
+                                                      f" · 낙폭 {_rS['낙']:>6.1f}% · 산 것 {_rS['산']:>4}  "
+                                                      + ("✅" if all(_okS) else "❌")
+                                                      + ("   ← 지금 자리" if abs(_qS - 0.20) < 1e-9 else ""), flush=True)
+                                            except Exception as _eS:  # noqa: BLE001
+                                                print(f"              {int(_qS * 100)}분위 터졌다: {type(_eS).__name__} {_eS}")
                             except Exception as _eOR:  # noqa: BLE001
                                 print(f"           ⚠️ 얹기 터졌다: {type(_eOR).__name__} {_eOR}")
                         if _앞ok29 and _뒤ok29:
