@@ -67,7 +67,7 @@ function 메모리관문($필요GB = 18) {
     if ($ㅁ -gt 0) { 적기 "[메모리] $ㅁ 분 기다렸다" }
 }
 # ⚠️ 메모리 — 판 하나가 24GB 다. 앞줄이 끝나고 커밋이 돌아온 뒤에만 시작한다
-$앞파일 = "data\_labs\2026-09-25_B94_칸OR3_초대형.txt"
+$앞파일 = "data\_labs\2026-09-25_B90_칸OR3_소형.txt"
 function 앞줄끝났나 {
     if (-not (Test-Path $앞파일)) { return $false }
     if ((큰파이썬) -gt 0) { return $false }
@@ -84,7 +84,19 @@ if (Test-Path $멈춤깃발) {
 }
 적기 "[0] 앞줄(없음)이 끝났나 본다 — 이미 끝났으면 바로 간다"
 $분 = 0
-while (-not (앞줄끝났나) -and ($분 -lt 2880)) { Start-Sleep -Seconds 60; $분 = $분 + 1 }
+$헛돔 = 0
+while (-not (앞줄끝났나) -and ($분 -lt 2880)) {
+    Start-Sleep -Seconds 60
+    $분 = $분 + 1
+    # ⭐ 2026-09-25 — **고아 감지**. 앞줄이 영영 안 오는데 기다리기만 하면 몇 시간이 그냥 간다
+    #    (B94 를 내가 죽여 놓고 B95 가 그 파일을 5시간 반 기다렸다)
+    if ((-not (Test-Path $앞파일)) -and ((큰파이썬) -eq 0)) { $헛돔 = $헛돔 + 1 } else { $헛돔 = 0 }
+    if ($헛돔 -ge 45) {
+        적기 "🛑 앞줄이 45분째 안 오고 도는 판도 없다 — 사슬이 끊겼다"
+        Set-Content -Path "data\_labs\_STOP.txt" -Value "사슬 끊김: $앞파일 이 안 온다" -Encoding UTF8
+        exit 0
+    }
+}
 적기 "[0] $분 분 기다림"
 $ㅇ = 0
 while ((아침인가) -and ($ㅇ -lt 180)) {
