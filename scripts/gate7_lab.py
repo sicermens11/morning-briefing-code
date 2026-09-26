@@ -6119,6 +6119,17 @@ def main():
                                                       f" · 낙폭 {_rS['낙']:>6.1f}% · 산 것 {_rS['산']:>4}  "
                                                       + ("✅" if all(_okS) else "❌")
                                                       + ("   ← 지금 자리" if abs(_qS - 0.20) < 1e-9 else ""), flush=True)
+                                                # ⭐ 2026-09-26 — 셋 다를 넘긴 분위는 **증분 걷기**까지 본다 (이 집 규칙의 네째 관문)
+                                                if all(_okS):
+                                                    _aS = 시뮬(_c((lambda x: (x["code"], x["인"]) in _지OR), **_열OR), 시작년="2016", 끝년="2020", 묶2=_묶OR)
+                                                    _a1S = 시뮬(_c(_도S, **_열OR), 시작년="2016", 끝년="2020", 묶2=_묶OR)
+                                                    _bS = 시뮬(_c((lambda x: (x["code"], x["인"]) in _지OR), **_열OR), 시작년="2021", 끝년="2026", 시드=_aS["끝"], 묶2=_묶OR) if _aS else None
+                                                    _b1S = 시뮬(_c(_도S, **_열OR), 시작년="2021", 끝년="2026", 시드=_a1S["끝"], 묶2=_묶OR) if _a1S else None
+                                                    if _aS and _a1S and _bS and _b1S:
+                                                        _앞S = (_a1S["끝"] / _aS["끝"] - 1) * 100
+                                                        _뒤S = (_b1S["끝"] / _bS["끝"] - 1) * 100
+                                                        print(f"                     증분 걷기 앞 {_앞S:+.1f}% 뒤 {_뒤S:+.1f}% "
+                                                              + ("✅" if (_앞S > 0.1 and _뒤S > 0.1) else "❌"), flush=True)
                                             except Exception as _eS:  # noqa: BLE001
                                                 print(f"              {int(_qS * 100)}분위 터졌다: {type(_eS).__name__} {_eS}")
                             except Exception as _eOR:  # noqa: BLE001
