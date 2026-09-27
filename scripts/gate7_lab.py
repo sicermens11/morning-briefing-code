@@ -5786,6 +5786,88 @@ def main():
               + f"  ⇒ 지금 {len(_키표['지금']):,} · 옛(Ⓗ+의료) {len(_키표['옛']):,}")
         return _합, _묶D, {"시총하한": 0, "시총상한": 999999999, "대금하한": 0}, _키표
 
+    # ══ ⭐⭐⭐ **TOGETHER — 마지막 관문: 같이 켜면** (2026-09-27) ══
+    if _ONLY == "TOGETHER" or "TOGETHER" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── TOGETHER ⭐⭐⭐ **덜어 둔 후보들을 하나씩 · 둘씩 · 전부 얹어 본다** ──")
+        print("     ①혼자 ②얹기 ④걷기 는 끝났다. 남은 건 ③ **같이 켜면 서로 잡아먹지 않나**")
+        print("=" * 122)
+        _합T, _묶T, _열T, _키T = _D준비()
+        _지금키T = _키T["지금"]
+        import glob as _gT
+        _후보T = {}
+        for _fT in sorted(_gT.glob(os.path.join(O._DATA, "_labs", "d_events_*.jsonl"))):
+            _이T = os.path.basename(_fT)[9:-6]
+            try:
+                _evT = [json.loads(z) for z in io.open(_fT, encoding="utf-8") if z.strip()]
+            except (OSError, ValueError):
+                continue
+            if _evT:
+                _후보T[_이T] = {(x["code"], x["인"]) for x in _evT}
+                # 바탕 풀에 없는 사건은 합쳐 넣는다 (띠가 달라 이 판 풀엔 없다)
+                _본T = {(x["code"], x["인"]) for x in _합T}
+                for x in _evT:
+                    if (x["code"], x["인"]) not in _본T:
+                        _합T.append(x)
+                        _묶T.setdefault(x["인"], []).append(x)
+        if not _후보T:
+            print("     ⚠️ 덜어 둔 후보(d_events_*.jsonl)가 없다 — CELL_DUMP=1 로 칸 판을 먼저 돌려라")
+            print("=" * 122)
+            return 0
+        print(f"\n     덜어 둔 후보 {len(_후보T)}개")
+        for _이T, _kT in _후보T.items():
+            print(f"        {_이T} — {len(_kT):,}건")
+
+        def _지금T(x):
+            return (x["code"], x["인"]) in _지금키T        # [견줌] 덜어 둔 열쇠
+
+        _기T = 시뮬(_c(_지금T, **_열T), 묶2=_묶T)
+        _날T = {인 for (_, 인) in _지금키T}
+        print(f"\n     바탕 — {_기T['끝']:,.0f}원 · 낙폭 {_기T['낙']:.1f}% · 산 것 {_기T['산']}")
+        print(f"\n     {'무엇을 켜나':<46}{'새 날':>7}{'끝 자산':>16}{'바탕의%':>9}{'낙폭':>8}{'산 것':>7}  판정")
+
+        import itertools as _itT
+
+        def _재기T(이름, 켤것):
+            _kT = set()
+            for _c2 in 켤것:
+                _kT |= _후보T[_c2]
+            _도T = (lambda x, _k=_kT: _지금T(x) or (x["code"], x["인"]) in _k)   # [견줌]
+            _rT = 시뮬(_c(_도T, **_열T), 묶2=_묶T)
+            if not _rT:
+                print(f"     {이름:<46} — 안 돌았다")
+                return
+            _새날T = len({인 for (_, 인) in _kT} - _날T)
+            _okT = (_rT["산"] > _기T["산"], _rT["끝"] > _기T["끝"], _rT["낙"] > 낙폭기준)
+            _걷T = ""
+            if all(_okT):
+                _a0 = 시뮬(_c(_지금T, **_열T), 시작년="2016", 끝년="2020", 묶2=_묶T)
+                _a1 = 시뮬(_c(_도T, **_열T), 시작년="2016", 끝년="2020", 묶2=_묶T)
+                _b0 = 시뮬(_c(_지금T, **_열T), 시작년="2021", 끝년="2026", 시드=_a0["끝"], 묶2=_묶T) if _a0 else None
+                _b1 = 시뮬(_c(_도T, **_열T), 시작년="2021", 끝년="2026", 시드=_a1["끝"], 묶2=_묶T) if _a1 else None
+                if _a0 and _a1 and _b0 and _b1:
+                    _앞T = (_a1["끝"] / _a0["끝"] - 1) * 100
+                    _뒤T = (_b1["끝"] / _b0["끝"] - 1) * 100
+                    _걷T = f"  걷기 앞 {_앞T:+.1f}% 뒤 {_뒤T:+.1f}% " + ("✅" if (_앞T > 0.1 and _뒤T > 0.1) else "❌")
+            print(f"     {이름:<46}{_새날T:>7}{_rT['끝']:>16,.0f}{_rT['끝'] / _기T['끝'] * 100:>8.0f}%"
+                  f"{_rT['낙']:>7.1f}%{_rT['산']:>7}  " + ("✅ 셋 다" if all(_okT) else "❌") + _걷T)
+
+        _이름들T = sorted(_후보T)
+        for _n in (1, 2, 3):
+            if _n > len(_이름들T):
+                break
+            print(f"\n     ── {_n}개씩 ──")
+            for _조 in _itT.combinations(_이름들T, _n):
+                _재기T(" + ".join(z[:20] for z in _조), _조)
+        if len(_이름들T) > 3:
+            print(f"\n     ── 전부 ({len(_이름들T)}개) ──")
+            _재기T("전부", tuple(_이름들T))
+        print("\n     ⚠️ 같이 켰을 때 각각보다 못하면 **서로 잡아먹는 것**이다 — 그러면 하나만 고른다")
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
     # ══ ⭐⭐⭐ **Q-29 「공통 문」까지 그 칸 자료로 — 다섯 띠 + 업종별** (2026-09-22) ══
     #    사용자: 「누구나 통과해야 하는 문 자체가 소형주인데
     #             그 다음 대형주 테스트 하는게 무슨 소용이야」 — 맞다.
@@ -6090,6 +6172,19 @@ def main():
                                           f" · {_rOR['끝']:,.0f}원 ({_rOR['끝'] / _기OR['끝'] * 100:.0f}%)"
                                           f" · 낙폭 {_rOR['낙']:.1f}% · 산 것 {_rOR['산']} (바탕 {_기OR['산']})  "
                                           + ("✅ 셋 다" if all(_okOR) else "❌") + _걷OR, flush=True)
+                                    # ⭐ CELL_DUMP (2026-09-27) — 걷기까지 통과한 칸은 **사건을 덜어 둔다**. 띠가 달라 한 판에서 같이 못 켜기 때문
+                                    if os.environ.get("CELL_DUMP") and _걷OR.endswith("✅"):
+                                        try:
+                                            _꼬D = (os.environ.get("BAND_TAG") or "띠") + "_" + "".join(
+                                                z for z in (_라칸29 + "_" + "+".join(_쓸29)) if z.isalnum() or z in "가-힣_+↓↑")[:60]
+                                            _길D = os.path.join(O._DATA, "_labs", f"d_events_{_꼬D}.jsonl")
+                                            _뽑D = [x for x in 사건 if (x["code"], x["인"]) in _새OR]
+                                            with io.open(_길D, "w", encoding="utf-8") as _fD:
+                                                for _xD in _뽑D:
+                                                    _fD.write(json.dumps(_xD, ensure_ascii=False, default=str) + "\n")
+                                            print(f"           💾 덜어 뒀다 — {len(_뽑D):,}건 → d_events_{_꼬D}.jsonl", flush=True)
+                                        except Exception as _eD:  # noqa: BLE001
+                                            print(f"           ⚠️ 덜기 터졌다: {type(_eD).__name__} {_eD}")
                                     # ⭐ CELL_SHAKE (2026-09-25) — 얹기까지 ✅ 인 칸만 **문턱을 옮겨** 다시 얹는다.
                                     #    칸 문턱은 「그 칸 값의 20분위」다. 10~30분위로 옮겨도 서야 우연이 아니다
                                     if os.environ.get("CELL_SHAKE") and _걷OR.endswith("✅"):
