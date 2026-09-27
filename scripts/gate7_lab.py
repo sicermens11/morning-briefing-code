@@ -5786,6 +5786,128 @@ def main():
               + f"  ⇒ 지금 {len(_키표['지금']):,} · 옛(Ⓗ+의료) {len(_키표['옛']):,}")
         return _합, _묶D, {"시총하한": 0, "시총상한": 999999999, "대금하한": 0}, _키표
 
+    # ══ ⭐⭐⭐ **DECIDE — 월요일 결정에 필요한 것만** (2026-09-27) ══
+    if _ONLY == "DECIDE" or "DECIDE" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── DECIDE ⭐⭐⭐ **조합의 칼날 여부 · 비중과 겹치나 · 얼마나 자주 뜨나** ──")
+        print("=" * 122)
+        _합E, _묶E, _열E, _키E = _D준비()
+        _지금키E = _키E["지금"]
+        import glob as _gE
+        _후E = {}
+        for _fE in sorted(_gE.glob(os.path.join(O._DATA, "_labs", "d_events_*.jsonl"))):
+            _이E = os.path.basename(_fE)[9:-6]
+            try:
+                _evE = [json.loads(z) for z in io.open(_fE, encoding="utf-8") if z.strip()]
+            except (OSError, ValueError):
+                continue
+            if not _evE:
+                continue
+            _후E[_이E] = _evE
+            _본E = {(x["code"], x["인"]) for x in _합E}
+            for x in _evE:
+                if (x["code"], x["인"]) not in _본E:
+                    _합E.append(x)
+                    _묶E.setdefault(x["인"], []).append(x)
+        if not _후E:
+            print("     ⚠️ d_events_*.jsonl 이 없다")
+            print("=" * 122)
+            return 0
+
+        def _지금E(x):
+            return (x["code"], x["인"]) in _지금키E        # [견줌] 덜어 둔 열쇠
+
+        def _자리E(n):
+            return (lambda 골, _n=n: _n)
+
+        _기E = 시뮬(_c(_지금E, **_열E), 묶2=_묶E)
+        _날E = {인 for (_, 인) in _지금키E}
+        print(f"\n     바탕 — {_기E['끝']:,.0f}원 · 낙폭 {_기E['낙']:.1f}% · 산 것 {_기E['산']}")
+        print(f"     덜어 둔 후보 {len(_후E)}개: " + " · ".join(_후E))
+
+        _대 = next((k for k in _후E if k.startswith("대형_낙20")), None)
+        _소 = next((k for k in _후E if k.startswith("소형_")), None)
+        _초 = next((k for k in _후E if k.startswith("초소형_낙40위20_낙폭60↓") and "낙60" not in k), None)
+
+        def _열쇠들(이름):
+            return {(x["code"], x["인"]) for x in _후E.get(이름, [])}
+
+        def _재(이름, 켤키, 옵=None):
+            _도 = (lambda x, _k=켤키: _지금E(x) or (x["code"], x["인"]) in _k)   # [견줌]
+            _r = 시뮬(_c(_도, **_열E, **(옵 or {})), 묶2=_묶E)
+            if not _r:
+                print(f"     {이름:<40} — 안 돌았다")
+                return None
+            _새 = len({인 for (_, 인) in 켤키} - _날E)
+            print(f"     {이름:<40}{_새:>7}{_r['끝']:>16,.0f}{_r['끝'] / _기E['끝'] * 100:>8.0f}%"
+                  f"{_r['낙']:>8.1f}%{_r['산']:>7}")
+            return _r
+
+        # ── ① 조합에서도 칼날인가 — 대형을 켠 채로 소형 문턱을 흔든다 ──
+        try:
+            print("\n     ① 대형을 켠 채로 **소형 후보의 신호 세기**를 옮기면 (소형 사건을 세기 순으로 자른다)")
+            print("        ⚠️ 칸 문턱을 다시 못 만드니, 그 칸 사건을 **시장변동성 큰 순**으로 잘라 흉내 낸다")
+            if _대 and _소:
+                _대키 = _열쇠들(_대)
+                _소사건 = sorted(_후E[_소], key=lambda x: -(x.get("시장변동성") or 0))
+                print(f"     {'변형':<40}{'새 날':>7}{'끝 자산':>16}{'바탕의%':>9}{'낙폭':>8}{'산 것':>7}")
+                _재("대형만", _대키)
+                for _몫 in (0.25, 0.50, 0.75, 1.00):
+                    _잘 = {(x["code"], x["인"]) for x in _소사건[:max(1, int(len(_소사건) * _몫))]}
+                    _재(f"대형 + 소형 위 {int(_몫 * 100)}%", _대키 | _잘)
+            else:
+                print("        (대형 또는 소형 후보가 없다)")
+        except Exception as _e:  # noqa: BLE001
+            print(f"     ⚠️ ① 터졌다: {_e}")
+
+        # ── ② 비중 33% · 자리 6 에서도 값이 있나 ──
+        try:
+            print("\n     ② 자리를 넉넉히 주면(비중 33% · 자리 6) 후보의 값이 남나")
+            print(f"     {'변형':<40}{'새 날':>7}{'끝 자산':>16}{'바탕의%':>9}{'낙폭':>8}{'산 것':>7}")
+            for _이, _옵 in (("지금 (20% · 4자리)", {}),
+                             ("넉넉히 (33% · 6자리)", {"비중": 0.33, "하루상한": _자리E(6)})):
+                _기2 = 시뮬(_c(_지금E, **_열E, **_옵), 묶2=_묶E)
+                if not _기2:
+                    continue
+                print(f"     {'  바탕 — ' + _이:<40}{0:>7}{_기2['끝']:>16,.0f}"
+                      f"{_기2['끝'] / _기E['끝'] * 100:>8.0f}%{_기2['낙']:>8.1f}%{_기2['산']:>7}")
+                for _쓸, _라 in ((_대, "대형"), (_소, "소형"), (_초, "초소형")):
+                    if not _쓸:
+                        continue
+                    _도 = (lambda x, _k=_열쇠들(_쓸): _지금E(x) or (x["code"], x["인"]) in _k)   # [견줌]
+                    _r = 시뮬(_c(_도, **_열E, **_옵), 묶2=_묶E)
+                    if _r:
+                        print(f"     {'    + ' + _라:<40}{len({인 for (_, 인) in _열쇠들(_쓸)} - _날E):>7}"
+                              f"{_r['끝']:>16,.0f}{_r['끝'] / _기2['끝'] * 100:>8.0f}%"
+                              f"{_r['낙']:>8.1f}%{_r['산']:>7}   (그 바탕의 %)")
+                if _대 and _소:
+                    _도 = (lambda x, _k=_열쇠들(_대) | _열쇠들(_소): _지금E(x) or (x["code"], x["인"]) in _k)
+                    _r = 시뮬(_c(_도, **_열E, **_옵), 묶2=_묶E)
+                    if _r:
+                        print(f"     {'    + 대형+소형':<40}{'':>7}{_r['끝']:>16,.0f}"
+                              f"{_r['끝'] / _기2['끝'] * 100:>8.0f}%{_r['낙']:>8.1f}%{_r['산']:>7}   (그 바탕의 %)")
+        except Exception as _e:  # noqa: BLE001
+            print(f"     ⚠️ ② 터졌다: {_e}")
+
+        # ── ③ 얼마나 자주 뜨나 ──
+        try:
+            print("\n     ③ 해마다 **새로 열리는 날** (기존이 안 사던 날) — 「기회를 늘린다」에 값하나")
+            print(f"     {'해':<7}" + "".join(f"{(k[:14]):>16}" for k in _후E))
+            for _y in range(2016, 2027):
+                _줄 = f"     {_y:<7}"
+                for _이E, _evE in _후E.items():
+                    _인들 = {x["인"] for x in _evE if str(날[x["인"]])[:4] == str(_y)}
+                    _새 = len(_인들 - _날E)
+                    _줄 += f"{_새:>16}"
+                print(_줄)
+            print("\n     ⇒ 한 해 몇 번 더 사게 되는지가 이 규칙의 실제 값이다")
+        except Exception as _e:  # noqa: BLE001
+            print(f"     ⚠️ ③ 터졌다: {_e}")
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
     # ══ ⭐⭐⭐ **TOGETHER — 마지막 관문: 같이 켜면** (2026-09-27) ══
     if _ONLY == "TOGETHER" or "TOGETHER" in _ONLY.split("+"):
         print("\n" + "=" * 122)
@@ -5862,6 +5984,49 @@ def main():
         if len(_이름들T) > 3:
             print(f"\n     ── 전부 ({len(_이름들T)}개) ──")
             _재기T("전부", tuple(_이름들T))
+        # ⭐ 2026-09-27 — 좋은 조합은 **해마다·체결 오차**까지 본다 (D-1 이 오차에 약하다고 했다)
+        _볼조합 = []
+        for _n in (1, 2):
+            for _조 in _itT.combinations(_이름들T, _n):
+                _kk = set()
+                for _c2 in _조:
+                    _kk |= _후보T[_c2]
+                _볼조합.append((_조, _kk))
+        _추 = []
+        for _조, _kk in _볼조합:
+            _도2 = (lambda x, _k=_kk: _지금T(x) or (x["code"], x["인"]) in _k)
+            _rr = 시뮬(_c(_도2, **_열T), 묶2=_묶T)
+            if _rr and _rr["끝"] > _기T["끝"] and _rr["낙"] > 낙폭기준:
+                _추.append((_rr["끝"] / abs(_rr["낙"]), _조, _kk, _rr))
+        _추.sort(key=lambda z: -z[0])
+        _본조합 = set()
+        for _점, _조, _kk, _rr in _추:
+            _열쇠 = tuple(sorted(_kk))[:1]
+            if len(_본조합) >= 3:
+                break
+            _본조합.add(_조)
+            _이2 = " + ".join(z[:18] for z in _조)
+            print("")
+            print(f"     ── [{_이2}] 해마다 · 체결 오차 ──")
+            _도3 = (lambda x, _k=_kk: _지금T(x) or (x["code"], x["인"]) in _k)
+            _이긴, _진 = 0, 0
+            for _y in range(2016, 2027):
+                _r0 = 시뮬(_c(_지금T, **_열T), 시작년=str(_y), 끝년=str(_y), 시드=5000000, 묶2=_묶T)
+                _r1 = 시뮬(_c(_도3, **_열T), 시작년=str(_y), 끝년=str(_y), 시드=5000000, 묶2=_묶T)
+                if _r0 and _r1:
+                    _이긴 += 1 if _r1["끝"] > _r0["끝"] * 1.0005 else 0
+                    _진 += 1 if _r1["끝"] < _r0["끝"] * 0.9995 else 0
+            print(f"        해마다 — 나은 해 {_이긴} · 못한 해 {_진} · 같은 해 {11 - _이긴 - _진}")
+            _끝들 = []
+            for _씨 in range(1, 11):
+                _rn = 시뮬(_c(_도3, **_열T), 오차=1.0, 씨=_씨, 묶2=_묶T)
+                if _rn:
+                    _끝들.append(_rn["끝"])
+            if _끝들:
+                print(f"        체결 오차 ±1% 열 번 — 평균 {sum(_끝들) / len(_끝들):,.0f}원"
+                      f" · 가장 나쁜 {min(_끝들):,.0f}원"
+                      f" ({min(_끝들) / _rr['끝'] * 100:.0f}% · 오차 없을 때 {_rr['끝']:,.0f}원)")
+
         print("\n     ⚠️ 같이 켰을 때 각각보다 못하면 **서로 잡아먹는 것**이다 — 그러면 하나만 고른다")
         print("=" * 122)
         if "+" not in _ONLY:
