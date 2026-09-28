@@ -119,6 +119,29 @@ for _d8 in _볼날:
                 걸린.append({"날": _d8, "code": _c, "이름": 볼것[_c]["이름"] or _x.get("종목명") or "",
                             "공시명": _제, "말": _맞, "왜": 볼것[_c]["왜"], "반대": _반대})
 
+# ── ③ 파일로 남긴다 (화면이 읽어 간다) ──
+#    ⚠️ 화면에 붙이기 전에 **파일부터** 남긴다 — 아침 흐름을 건드리지 않고도 결과가 쌓인다 (2026-09-28)
+_보유걸림0 = [z for z in 걸린 if "보유" in z["왜"]]
+_밖 = {
+    "만든날": dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    "본날": _볼날,
+    "본종목수": len(볼것),
+    "보유수": sum(1 for v in 볼것.values() if "보유" in v["왜"]),
+    "후보수": sum(1 for v in 볼것.values() if "후보" in v["왜"]),
+    "규칙": "보유 중 악재 공시 → 다음 날 시가 매도 (판: 106% · 낙폭 -10.8 → -6.7%)",
+    "보유악재": [{"날": z["날"], "종목코드": z["code"], "이름": z["이름"],
+                 "공시명": z["공시명"], "걸린말": z["말"], "반대말": z["반대"]}
+                for z in _보유걸림0],
+    "후보악재": [{"날": z["날"], "종목코드": z["code"], "이름": z["이름"],
+                 "공시명": z["공시명"], "걸린말": z["말"], "반대말": z["반대"]}
+                for z in 걸린 if "보유" not in z["왜"]],
+}
+try:
+    io.open(os.path.join(뿌리, "data", "bad-news-today.json"), "w", encoding="utf-8").write(
+        json.dumps(_밖, ensure_ascii=False, indent=1))
+except OSError as _e:
+    print(f"⚠️ 파일로 못 남겼다: {type(_e).__name__}")
+
 # ── ③ 찍기 ──
 _보유걸림 = [z for z in 걸린 if "보유" in z["왜"]]
 if not 조용 or 걸린:
