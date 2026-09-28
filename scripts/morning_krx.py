@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 r"""
 morning_krx.py — **브리핑 전에 KRX 종가·지수를 먼저 받는다** (2026-09-09 신설)
 
@@ -63,6 +63,18 @@ def 돌리기(파일, 인자, 제한=2400):
 
 
 def main():
+    # ⭐ 2026-09-28 — **휴장일이면 안 받는다.**
+    #    2026-09-24(추석) 에 돌아서 없는 자료를 5번 다시 시도하고 전날 것을 집었다.
+    #    브리핑 본체와 같은 단일 원본(krx_calendar)을 본다.
+    #    ⚠️ 손으로 부를 때는 `--휴장에도` 로 넘길 수 있다.
+    if "--휴장에도" not in sys.argv:
+        sys.path.insert(0, _S)
+        import krx_calendar as _K
+        _선다, _왜 = _K.장서는날()
+        if not _선다:
+            찍기(f"===== 휴장 — KRX 를 받지 않는다: {_왜} =====")
+            return 0
+
     최대 = "25"
     if "--최대" in sys.argv:
         최대 = sys.argv[sys.argv.index("--최대") + 1]

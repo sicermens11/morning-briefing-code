@@ -43,6 +43,20 @@ function Write-Log([string]$msg) {
 
 Write-Log "=== $Skill 시작 ==="
 
+# ⭐ 2026-09-28 — **휴장일이면 안 돈다** (entry-check 만).
+#    9/24(추석)·9/25 에 돌아서 한 번에 입력 48만 토큰을 쓰고
+#    「브리핑이 실패한 것으로 추정」이라는 틀린 결론을 내고 사이트를 다시 올렸다.
+#    브리핑 본체(run-briefing.ps1)와 같은 방식 · 단일 원본은 krx_calendar.py 다.
+#    ⚠️ 가치사슬·주간돌아보기는 장과 무관하므로 막지 않는다.
+if ($Skill -eq 'entry-check' -and -not $DryRun) {
+    $cal = & (Join-Path $PSScriptRoot 'scripts\run-py.ps1') -Script 'krx_calendar.py'
+    if ("$cal" -notmatch '장선다') {
+        Write-Log "휴장 — 진입확인을 하지 않는다: $cal"
+        Write-Log "=== 종료 (휴장) ==="
+        exit 0
+    }
+}
+
 if (-not (Test-Path $claude)) {
     Write-Log "치명적: claude CLI를 찾을 수 없음 ($claude). 실행 중단."
     exit 1

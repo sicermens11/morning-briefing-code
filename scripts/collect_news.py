@@ -198,6 +198,34 @@ def 시총종목목록(하한억):
     return sorted(set(코드))
 
 
+def 안전쓰기(p, 글):
+    r"""**옆에 썼다가 바꿔치기.** 실패하면 2초 쉬고 한 번 더. (2026-09-28)
+
+    왜 — 2026-09-15 밤, 종목 하나를 쓰다 `OSError: [Errno 22]` 가 나면서
+         2,200종목짜리 작업이 **통째로 죽었고** 예약이 13일 꺼져 있었다.
+         오늘 같은 파일에 다시 써 보니 멀쩡하다 — 그날만의 일시적 사정이다.
+    ⚠️ 쓰다 만 파일이 남으면 다음 날 그걸 「옛 기록」으로 읽는다. 그래서 바꿔치기다
+    """
+    for 번 in (1, 2):
+        임시 = p + ".tmp"
+        try:
+            with io.open(임시, "w", encoding="utf-8") as f:
+                f.write(글)
+            os.replace(임시, p)
+            return True, ""
+        except OSError as e:
+            try:
+                if os.path.exists(임시):
+                    os.remove(임시)
+            except OSError:
+                pass
+            if 번 == 1:
+                time.sleep(2.0)
+                continue
+            return False, f"{type(e).__name__} errno={e.errno}"
+    return False, "알 수 없음"
+
+
 def main():
     확인만 = "--확인" in sys.argv
     # 매일 돌 때 쓴다 — 이미 받은 종목에 **새 기사만 덧붙인다**
@@ -234,7 +262,8 @@ def main():
         찍기("  받을 종목이 없다. --목록 신호종목 을 쓰거나 78차를 먼저 돌려야 한다")
         return 1
     찍기(f"===== 종목뉴스 수집 (네이버 금융) · {len(코드들)}종목 · 최대 {최대쪽}쪽 =====")
-    ok = 빈 = 0
+    ok = 빈 = 실패 = 0
+    실패목록 = []
     for i, code in enumerate(코드들, 1):
         p = os.path.join(OUT, code + ".json")
         # ⚠️⚠️ **2026-09-07 고침.** 예전엔 파일이 있으면 통째로 건너뛰었다.
@@ -247,7 +276,7 @@ def main():
             try:
                 옛것 = (json.load(io.open(p, encoding="utf-8-sig"))
                         .get("뉴스") or [])
-            except ValueError:
+            except (OSError, ValueError):     # ⭐ 2026-09-28 — OSError 도 받는다
                 옛것 = []
         time.sleep(쉼)
         a = 종목받기(code, 최대쪽)
@@ -261,15 +290,23 @@ def main():
             a.sort(key=lambda z: (str(z.get("날짜") or ""),
                                   str(z.get("시각") or "")), reverse=True)
         if a:
-            io.open(p, "w", encoding="utf-8").write(json.dumps(
+            _됨, _왜 = 안전쓰기(p, json.dumps(
                 {"종목": code, "받은날": dt.date.today().strftime("%Y%m%d"),
                  "건수": len(a), "뉴스": a}, ensure_ascii=False))
+            if not _됨:
+                # ⭐ 2026-09-28 — **여기서 죽지 않는다.** 그 종목만 건너뛴다
+                실패 += 1
+                실패목록.append(code)
+                찍기(f"  {code}  ⚠️ 못 썼다 ({_왜}) — 건너뛴다")
+                continue
             ok += 1
             찍기(f"  {code}  {len(a):>4}건 · {a[0]['날짜']} ~ {a[-1]['날짜']}")
         else:
             빈 += 1
             찍기(f"  {code}  뉴스 없음")
-    찍기(f"  끝 · 받음 {ok} · 빈 것 {빈}")
+    찍기(f"  끝 · 받음 {ok} · 빈 것 {빈}"
+         + (f" · **못 쓴 것 {실패}** ({' '.join(실패목록[:10])}"
+            + (" …" if 실패 > 10 else "") + ")" if 실패 else ""))
     if 확인만 and ok:
         d = json.load(io.open(os.path.join(OUT, 코드들[0] + ".json"),
                               encoding="utf-8-sig"))
