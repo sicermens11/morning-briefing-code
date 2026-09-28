@@ -5786,6 +5786,91 @@ def main():
               + f"  ⇒ 지금 {len(_키표['지금']):,} · 옛(Ⓗ+의료) {len(_키표['옛']):,}")
         return _합, _묶D, {"시총하한": 0, "시총상한": 999999999, "대금하한": 0}, _키표
 
+    # ══ ⭐⭐⭐ **CHAIN — 가치사슬 여섯 바구니가 11년 동안 뭘 했나** (2026-09-28 · 사용자 물음) ══
+    if _ONLY == "CHAIN" or "CHAIN" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── CHAIN ⭐⭐⭐ **섹터 갈래는 시총 상한이 없다 — 여섯 바구니가 실제로 뭘 했나** ──")
+        print("=" * 122)
+        _바구니 = {}
+        for _코드, _섹 in _사슬섹터.items():
+            _바구니.setdefault(_섹, set()).add(_코드)
+        print(f"\n     가치사슬 맵 {len(_사슬섹터):,}종목 · 바구니 {len(_바구니)}개")
+        for _섹 in sorted(_바구니):
+            _규 = _섹규칙.get(_섹)
+            print(f"        {_섹:<20} {len(_바구니[_섹]):>3}종목"
+                  + (f"  · 규칙 볼{_규[0]} ≤ {_규[1]:g}σ · 낙{_규[2]} ≤ {_규[3]:g}%" if _규 else "  · (규칙 없음)"))
+
+        # ── ① 바구니마다 걸린 사건 ──
+        _걸린 = {}
+        for x in 사건:
+            _섹 = _사슬섹터.get(x["code"])
+            if not _섹 or _섹 not in _섹규칙:
+                continue
+            if 섹터맞나(x) and 재무통과(x) and 대금통과(x):
+                _걸린.setdefault(_섹, []).append(x)
+        print(f"\n     ① 규칙에 걸린 사건 (재무·대금 문까지 통과)")
+        print(f"     {'바구니':<20}{'걸린 사건':>10}{'걸린 날':>9}{'종목 수':>8}{'해마다 날':>10}")
+        for _섹 in sorted(_바구니):
+            _v = _걸린.get(_섹) or []
+            _날수 = len({x["인"] for x in _v})
+            print(f"     {_섹:<20}{len(_v):>10,}{_날수:>9}{len({x['code'] for x in _v}):>8}"
+                  f"{_날수 / 11:>10.1f}")
+
+        # ── ② 실제로 산 것 ──
+        _기록C = []
+        _rC = 시뮬(_c(_H), 기록=_기록C)
+        _날인C = {_d: _i for _i, _d in enumerate(날)}
+        print(f"\n     ② 지금 규칙이 11년 동안 산 {len(_기록C):,}건 중 바구니 종목은")
+        print(f"     {'바구니':<20}{'산 것':>7}{'평균 수익':>11}{'가운데':>10}{'이긴 비율':>11}{'가장 나쁜':>11}")
+        _산바구니 = {}
+        for _거래 in _기록C:
+            _섹 = _사슬섹터.get(_거래[1])
+            if _섹:
+                _산바구니.setdefault(_섹, []).append(_거래[4])
+        for _섹 in sorted(_바구니):
+            _v = sorted(_산바구니.get(_섹) or [])
+            if not _v:
+                print(f"     {_섹:<20}{0:>7}")
+                continue
+            print(f"     {_섹:<20}{len(_v):>7}{sum(_v) / len(_v):>10.1f}%{_v[len(_v) // 2]:>9.1f}%"
+                  f"{sum(1 for z in _v if z > 0) / len(_v) * 100:>10.0f}%{_v[0]:>10.1f}%")
+        _전체 = sorted(z[4] for z in _기록C)
+        print(f"     {'(전체)':<20}{len(_전체):>7}{sum(_전체) / len(_전체):>10.1f}%"
+              f"{_전체[len(_전체) // 2]:>9.1f}%{sum(1 for z in _전체 if z > 0) / len(_전체) * 100:>10.0f}%"
+              f"{_전체[0]:>10.1f}%")
+
+        # ── ③ 그 바구니만 빼면 ──
+        print(f"\n     ③ 그 바구니를 빼고 돌리면 (지금 {_rC['끝']:,.0f}원 · 낙폭 {_rC['낙']:.1f}%)")
+        print(f"     {'뺀 바구니':<20}{'끝 자산':>16}{'지금의%':>9}{'낙폭':>8}{'산 것':>7}")
+        for _섹 in sorted(_바구니):
+            def _빼고(x, _s=_섹):
+                if _사슬섹터.get(x["code"]) == _s:
+                    return False
+                return _H(x)          # [견줌] 그 바구니만 뺀 지금 규칙
+            _r = 시뮬(_c(_빼고))
+            if _r:
+                print(f"     {_섹:<20}{_r['끝']:>16,.0f}{_r['끝'] / _rC['끝'] * 100:>8.0f}%"
+                      f"{_r['낙']:>7.1f}%{_r['산']:>7}")
+
+        # ── ④ 반도체 바구니 해마다 ──
+        try:
+            _반 = next((k for k in _바구니 if "반도체" in k), None)
+            if _반:
+                print(f"\n     ④ [{_반}] 해마다 — 걸린 날 · 산 것")
+                print(f"     {'해':<7}{'걸린 날':>9}{'산 것':>8}{'평균 수익':>11}")
+                for _y in range(2016, 2027):
+                    _v = [x for x in (_걸린.get(_반) or []) if str(날[x["인"]])[:4] == str(_y)]
+                    _산 = [z[4] for z in _기록C
+                           if _사슬섹터.get(z[1]) == _반 and str(z[0])[:4] == str(_y)]
+                    print(f"     {_y:<7}{len({x['인'] for x in _v}):>9}{len(_산):>8}"
+                          + (f"{sum(_산) / len(_산):>10.1f}%" if _산 else f"{'—':>11}"))
+        except Exception as _e:  # noqa: BLE001
+            print(f"     ⚠️ ④ 터졌다: {_e}")
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
     # ══ ⭐⭐⭐ **AB — 넣기로 한 둘(비중·악재매도)을 같이 켜면** (2026-09-28) ══
     if _ONLY == "AB" or "AB" in _ONLY.split("+"):
         print("\n" + "=" * 122)
