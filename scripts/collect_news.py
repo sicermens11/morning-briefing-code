@@ -84,10 +84,19 @@ def 한쪽(code, page):
     return out
 
 
-def 종목받기(code, 최대쪽):
+def 종목받기(code, 최대쪽, 닿을날=None, 상한쪽=250):
+    r"""`닿을날` 을 주면 **그 날짜보다 오래된 기사가 나올 때까지** 쪽을 넘긴다 (2026-09-28).
+
+    왜 — `--쪽 30` 은 기사가 많은 종목에서 며칠밖에 못 간다.
+         2026-09-28 실측: 삼성전자 30쪽 = **이틀치** · SK하이닉스 = 닷새.
+         그래서 9/15~9/26 열두 날이 통째로 빌 참이었다.
+         네이버는 1년치만 들고 있어 **오늘 못 받으면 되찾을 길이 없다.**
+    ⚠️ 간격·429/403 대응은 그대로다. 봇 차단을 우회하지 않는다
+    """
     본 = {}
     빈쪽 = 0
-    for p in range(1, 최대쪽 + 1):
+    _끝쪽 = 상한쪽 if 닿을날 else 최대쪽
+    for p in range(1, _끝쪽 + 1):
         try:
             a = 한쪽(code, p)
         except urllib.error.HTTPError as e:
@@ -106,6 +115,11 @@ def 종목받기(code, 최대쪽):
         빈쪽 = 0
         for x in a:
             본[(x["날짜"], x["시각"], x["제목"][:40])] = x
+        # ⭐ 2026-09-28 — 저장된 마지막 날에 **닿았으면** 그만 넘긴다
+        if 닿을날 and any(str(x.get("날짜") or "") < 닿을날 for x in a):
+            break
+        if 닿을날 and p >= 최대쪽 and p % 50 == 0:
+            찍기(f"    {code} — {p}쪽까지 갔다 (아직 {닿을날} 에 못 닿음)")
         time.sleep(_쉼)
     return sorted(본.values(), key=lambda z: (z["날짜"], z["시각"]))
 
@@ -230,6 +244,10 @@ def main():
     확인만 = "--확인" in sys.argv
     # 매일 돌 때 쓴다 — 이미 받은 종목에 **새 기사만 덧붙인다**
     갱신 = "--갱신" in sys.argv
+    # ⭐ 2026-09-28 — 빈 날까지 닿을 때까지 쪽을 넘긴다 (스스로 메운다)
+    채움 = "--채움" in sys.argv
+    상한쪽 = (int(sys.argv[sys.argv.index("--최대쪽수") + 1])
+              if "--최대쪽수" in sys.argv else 250)
     최대쪽 = int(sys.argv[sys.argv.index("--쪽") + 1]) if "--쪽" in sys.argv else 30
     # ⚠️ 비공식 API다. 너무 빨리 두드리면 막힌다 — 기본을 넉넉히 둔다
     쉼 = float(sys.argv[sys.argv.index("--쉼") + 1]) if "--쉼" in sys.argv else 0.35
@@ -279,7 +297,16 @@ def main():
             except (OSError, ValueError):     # ⭐ 2026-09-28 — OSError 도 받는다
                 옛것 = []
         time.sleep(쉼)
-        a = 종목받기(code, 최대쪽)
+        # ⭐ 2026-09-28 — `--채움` 이면 **저장된 마지막 날**까지 닿게 받는다
+        _닿을날 = None
+        if 채움 and 옛것:
+            try:
+                _마지막 = max(str(z.get("날짜") or "") for z in 옛것)
+                if _마지막:
+                    _닿을날 = _마지막
+            except ValueError:
+                _닿을날 = None
+        a = 종목받기(code, 최대쪽, 닿을날=_닿을날, 상한쪽=상한쪽)
         if a and 옛것:
             본것 = {(str(x.get("날짜")), str(x.get("제목"))[:60]) for x in a}
             for x in 옛것:
@@ -300,7 +327,12 @@ def main():
                 찍기(f"  {code}  ⚠️ 못 썼다 ({_왜}) — 건너뛴다")
                 continue
             ok += 1
-            찍기(f"  {code}  {len(a):>4}건 · {a[0]['날짜']} ~ {a[-1]['날짜']}")
+            _메움 = ""
+            if _닿을날:
+                _새날 = {str(z.get("날짜")) for z in a} - {str(z.get("날짜")) for z in 옛것}
+                if _새날:
+                    _메움 = f"  ← 새 날 {len(_새날)}일"
+            찍기(f"  {code}  {len(a):>4}건 · {a[0]['날짜']} ~ {a[-1]['날짜']}{_메움}")
         else:
             빈 += 1
             찍기(f"  {code}  뉴스 없음")
