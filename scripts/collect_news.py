@@ -60,9 +60,17 @@ def 찍기(s):
         fp.write(line + "\n")
 
 
+# ⚠️⚠️ **50 으로 올리지 마라** (2026-09-28 실측).
+#    50 도 응답은 오지만 **쪽끼리 겹치고 줄어든다** — p1 50건(새 50) · p2 50건(**새 19**) ·
+#    p3 40건(새 7) · p10 **6건**. 30쪽을 받아도 193건에 오늘치뿐이었다.
+#    20 이면 매 쪽 20건이 **깨끗이 새로** 온다 (p1·p2·p3·p5·p10 전부 새 20건).
+#    100·200 은 HTTP 오류. ⇒ **20 이 맞다.**
+_쪽크기 = 20
+
+
 def 한쪽(code, page):
     u = (f"https://api.stock.naver.com/news/stock/{code}"
-         f"?pageSize=20&page={page}")
+         f"?pageSize={_쪽크기}&page={page}")
     with urllib.request.urlopen(urllib.request.Request(u, headers=_H),
                                 timeout=25) as r:
         d = json.loads(r.read().decode("utf-8", errors="replace"))
@@ -84,7 +92,7 @@ def 한쪽(code, page):
     return out
 
 
-def 종목받기(code, 최대쪽, 닿을날=None, 상한쪽=250):
+def 종목받기(code, 최대쪽, 닿을날=None, 상한쪽=100):
     r"""`닿을날` 을 주면 **그 날짜보다 오래된 기사가 나올 때까지** 쪽을 넘긴다 (2026-09-28).
 
     왜 — `--쪽 30` 은 기사가 많은 종목에서 며칠밖에 못 간다.
@@ -247,7 +255,7 @@ def main():
     # ⭐ 2026-09-28 — 빈 날까지 닿을 때까지 쪽을 넘긴다 (스스로 메운다)
     채움 = "--채움" in sys.argv
     상한쪽 = (int(sys.argv[sys.argv.index("--최대쪽수") + 1])
-              if "--최대쪽수" in sys.argv else 250)
+              if "--최대쪽수" in sys.argv else 100)
     최대쪽 = int(sys.argv[sys.argv.index("--쪽") + 1]) if "--쪽" in sys.argv else 30
     # ⚠️ 비공식 API다. 너무 빨리 두드리면 막힌다 — 기본을 넉넉히 둔다
     쉼 = float(sys.argv[sys.argv.index("--쉼") + 1]) if "--쉼" in sys.argv else 0.35
