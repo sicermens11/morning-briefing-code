@@ -33,6 +33,8 @@ import os
 import sys
 
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(_BASE, "scripts"))
+import rule_def as R  # noqa: E402  ⭐ 2026-09-28 — 숫자를 손으로 안 적는다
 LOG = os.path.join(_BASE, "data", "forward-log.jsonl")
 CASES = os.path.join(_BASE, "data", "rule-cases.json")
 OUT = os.path.join(_BASE, "data", "today-rule.html")
@@ -40,8 +42,8 @@ OUT = os.path.join(_BASE, "data", "today-rule.html")
 CAP = os.path.join(_BASE, "data", "rule-capital.json")
 # 후보·매수 빈도 — how_often.py 가 만든다 (숫자를 코드에 박지 않는다)
 FREQ = os.path.join(_BASE, "data", "rule-frequency.json")
-_갭문턱 = -3.5
-_최대매수 = 4
+_갭문턱 = R.상대갭문턱
+_최대매수 = R.하루최대종목     # ⭐ 2026-09-28 — 손으로 적혀 있었다. 규칙 파일을 읽는다
 
 
 def 이스(s):
