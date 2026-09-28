@@ -5872,9 +5872,9 @@ def main():
                         continue
                     for _k in range(_i0, min(_청 + 1, len(날))):
                         _든.setdefault(_k, set()).add(_거래[1])
-                _수 = sorted(len(v) for v in _든.values())
+                _수A = sorted(len(v) for v in _든.values())
                 print(f"     {_이:<34}{_이긴:>8}{_진:>7}{(min(_끝들) if _끝들 else 0):>16,.0f}"
-                      f"{(_수[len(_수) // 2] if _수 else 0):>13}{_나쁜:>14.1f}%")
+                      f"{(_수A[len(_수A) // 2] if _수A else 0):>13}{_나쁜:>14.1f}%")
         except Exception as _e:  # noqa: BLE001
             print(f"     ⚠️ ③④⑤ 터졌다: {_e}")
         print("\n     ⚠️ 「가장 나쁜 한 방」에 비중을 곱하면 **한 종목 사고가 계좌에 내는 구멍**이다")
