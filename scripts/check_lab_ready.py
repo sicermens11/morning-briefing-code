@@ -368,6 +368,20 @@ for _ln, _이름 in 걸린5[:10]:
     print(f"   ❌ {_ln}줄  **{_이름}** 는 함수인데 값으로 덮어썼다")
     print(f"      그 뒤로 {_이름}(...) 가 터진다. 변수 이름을 바꿔라")
 
+# ── ⑧ **ONLY 이름이 겹치나** (2026-09-28 신설) ──
+#    2026-09-28: 새 절에 `CAP` 을 붙였는데 **같은 이름의 옛 절이 이미 있었다.**
+#    ONLY="SLOT+CAP" 로 돌리자 **둘 다** 돌아서 결과 파일에 머리글이 두 번 찍혔다.
+#    이름 충돌은 ⑤가 변수만 본다 — 절 이름은 아무도 안 봤다.
+import collections as _co  # noqa: E402
+
+_only = _co.Counter(re.findall(r'_ONLY == "([A-Z0-9_-]+)"', src))
+_겹8 = sorted(k for k, v in _only.items() if v > 1)
+print(f"⑧ ONLY 이름이 겹치나 — 절 {len(_only)}개 중 겹침 {len(_겹8)}개")
+for _k8 in _겹8:
+    탈.append(f"⑧ ONLY 이름 {_k8} 가 {_only[_k8]}개 절에 있다 — 둘 다 돈다")
+    print(f"   ❌ **{_k8}** 가 {_only[_k8]}개 절에 붙어 있다 — ONLY 로 고르면 **둘 다** 돈다")
+    print("      절 이름을 바꿔라 (판 하나에 47분이다)")
+
 print()
 if 탈:
     for z in 탈:
