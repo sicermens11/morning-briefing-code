@@ -307,8 +307,7 @@ if ($Mode -eq 'auto') {
 #    ⚠️ 여기에 `갈라진파일`도 함께 본다 — 2026-08-25에 예약 작업의 런처 경로만 옮기고
 #       데이터를 안 옮겨 옛 폴더와 두 벌로 자란 사고(2026-09-01 발견)를 다시 겪지 않으려는 것.
 try {
-    $hz = & (Join-Path $PSScriptRoot 'scripts
-un-py.ps1') -Script 'check_health.py' -Args @('--days','30')
+    $hz = & (Join-Path $PSScriptRoot 'scripts\run-py.ps1') -Script 'check_health.py' -Args @('--days','30')
     if ($hz) {
         $hzj = $hz | ConvertFrom-Json
         Write-Log ("건강검진 | 실패 {0}건 | 반복유형 {1}" -f $hzj.실패건수,
