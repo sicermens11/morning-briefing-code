@@ -318,6 +318,55 @@ _제문 = bool(R.섹터규칙_큰회사 or any(v.get("재무") for v in R.업종
 _문안내 = " (섹터·업종 규칙에 걸린 종목은 그 규칙의 문을 따릅니다)" if _제문 else ""
 
 
+def _악재알림():
+    r"""보유·최근 후보에 악재 공시가 떴나 → (보유목록, 후보목록). 없으면 ([], []).
+
+    ⚠️ **악재가 있을 때만** 화면이 바뀐다. 평소엔 아무것도 안 붙는다
+    ⚠️ 이 함수가 어떻게 터지든 **쪽은 그대로 그려져야 한다**
+    """
+    import datetime as _dt
+    import subprocess as _sp
+    import sys as _sys
+    _길 = os.path.join(_DATA, "bad-news-today.json")
+    try:
+        _오늘 = _dt.date.today().strftime("%Y-%m-%d")
+        _낡음 = True
+        if os.path.exists(_길):
+            _j = json.load(io.open(_길, encoding="utf-8-sig"))
+            _낡음 = not str(_j.get("만든날", "")).startswith(_오늘)
+        if _낡음:
+            _sp.run([_sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                  "bad_news_check.py"), "--조용"],
+                    capture_output=True, timeout=120)
+        _j = json.load(io.open(_길, encoding="utf-8-sig"))
+        return (_j.get("보유악재") or []), (_j.get("후보악재") or [])
+    except Exception:  # noqa: BLE001
+        return [], []
+
+
+def _악재줄():
+    r"""악재가 있을 때만 한 줄(HTML). 없으면 빈 글자."""
+    try:
+        _보, _후 = _악재알림()
+    except Exception:  # noqa: BLE001
+        return ""
+    if not _보 and not _후:
+        return ""
+    _글 = []
+    for z in _보[:3]:
+        _글.append(f"들고 있는 <b>{_esc(z.get('이름') or z.get('종목코드'))}</b>에 "
+                   f"{_esc(str(z.get('공시명'))[:32])} 공시가 떴습니다"
+                   + (" (반대말일 수 있습니다)" if z.get("반대말") else ""))
+    for z in _후[:2]:
+        _글.append(f"후보였던 {_esc(z.get('이름') or z.get('종목코드'))}에 "
+                   f"{_esc(str(z.get('공시명'))[:28])} — 참고")
+    _색 = C["빨"] if _보 else C["본"]
+    _머 = "🔴 보유 종목 악재 — 규칙은 <b>다음 날 시가 매도</b>입니다" if _보 else "악재 공시 (참고)"
+    return (f'<div style="font-size:34px;line-height:1.5;color:{_색};'
+            f'border-top:1px solid {C["선"]};padding-top:16px;margin-top:16px">'
+            f'{_머}<br>' + "<br>".join(_글) + '</div>')
+
+
 def _장1(q, 보유):
     후보 = q.get("후보") or []
     동 = q.get("동시호가") or {}
@@ -424,6 +473,10 @@ def _장1(q, 보유):
                      f"지정가가 걸려 있습니다." if 보유 else "")):
             부.append(f'<div style="font-size:39px;line-height:1.55;color:{C["본"]};'
                      f'border-top:1px solid {C["선"]};padding-top:18px">{_esc(글)}</div>')
+        # ⭐ 2026-09-28 — 악재 공시가 있을 때만 한 줄 (없으면 아무것도 안 붙는다)
+        _악 = _악재줄()
+        if _악:
+            부.append(_악)
     else:
         블록들 = "".join(_종목블록(x, (업.get(x.get("종목코드", "")) or {}).get("업종명")
                               or (x.get("섹터") or ""), 상태, 확정) for x in 목록)
