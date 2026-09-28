@@ -94,6 +94,78 @@ def _건너뛰나(이름):
     return bool(_ONLY) and _ONLY not in str(이름).upper()
 
 
+# ══════════════════════════════════════════════════════════════════
+#  ⭐ **때 지도** — 어느 절이 시간을 먹나 (2026-09-28)
+#
+#  판 하나가 47분인데 ONLY 로 고른 절은 5분이다. 나머지 42분을 누가 먹는지
+#  알아야 문 없는 옛 절 64개 중 **굵은 것부터** 안전하게 막을 수 있다.
+#
+#  절 안에는 한 글자도 안 넣는다 — 딴 실뜨기가 0.5초마다 「지금 몇 번째 줄인가」를
+#  엿보고, 그 줄 위쪽의 가장 가까운 절 머리로 센다. 값은 안 건드린다.
+#
+#  ⚠️ TIMEMAP=1 일 때만 돈다. 안 주면 지금과 완전히 똑같이 돈다.
+# ══════════════════════════════════════════════════════════════════
+_때지도 = {}
+
+
+def _때지도_켜기():
+    import bisect as _bi
+    import re as _re
+    import threading as _th
+    import time as _tm
+
+    _나 = os.path.abspath(__file__)
+    _머리 = []
+    try:
+        for _i, _줄 in enumerate(io.open(_나, encoding="utf-8-sig"), 1):
+            _m = _re.match(r"\s*#\s*══+\s*(.*)", _줄)
+            if _m:
+                _이름 = _m.group(1).strip().strip("═").strip()
+                if _이름:
+                    _머리.append((_i, _이름[:58]))
+    except OSError:
+        return
+    if not _머리:
+        return
+    _줄들 = [_z[0] for _z in _머리]
+
+    def _엿보기():
+        while True:
+            _tm.sleep(0.5)
+            try:
+                for _f in list(sys._current_frames().values()):
+                    _g = _f
+                    while _g is not None:
+                        if _g.f_code.co_filename == _나:
+                            _k = _bi.bisect_right(_줄들, _g.f_lineno) - 1
+                            _키 = _머리[_k][1] if _k >= 0 else "(절 앞)"
+                            _때지도[_키] = _때지도.get(_키, 0) + 1
+                            break
+                        _g = _g.f_back
+            except Exception:  # noqa: BLE001
+                pass          # ⚠️ 재는 장치가 판을 죽이면 안 된다
+
+    _th.Thread(target=_엿보기, daemon=True).start()
+    print("  ⏱ 때 지도 켬 — 0.5초마다 엿본다", flush=True)
+
+
+def _때지도_찍기():
+    if not _때지도:
+        return
+    _총 = sum(_때지도.values())
+    print("\n" + "=" * 100)
+    print(f"  ⏱ 때 지도 — 절마다 몇 분을 먹었나 (엿본 횟수 {_총:,} · 0.5초마다)")
+    print("=" * 100)
+    print(f"     {'절':<62}{'분':>8}{'몫':>8}")
+    for _이름, _n in sorted(_때지도.items(), key=lambda _z: -_z[1])[:35]:
+        print(f"     {_이름:<62}{_n * 0.5 / 60:>8.1f}{_n / _총 * 100:>7.0f}%")
+    print("=" * 100, flush=True)
+
+
+if os.environ.get("TIMEMAP"):
+    _때지도_켜기()
+
+
 def _밑몫읽기():
     r"""BASE_SELL 을 나눔 꼴로 바꾼다. 안 주면 None (= rule_def 그대로)
 
@@ -11340,6 +11412,10 @@ if __name__ == "__main__":
         try:
             _r = main()
         finally:
+            try:
+                _때지도_찍기()          # ⭐ 2026-09-28 — 터져도 찍는다
+            except Exception:  # noqa: BLE001
+                pass
             sys.stdout = sys.__stdout__
             sys.stderr = sys.__stderr__
     print(f"\n  ✅ {_p}")
