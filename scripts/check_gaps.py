@@ -85,16 +85,60 @@ def 마지막날(폴더):
     return max(벌) if 벌 else None
 
 
-def 거래일수(a, b):
-    r"""a 부터 b 까지 **주말을 뺀** 날수 (공휴일은 못 센다 — 넉넉히 본다)."""
+def _휴장일():
+    r"""**주가 파일 달력**에서 휴장일을 찾는다 (2026-09-29 신설).
+
+    ⚠️ 전에는 주말만 뺐다 — 추석(9/24·25)을 거래일로 세어 ETF 가 「4거래일 밀림」으로
+       떴다. 실제로 빠진 건 9/28 하루였다 (사용자: 「왜 밀린게 있어?」).
+    krx-daily 첫 파일 ~ 마지막 파일 사이 **평일인데 파일이 없는 날** = 휴장일.
+    마지막 파일 뒤는 알 수 없어 평일로 센다 (넉넉히 본다)
+    """
+    거래 = {os.path.basename(p)[:8] for p in glob.glob(os.path.join(_DATA, "krx-daily", "*.json"))}
+    거래 = {z for z in 거래 if z.isdigit() and len(z) == 8}
+    if not 거래:
+        return set()
+    d = dt.datetime.strptime(min(거래), "%Y%m%d")
+    끝 = dt.datetime.strptime(max(거래), "%Y%m%d")
+    쉼 = set()
+    while d < 끝:
+        d += dt.timedelta(days=1)
+        k = d.strftime("%Y%m%d")
+        if d.weekday() < 5 and k not in 거래:
+            쉼.add(k)
+    return 쉼
+
+
+def 거래일수(a, b, 쉼=None):
+    r"""a 부터 b 까지 **주말과 휴장일을 뺀** 날수."""
+    쉼 = _휴장일() if 쉼 is None else 쉼
     d1 = dt.datetime.strptime(a, "%Y%m%d")
     d2 = dt.datetime.strptime(b, "%Y%m%d")
     n = 0
     while d1 < d2:
         d1 += dt.timedelta(days=1)
-        if d1.weekday() < 5:
+        if d1.weekday() < 5 and d1.strftime("%Y%m%d") not in 쉼:
             n += 1
     return n
+
+
+def _저녁끝(이름):
+    r"""저녁 수집 기록(`_evening.log`)에서 그 수집이 **마지막으로 끝까지 돈 날** (없으면 None).
+
+    ⭐ 2026-09-29 — 증자감자는 새 공시가 없으면 파일이 **안 바뀐다**(「호출 0회」가 정상).
+       파일 시각만 보면 멀쩡한데도 「6일 전」으로 떴다. **수집이 돌았나**를 본다
+    """
+    try:
+        줄들 = io.open(os.path.join(_DATA, "_evening.log"), encoding="utf-8",
+                     errors="replace").read().splitlines()
+    except OSError:
+        return None
+    for 줄 in reversed(줄들):
+        if 이름 in 줄 and " 끝" in 줄 and "실패 0" in 줄:
+            try:
+                return dt.datetime.strptime(줄[:19], "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                continue
+    return None
 
 
 def main():
@@ -124,6 +168,10 @@ def main():
             빈것.append((이름, None, [], 99))
             continue
         _새 = max(os.path.getmtime(x) for x in _f)
+        # ⭐ 수집이 끝까지 돈 기록이 파일 시각보다 새로우면 그것으로 잰다 (새 공시 0 = 파일 안 바뀜)
+        _돈 = _저녁끝(이름.split("(")[0] + "(")
+        if _돈 and _돈.timestamp() > _새:
+            _새 = _돈.timestamp()
         _민 = (dt.datetime.now() - dt.datetime.fromtimestamp(_새)).days
         표2 = "✅" if _민 <= 봐줄날 else "⚠️"
         찍기(f"  {표2} {이름:16s} 마지막 갱신 "
