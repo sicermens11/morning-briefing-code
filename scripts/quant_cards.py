@@ -240,28 +240,34 @@ def _딱지(x):
 
 
 def _줄1(x, 업종, 확정):
+    # ⭐⭐ 2026-09-29 (사용자 「20일 낙폭이 박스 바깥으로 벗어날 때도 있다」)
+    #    전에는 다섯 조각이 **전부 flex:none + nowrap** 이라, 합이 칸보다 넓으면
+    #    줄바꿈도 안 되고 줄지도 않고 **그냥 밖으로 나갔다.**
+    #    ⇒ 바깥 줄에 `flex-wrap:wrap` 을 주고, **상대갭+낙폭을 한 덩이**로 묶어
+    #       같이 아랫줄로 넘어가게 한다. 글자는 하나도 안 깎는다
     갭 = ""
     if 확정 and x.get("상대갭") is not None:
-        갭 = (f'<span style="flex:none;margin-left:auto;font-size:27px;color:{C["보"]};'
+        갭 = (f'<span style="flex:none;font-size:27px;color:{C["보"]};'
               f'white-space:nowrap">상대갭 {_esc(_음(x["상대갭"], 2, "%p"))}</span>')
-    낙자리 = "flex:none;font-size:28px;color:%s;white-space:nowrap" % C["보"]
-    if not 갭:
-        낙자리 = "flex:none;margin-left:auto;" + 낙자리[len("flex:none;"):]
     낙 = x.get("20일낙폭")
     낙글 = _esc(_음(낙, 1)) if 낙 is not None else "—"
-    return (f'<div style="display:flex;align-items:baseline;gap:13px">'
+    _오른 = (f'<span style="flex:none;margin-left:auto;display:flex;align-items:baseline;'
+             f'gap:16px">{갭}'
+             f'<span style="flex:none;font-size:28px;color:{C["보"]};white-space:nowrap">'
+             f'20일 낙폭 <b style="font-weight:800;font-size:38px;'
+             f'color:{C["먹"]}">{낙글}</b></span></span>')
+    return (f'<div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap">'
             f'<span style="flex:none;font-size:40px;font-weight:700;letter-spacing:-.02em;'
             f'white-space:nowrap">{_esc(x.get("이름", ""))}</span>'
             + (f'<span style="flex:none;font-size:31px;font-weight:700;color:{C["본"]};'
                f'white-space:nowrap">{_esc(업종)}</span>' if 업종 else "")
             + f'<span style="flex:none;font-size:27px;color:{C["보"]};white-space:nowrap">'
               f'{_esc(x.get("종목코드", ""))}</span>'
-            + 갭
+            + _오른
             # ⭐ 시안(2026-09-17) · **낙폭에서 색을 뺀다.** 1장 낙폭 −9.6% 는 빨강(좋은 신호)인데
             #    4장 손실 −42.0% 는 파랑이라, 같은 마이너스가 두 색이었다.
             #    빨강·파랑은 **등락·수익률에만** 남긴다 — 낙폭은 굵기로만 눈에 띄게
-            + f'<span style="{낙자리}">20일 낙폭 <b style="font-weight:800;font-size:38px;'
-              f'color:{C["먹"]}">{낙글}</b></span></div>')
+            + '</div>')
 
 
 def _줄2(x):
@@ -315,8 +321,9 @@ def _줄3(x, 상태):
 
 def _종목블록(x, 업종, 상태, 확정):
     return (f'<div data-block="1" style="background:{C["블록"]};border:1px solid {C["선"]};'
-            f'border-radius:16px;padding:14px 22px;display:flex;flex-direction:column;'
-            f'gap:10px">{_줄1(x, 업종, 확정)}{_줄2(x)}{_줄3(x, 상태)}</div>')
+            # ⭐ 2026-09-29 (사용자 「너무 꽉차 있다」) — 안쪽 여백 14→20 · 줄 사이 10→14
+            f'border-radius:16px;padding:20px 24px;display:flex;flex-direction:column;'
+            f'gap:14px">{_줄1(x, 업종, 확정)}{_줄2(x)}{_줄3(x, 상태)}</div>')
 
 
 # ⭐ 2026-09-23 (사용자 「고쳐」) — 갈래 수를 **켜진 것에서 센다.** 「넷 중 하나」가 손으로 적혀 있어
@@ -394,6 +401,11 @@ def _장1(q, 보유):
     _낙20 = next((x.get("시장지수낙20") for x in 후보
                   if x.get("시장지수낙20") is not None), None)
     최대 = R.오늘최대종목(_낙20)
+    # ⭐ 2026-09-29 — **섹터 갈래 전용 자리**만큼 더 그린다.
+    #    규칙은 6 + 섹터 2 = 최대 8 을 산다. 화면이 6 에서 자르면
+    #    **산 것이 화면에 안 나온다.** 조판이 내용을 깎으면 안 된다
+    _섹더C = getattr(R, "섹터전용자리", 0)
+    최대 = 최대 + _섹더C
     살것 = [x for x in 후보 if x.get("규칙매수")][:최대] if 확정 else []
     if 살것:
         상태 = "buy"
