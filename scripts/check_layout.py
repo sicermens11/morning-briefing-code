@@ -512,19 +512,26 @@ def check(cards_path, site_path=None):
                 #    오늘 브리핑 전체를 안 올리는 것**이 더 큰 손해다.
                 #    같은 논리가 위 `check_scroll_shape` 주석에 이미 있다.
                 #    ⚠️ **오늘·앞날 넘침은 그대로 게시 금지** — 거기가 막으려던 자리다
+                # ⭐⭐⭐ 2026-09-29 (사용자 결정) — **조판 문제로는 게시를 막지 않는다.**
+                #    사용자: 「넘치면 안되지만, 넘쳤다고 게시 금지 되는건
+                #             전혀 정보 전달을 못 하게 되는거잖아?」
+                #    오늘 아침 「잡고도 올렸다」를 고치면서 막는 쪽으로 너무 갔다.
+                #      · 넘침     = 그 카드 **일부**가 안 보인다
+                #      · 게시 금지 = **그날 전부**가 안 나간다   <- 이쪽이 훨씬 크다
+                #    실제로 오늘 저녁 어제 카드 73px 때문에 브리핑 전체가 멈췄다.
+                #    ⇒ 🔴 로 크게 찍되 **올린다.** 막는 자리는 조판이 아니라
+                #      틀린 값·죽은 스크립트 쪽에 남긴다
                 _날c = p[12] if len(p) > 12 else ""
                 if _넘c > 1:
-                    _지c = bool(_날c) and _날c < _오늘
-                    (notes if _지c else fails).append(
-                        f"{label}: "
-                        + (f"**지난 날({_날c}) 본문이 {_넘c}px 넘쳤다** — 그날 글이 "
-                           f"화면에서 안 보인다. 게시는 막지 않는다(오늘 것은 멀쩡하다)"
-                           if _지c else
-                           f"**게시 금지 · 본문이 {_넘c}px 넘쳤다** "
-                           f"— 그만큼이 칸 밖으로 밀려 화면에서 안 보인다"))
+                    notes.append(
+                        f"🔴 {label}"
+                        + (f"({_날c})" if _날c else "")
+                        + f": **본문이 {_넘c}px 넘쳤다 — 그만큼이 화면에서 안 보인다.** "
+                          f"게시는 막지 않는다(안 올리면 아무것도 전달이 안 된다). "
+                          f"조판을 고쳐라")
                 _cut = int(p[6]) if len(p) > 6 and p[6].isdigit() else 0
                 if _cut:
-                    fails.append(f"{label}: **게시 금지 · 글 {_cut}마디가 칸 안에서 잘렸다** "
+                    fails.append(f"🔴 {label}: **글 {_cut}마디가 칸 안에서 잘렸다** (게시는 막지 않는다) "
                                  f"— 화면에 안 나온다 (첫 조각: "
                                  f"{p[7] if len(p) > 7 else '?'})")
                 # ⭐⭐ **6절 자기 검사 8개** (2026-09-11 지시서).
@@ -567,8 +574,8 @@ def check(cards_path, site_path=None):
                     #    (2·3절을 세 번 적용하고도 못 들면 그대로 내보낸다)
                     if _갭 and _오늘이후:
                         if min(_갭) < SEAM_STOP and "02 국면" not in label:
-                            fails.append(f"{label}: **항목 간 간격 {min(_갭)}px — "
-                                         f"게시 금지** (하한 {SEAM_STOP})")
+                            fails.append(f"🔴 {label}: **항목 간 간격 {min(_갭)}px** "
+                                         f"(하한 {SEAM_STOP} · 게시는 막지 않는다)")
                         elif min(_갭) < SEAM_STOP:
                             fails.append(f"{label} · {min(_갭)}px (블록 넷이라 예외 · 막지 않는다)")
                         elif not (SEAM_MIN <= min(_갭) and max(_갭) <= SEAM_MAX):
@@ -624,7 +631,7 @@ def check(cards_path, site_path=None):
                 label = p[0]
                 _cut = int(p[6]) if p[6].isdigit() else 0
                 if _cut:
-                    fails.append(f"{label}: **게시 금지 · 글 {_cut}마디가 칸 안에서 잘렸다** "
+                    fails.append(f"🔴 {label}: **글 {_cut}마디가 칸 안에서 잘렸다** (게시는 막지 않는다) "
                                  f"— 화면에 안 나온다 (첫 조각: "
                                  f"{p[7] if len(p) > 7 else '?'})")
                 # ⚠️⚠️ **퀀트에는 「여백 >= 90」을 걸지 않는다** (2026-09-14 디자인 ③).
@@ -646,9 +653,9 @@ def check(cards_path, site_path=None):
                 #    ⚠️ 2026-08-28 결정(한 장 때문에 사이트를 어제 것으로 두지 않는다)은
                 #       그대로다 — **음수만** 막는다
                 if _블아래 is not None and _블아래 < 0:
-                    fails.append(f"{label}: **게시 금지 · 마지막 블록이 카드 "
+                    fails.append(f"🔴 {label}: **마지막 블록이 카드 "
                                  f"밖으로 나갔다 ({_블아래}px)** — 그만큼이 화면에서 "
-                                 f"잘려 안 보인다")
+                                 f"잘려 안 보인다 (게시는 막지 않는다)")
                 elif _블아래 is not None and _블아래 < MIN_MARGIN:
                     fails.append(f"{label}: **마지막 블록 밑에서 카드 아래끝까지 "
                                  f"{_블아래}px** (하한 {MIN_MARGIN}) — 빡빡하다")
@@ -659,7 +666,7 @@ def check(cards_path, site_path=None):
                 #    위 검사가 하나도 안 걸린다. 이건 못 빠져나간다
                 _넘 = (int(p[14]) if len(p) > 14 and p[14].lstrip("-").isdigit() else 0)
                 if _넘 > 1:
-                    fails.append(f"{label}: **게시 금지 · 본문이 {_넘}px 넘쳤다** "
+                    fails.append(f"🔴 {label}: **본문이 {_넘}px 넘쳤다** (게시는 막지 않는다) "
                                  f"— 그만큼이 칸 밖으로 밀려 화면에서 안 보인다")
 
     # 0. 좌우 잠금 + 스크립트 문법 (크롬 측정으로는 못 잡는 것들)
@@ -693,6 +700,13 @@ def check(cards_path, site_path=None):
     #    반면 카드 한 장이 20px 넘친 것은 **보기 나쁠 뿐** 읽을 수는 있다.
     #    그걸로 그날 웹 전체를 막으면, 지메일은 나갔는데 웹만 어제 것으로 남는다.
     #    실제로 2026-08-28에 그 일이 벌어져 한 시간 넘게 옛 화면이 서 있었다.
+    # ⭐⭐⭐ 2026-09-29 (사용자 결정) — **조판은 여기 없다.**
+    #    사용자: 「넘쳤다고 게시 금지 되는건 전혀 정보 전달을 못 하게 되는거잖아?」
+    #    잘림·넘침·간격·밖으로는 🔴 로 크게 찍고 **올린다** — 안 올리면 그날 전부가
+    #    전달이 안 된다. 여기 남은 것은 **코드가 뒤로 간 것**들이다:
+    #      · 문법 오류  — 단추가 안 눌려 넘길 수가 없다 (화면은 멀쩡해 보인다)
+    #      · 좌우 잠금·flex-wrap·word-wrap — 아이폰에서 페이지가 옆으로 밀린다
+    #      · px:        — 좁은 화면 넘침
     치명키 = ("게시 금지", "좌우 잠금", "flex-wrap", "word-wrap", "문법 오류", "px:", "한글고정폭", "한글자간")
     치명 = [x for x in fails if any(k in x for k in 치명키)]
     # ⚠️ **잘린 글을 맨 앞에 놓는다** (2026-09-11). 여백이 몇 px 모자란 것과

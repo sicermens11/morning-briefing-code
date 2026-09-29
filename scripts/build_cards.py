@@ -1440,6 +1440,13 @@ PAGE_JS = """<script>
         ⚠️ 다만 **항목이 셋 미만이면 그대로 둔다** — 옛 장(2026-08-25)은 항목이
            2개뿐이라 `space-between` 이면 둘 사이가 **800px** 벌어진다.
            그게 애초에 `flex-start` 를 넣은 이유다(2026-09-11 디자인 답 ①) */
+     /* ⭐⭐⭐ 2026-09-29 — **장이 제 정렬을 밝혔으면 손대지 않는다.**
+        퀀트1 을 여러 장으로 나누면서 `flex-start` 를 박았는데 여기서 그걸
+        **조건 없이 덮어쓰고 있었다.** 1장만 채움 72% 라 `space-between` 으로
+        되돌아가 상자가 216px 아래에서 시작했다 — 사용자가 사진으로 잡아냈다.
+        70% 규칙은 **스스로 안 밝히는 장**에만 건다 (지난 날 카드가 800px
+        벌어지던 것을 막는 규칙이라 그건 그대로 둔다) */
+     if(el.dataset.align){ el.style.justifyContent=el.dataset.align; continue; }
      var _s=el.closest("section");
      if(_s&&(_s.dataset.label||"").indexOf("01")===0&&el.children.length>=3)
        성김=false;

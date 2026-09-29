@@ -221,7 +221,13 @@ def _카드(라벨, 머리, 몸, 패딩="10px 16px", 틈=None, 정렬=None):
             f'font-family:{SANS};color:{C["먹"]};display:flex;flex-direction:column;'
             f'font-feature-settings:\'tnum\';letter-spacing:-.01em;word-break:keep-all">'
             f'{머리}'
-            f'<div data-body="1" style="flex:1;display:flex;flex-direction:column;'
+            # ⭐⭐⭐ 2026-09-29 — `data-align` 표식. **화면 JS(`채움()`)가 내 정렬을
+            #    덮어쓰고 있었다** — 조건 없이 `style.justifyContent` 를 다시 썼다.
+            #    1장은 채움 72% 라 `space-between` 으로 되돌아가 상자가 216px 아래에서
+            #    시작했다(2·3장은 62%·40% 라 flex-start 로 남아 283px 어긋났다).
+            #    표식이 있으면 `채움()` 이 손대지 않는다
+            f'<div data-body="1"' + (f' data-align="{정렬}"' if 정렬 else "")
+            + f' style="flex:1;display:flex;flex-direction:column;'
             f'justify-content:{정렬 or "space-between"};'
             + (f'gap:{틈 or 26}px;' if 정렬 else g)
             + f'min-height:0;padding:{패딩}">{몸}</div>'
