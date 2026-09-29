@@ -40,6 +40,11 @@ _요일 = "월화수목금토일"
 #    ⚠️ 2026-09-29 아침에 6개를 그려 **190px 가 잘렸다.** 조판 검사는 「통과」라고 했다
 _한장에 = 3
 
+# ⭐ **Q2 한 장에 담는 규칙 줄 수** (2026-09-29 · 실측)
+#    Q2 는 143px 넘쳤다 (속 1,420 / 보이는 1,277). 업종 줄이 압도적으로 길다
+#    ⚠️ 글을 줄이지 않는다 — 장을 늘린다
+_장2에 = int(os.environ.get("QT2_MAX") or 3)
+
 
 def _esc(s):
     return html.escape("" if s is None else str(s), quote=True)
@@ -576,12 +581,35 @@ def _장2():
         f'<span style="{칩}">{태}</span></div>'
         f'{_본문(_괄호nowrap(_굵(글)))}</div>'
         for 태, 글 in 규칙)
-    몸 = (_본문(_esc(리드), 35)
-         + _블록("먼저, 이걸 모두 통과", _본문(_괄호nowrap(_굵(통과))))
-         + _블록(f"그 다음, {_갈래수} 중 하나만 맞으면 후보 · 1장 딱지가 이것입니다", 줄들, 틈=14)
-         + f'<span style="font-size:30px;line-height:1.55;color:{C["보"]}">여러 규칙에 걸린 종목이 '
-           f'1장 위쪽에 옵니다. 다음 장은 언제 사고 언제 파는지입니다.</span>')
-    return _카드("퀀트2 어떻게뽑았나", _머리("HOW THEY WERE PICKED", "2 / 4", "어떻게 뽑았나"), 몸)
+    # ⭐⭐ 2026-09-29 — **규칙 줄을 쪽마다 나눈다.** Q2 가 143px 넘쳤다
+    #    (속 1,420 / 보이는 1,277). 업종 줄이 압도적으로 길다.
+    #    글을 줄이는 대신 **장을 늘린다** ([[layout-never-cuts-content]])
+    def _한줄짜리(태, 글):
+        return (f'<div style="display:flex;align-items:flex-start;gap:16px">'
+                f'<div style="display:flex;align-items:center;gap:12px;flex:none;'
+                f'padding-top:4px"><span style="{칩}">{태}</span></div>'
+                f'{_본문(_괄호nowrap(_굵(글)))}</div>')
+
+    _쪽규칙 = [규칙[_i:_i + _장2에] for _i in range(0, len(규칙), _장2에)] or [()]
+    _장들2 = []
+    for _k2, _쪽2 in enumerate(_쪽규칙):
+        _줄2 = "".join(_한줄짜리(태, 글) for 태, 글 in _쪽2)
+        if _k2 == 0:
+            _몸2 = (_본문(_esc(리드), 35)
+                    + _블록("먼저, 이걸 모두 통과", _본문(_괄호nowrap(_굵(통과))))
+                    + _블록(f"그 다음, {_갈래수} 중 하나만 맞으면 후보 · 1장 딱지가 이것입니다",
+                            _줄2, 틈=14))
+            _제2 = "어떻게 뽑았나"
+        else:
+            _몸2 = _블록(f"걸리는 조건 (이어서 {_k2 + 1}/{len(_쪽규칙)})", _줄2, 틈=14)
+            _제2 = "어떻게 뽑았나 (이어서)"
+        if _k2 == len(_쪽규칙) - 1:
+            _몸2 += (f'<span style="font-size:30px;line-height:1.55;color:{C["보"]}">'
+                     f'여러 규칙에 걸린 종목이 1장 위쪽에 옵니다. '
+                     f'다음 장은 언제 사고 언제 파는지입니다.</span>')
+        _장들2.append(_카드(f"퀀트2 어떻게뽑았나{'' if _k2 == 0 else _k2 + 1}",
+                          _머리("HOW THEY WERE PICKED", "%d / %%d" % (_k2 + 2), _제2), _몸2))
+    return _장들2
 
 
 # ── 3장 · 어떻게 사고 파나 (라벨 2열형) ──────────────────────────
@@ -737,7 +765,7 @@ def quant_view(q, 보유=None):
             f'<span class="now">퀀트 후보</span></div></div>'
             f'<div class="rail qrail" data-active="true">'
             # ⭐ 2026-09-29 — _장1 이 **여러 장**을 돌려준다. 쪽 번호를 전체에 맞춰 다시 매긴다
-            + _쪽번호매기기(_장1(q, 보유) + [_장2(), _장3(), _장4()])
+            + _쪽번호매기기(_장1(q, 보유) + _장2() + [_장3(), _장4()])
             + '</div>'
             f'<div style="text-align:center;font-size:13px;color:{C["보"]};padding:0 0 30px">'
             f'← 옆으로 넘겨서 보세요 →</div></section>')
