@@ -68,3 +68,7 @@ __pycache__/
 data/minute/
 data/orderbook-antc/
 data/forward-log.jsonl.bak
+
+# 계정에 동기화된 남의 스킬 (공개 저장소에 올리지 않는다 · 2026-09-29)
+외부사본/skills/synced/
+외부사본/skills/.trash/

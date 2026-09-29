@@ -48,3 +48,22 @@
 - [점검기의 소음이 실패를 숨긴다](checker-noise-hides-failures.md) — 「실패 0」까지 빨갛게 찍어 40개 로그를 아무도 안 읽었다. 필드 이름은 원본 한 건으로 확인
 - [핸드폰 말은 같은 세션에 같은 글로](remote-messages-look-identical.md) — 「원격 요청」은 다른 통로가 아니라 밤 시간대 대화에서 찾아 확인한다
 - [나중에 꺼낼 것](future-followups.md) — 10월 중순 문턱 −3.0 판단 · 12월 초 대형주 컨센서스 · 2027-03 분봉. 때가 되면 내가 먼저 말한다
+- [이 PC의 메모리 벽](machine-memory-limits.md) — 물리 32GB 가 아니라 커밋 45GB 가 한계. 판 하나가 24GB · 판은 하나씩
+- [후보 둘이면 반영 전에 견준다](compare-candidates-before-adopting.md) — 하나 넣고 비교하면 되돌리게 된다. 같이 켠 값은 따로 재야 안다
+- [OR 후보는 OR 성적으로 고른다](or-candidates-pick-by-or-not-standalone.md) — 「혼자 좋은 위 다섯」으로 추리면 44개 중 39개를 안 재고 지나간다
+- [쌓을 땐 증분으로 재라](incremental-pick-needs-incremental-gate.md) — 「쌓인 것 전체」로 걷기를 재면 첫 하나가 관문을 무력화한다. 149%가 126%로
+- [풀의 문이 곧 소형 규칙이다](pool-gate-is-a-small-cap-rule.md) — 사건을 만드는 재무·대금 문이 소형 값이면 그 위 띠·업종 규칙은 전부 소형 규칙. 막개도 못 봤다. 풀부터 연다
+- [넘기는 옵션이 정말 있나](cli-flag-may-not-exist.md) — `--최근 10`이 2주간 없는 옵션이었다. 매일 16분 헛돌았고 브리핑에 옮기다 걸렸다
+- [빈 날은 시장 재료로는 안 채워진다](empty-days-need-non-market-materials.md) — 선물20·시장낙폭 칸은 Ⓗ와 같은 날(새 날 0). 제 낙폭 칸만 채운다. 느슨한 상대갭+중복금지 없음 = -38%
+- [풀 전체 통계 재료는 미래를 본다](full-sample-stats-are-lookahead.md) — 섹시그마가 16년 전체 평균·표준편차로 만든 값이었다. 판 통과해도 못 넣는다
+- [규칙은 여덟 층이다](rule-has-eight-layers.md) — 재료풀·문·신호·상대갭·자리·비중·파는규칙·판정잣대. 한 층만 새로 내고 「처음부터」라 했다가 대형에서 이틀 연속 「절반」
+- [되풀이하고 시작한다](restate-then-act.md) — 조각 여럿·「전부·등등」이면 「이렇게 알아들었다 ①②③, 빠진 것?」 먼저. 완료 보고엔 「안 한 것」 칸. 결과 안 읽고 「됐다」 금지
+- [주장은 확인한 뒤에](assert-only-after-checking.md) — 하루에 일곱 번 뒤집었다. 「없다·안 했다」는 도구로 확인하고 말한다
+- [검사기는 잡고도 올린다](checker-can-catch-and-still-ship.md) — 「통과」 줄 말고 그 위 경고를 읽어라
+- [근거 없는 상수가 결론을 만든다](unjustified-constants-drive-conclusions.md) — 결론 전에 그 상수를 흔들어 보고, 전제를 같이 적는다
+- [별도 규칙은 바탕을 빼라](separate-rule-means-no-base-rule.md) — 「○○만의 규칙」은 _H 를 지우는 것. 3개월·열 번 못 알아들었다
+- [계정이 잠기면 예약이 안 돈다](account-lockout-kills-s4u.md) — S4U 예약 14개가 시작도 못 한다. 9/29 밤 반복 잠김, 원인 미확정
+- [새 관문이 지난 자료에 걸리면 교착](new-gate-can-deadlock-on-old-data.md) — 막기 전에 「누가 고치나」. 9/1 카드 22px 이 오늘 브리핑을 막았다
+- [판은 세션보다 오래 살아야 한다](panels-must-outlive-the-session.md) — 배경 셸 자식으로 띄우면 같이 죽는다. Start-Process 로 떼어라
+- [조판은 게시를 막지 않는다](layout-never-blocks-publishing.md) — 안 올리면 그날 전부가 전달이 안 된다. 크게 찍고 올린다
+- [실전 코드는 임시 사본으로 끝까지 돌린다](dry-run-live-code.md) — 08:55 NameError 를 이렇게 잡았다. 고친 가지가 실제로 도는 입력을 만든다 · bad_news_check import 금지
