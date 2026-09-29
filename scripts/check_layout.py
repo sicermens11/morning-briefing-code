@@ -213,6 +213,11 @@ setTimeout(function(){
        });
      }
    }
+   /* ⭐⭐ 2026-09-29 — **본문 칸이 넘치나.** Q2 가 143px 잘리는데 위 검사 셋이
+      전부 못 봤다 (종목 블록이 없어 ②가 안 걸리고, ①은 본문 안쪽 넘침을 놓친다).
+      `scrollHeight > clientHeight` 는 **못 빠져나간다** */
+   var _bd=s.querySelector("div[data-body]");
+   var _본문넘침=_bd?(_bd.scrollHeight-_bd.clientHeight):0;
    out.push([s.dataset.label, Math.round(t), Math.round(H-b),
              Math.round(l), Math.round(W-r), bad.join(";"),
              cut, cutTxt, Math.round(H), gaps.join(","), noRule, kvBad,
@@ -232,7 +237,8 @@ setTimeout(function(){
                if(!블.length) return "";
                var 끝=블[블.length-1].getBoundingClientRect().bottom;
                return String(Math.round(sr.bottom-끝));
-             })()].join("|"));
+             })(),
+             _본문넘침].join("|"));
   });
   document.title="R::"+out.join("@@");
  },600);
@@ -496,6 +502,10 @@ def check(cards_path, site_path=None):
                 label, margins, bad = p[0], [int(x) for x in p[1:5]], (p[5] if len(p) > 5 else "")
                 # ⚠️⚠️ **잘린 글은 여백보다 심각하다** — 여백은 보기 나쁜 것이고
                 #    잘린 글은 **아예 안 보이는 것**이다 (2026-09-11)
+                _넘c = (int(p[14]) if len(p) > 14 and p[14].lstrip("-").isdigit() else 0)
+                if _넘c > 1:
+                    fails.append(f"{label}: **게시 금지 · 본문이 {_넘c}px 넘쳤다** "
+                                 f"— 그만큼이 칸 밖으로 밀려 화면에서 안 보인다")
                 _cut = int(p[6]) if len(p) > 6 and p[6].isdigit() else 0
                 if _cut:
                     fails.append(f"{label}: **게시 금지 · 글 {_cut}마디가 칸 안에서 잘렸다** "
@@ -629,6 +639,12 @@ def check(cards_path, site_path=None):
                 _qH = int(p[8]) if len(p) > 8 and p[8].lstrip("-").isdigit() else 0
                 if _qH and abs(_qH - _CARD_H) > 1:
                     fails.append(f"{label}: 카드 높이 {_qH}px ({_CARD_H}이어야 한다)")
+                # ⭐⭐ 2026-09-29 — **본문 칸 넘침.** 종목 블록이 없는 장(Q2·Q3·Q4)은
+                #    위 검사가 하나도 안 걸린다. 이건 못 빠져나간다
+                _넘 = (int(p[14]) if len(p) > 14 and p[14].lstrip("-").isdigit() else 0)
+                if _넘 > 1:
+                    fails.append(f"{label}: **게시 금지 · 본문이 {_넘}px 넘쳤다** "
+                                 f"— 그만큼이 칸 밖으로 밀려 화면에서 안 보인다")
 
     # 0. 좌우 잠금 + 스크립트 문법 (크롬 측정으로는 못 잡는 것들)
     fails.extend(check_locks(site_path))
