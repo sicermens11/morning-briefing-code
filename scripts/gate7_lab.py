@@ -4799,7 +4799,7 @@ def main():
                           (_y2["끝"] / _y1["끝"] - 1) * 100 if _y1["끝"] > 0 else 0))
             _시드a15, _시드b15 = _y1["끝"], _y2["끝"]
         _걷기찍기(_줄15)
-    print("     ⚠️ 같이 켠 것이 ㉥ 만 보다 **안 나으면 ㉢ 문턱은 안 넣는다** — 단순한 쪽이 낫다")
+    print("     ⚠️ 같이 켠 것이 ㉥ 만 보다 **안 나으면 ㉢ 문턱은 안 넣는다** — 단순한 쪽이 낫다")
     print("=" * 122)
 
 
@@ -6467,6 +6467,193 @@ def main():
             print(f"\n        [{_름M}]  {_r['끝']:,.0f}원 "
                   f"({_r['끝'] / _밑M['끝'] * 100:.0f}%) · 낙폭 {_r['낙']:.1f}%")
             _걷기찍기(_옵걷기(_옵M), 들여="          ")
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
+    # ══ ⭐⭐⭐ **LIVE — 지금 실전 규칙을 바탕으로** (2026-09-29 밤) ══
+    if _ONLY == "LIVE" or "LIVE" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── LIVE ⭐⭐⭐ **지금 실전 규칙이 바탕** ──")
+        print("=" * 122)
+        print("     판의 바탕(_c(_H))은 오늘 반영한 셋을 안 읽었다 — 섹터 자리 2 · 업종 -1.5%p · 악재 감자·유상증자")
+        print("     B136·B137·B139 는 **오늘 아침 규칙**과 견줬다. 여기서 실전 바탕으로 다시 잰다")
+        print(f"     소형 갈래 상한(크기통과) = {_규칙크기상한:,.0f}억"
+              + ("   ⭐ RULE_HI 로 바꾼 판" if os.environ.get("RULE_HI") else "   (지금 실전 그대로)"))
+
+        def _섹L(x):
+            try:
+                return bool(섹터맞나(x))
+            except Exception:  # noqa: BLE001
+                return False
+
+        def _업L(x):
+            try:
+                _m, _ = R.업종규칙맞나(_산업.get(x["code"]), {
+                    "시총억": x.get("시총억"), "대금억": x.get("대금억"),
+                    "_지금문통과": 문통과_크기없이(x), "잉여금비율": x.get("잉여금"),
+                    "부채비율": x.get("부채"), "흑자": x.get("흑자"),
+                    "낙폭60": x.get("낙폭60"), "낙120": x.get("낙120")})
+                return bool(_m)
+            except Exception:  # noqa: BLE001
+                return False
+
+        def _바구니L(이름):
+            def _f(x, _n=이름):
+                return _사슬섹터.get(x["code"]) == _n
+            return _f
+
+        # ── 악재표를 「감자·유상증자」만으로 (AB2 와 같은 방법 · 끝나면 되돌린다) ──
+        _원표L = {k: dict(v) for k, v in _악재표.items()}
+        _새표L = {}
+        import glob as _gL
+        for _fL in sorted(_gL.glob(os.path.join(O._DATA, "dart-daily", "*.json"))):
+            _dL = os.path.basename(_fL)[:8]
+            try:
+                _jL = json.load(io.open(_fL, encoding="utf-8-sig"))
+            except ValueError:
+                continue
+            _hL = {}
+            for _칸L in ("챙길공시", "그밖의공시"):
+                for _xL in (_jL.get(_칸L) or []):
+                    _cL = str(_xL.get("종목코드") or "")
+                    _제L = str(_xL.get("공시명") or "")
+                    # ⭐ 실전(bad_news_check)과 똑같이 — **반대말이 섞이면 안 판다**
+                    #    (「유상증자 철회」는 좋은 소식이다. B135·AB2 는 이걸 안 걸렀다)
+                    _반대L = any(w in _제L for w in ("해제", "취소", "철회", "종결", "기각"))
+                    if _cL and ("감자" in _제L or "유상증자" in _제L) and not _반대L:
+                        _hL[_cL] = _hL.get(_cL, 0) + 1
+            if _hL:
+                _새표L[_dL] = _hL
+
+        _실전L = {"무리자리": [(_섹L, "섹터", R.섹터전용자리)],
+                  "무리갭": [(_업L, "업종", R.업종전용상대갭)],
+                  "재평가": "악재",
+                  "시총상한": 999999}     # ⚠️ RULE_HI 를 줘도 섹터 갈래는 열어 둔다
+
+        def _더L(옵):
+            _r = {k: (list(v) if isinstance(v, list) else v) for k, v in _실전L.items()}
+            for _k, _v in 옵.items():
+                if _k in ("무리자리", "무리갭"):
+                    _r[_k] = _r.get(_k, []) + list(_v)
+                else:
+                    _r[_k] = _v
+            return _r
+
+        try:
+            _옛바L = 시뮬(_c(_H))                       # 옛 악재표로 — 오늘 아침 규칙
+            _악재표.clear()
+            _악재표.update(_새표L)
+            # (판 번호는 _판세는표 가 clear·update 때 저절로 올린다 — 캐시 열쇠가 바뀐다)
+            _바L = 시뮬(_c(_H, **_실전L))
+            print(f"\n     ⓪ 바탕 견줌")
+            print(f"        오늘 아침 규칙  {_옛바L['끝']:>16,.0f}원 · 낙폭 {_옛바L['낙']:.1f}% · 산 것 {_옛바L['산']}")
+            print(f"        **지금 실전**    {_바L['끝']:>16,.0f}원 · 낙폭 {_바L['낙']:.1f}% · 산 것 {_바L['산']}"
+                  f"   ({_바L['끝'] / _옛바L['끝'] * 100:.0f}%)")
+            print("        (B135 에서 +A+B 는 111% · 낙폭 -6.3% 였다 — 가까우면 실전 바탕이 맞게 선 것이다)")
+
+            _후L = [("섹터 갈래 3,000억 캡 (B139 가 실제로 잰 것)", {"시총상한": 3000.0})]
+            for _nm in ("전력 인프라/변압기", "원전 기자재"):
+                if _nm in R.섹터규칙:
+                    _fL2 = _바구니L(_nm)
+                    _후L.append((f"[{_nm}] -2.0%p + 자리 1",
+                                 {"무리갭": [(_fL2, _nm, -2.0)], "무리자리": [(_fL2, _nm, 1)]}))
+
+            print(f"\n     ① 실전 바탕 위에 하나씩 — 돈 · 낙폭 · 산 것 · 고친 걷기")
+            for _라L, _옵L in _후L:
+                _rL = 시뮬(_c(_H, **_더L(_옵L)))
+                if not _rL:
+                    print(f"\n        [{_라L}]  (안 나왔다)")
+                    continue
+                print(f"\n        [{_라L}]  {_rL['끝']:,.0f}원 ({_rL['끝'] / _바L['끝'] * 100:.0f}%)"
+                      f" · 낙폭 {_바L['낙']:.1f}% → {_rL['낙']:.1f}% · 산 것 {_바L['산']} → {_rL['산']}")
+                _줄L, _시a, _시b = [], None, None
+                for _라w, _시w, _끝w in (("앞 2010~2020", "2010", "2020"),
+                                        ("뒤 2021~2026", "2021", "2026")):
+                    _aw = 시뮬(_c(_H, **_실전L), 시작년=_시w, 끝년=_끝w, 시드=_시a)
+                    _bw = 시뮬(_c(_H, **_더L(_옵L)), 시작년=_시w, 끝년=_끝w, 시드=_시b)
+                    if not _aw or not _bw:
+                        continue
+                    _dw = (_bw["끝"] / _aw["끝"] - 1) * 100 if _aw["끝"] > 0 else 0
+                    _줄L.append((_라w, _aw, _bw, _dw))
+                    _시a, _시b = _aw["끝"], _bw["끝"]
+                _걷기찍기(_줄L, 들여="          ")
+
+            # ══ ② 옛 바탕으로 잰 결론 — 실전 바탕에서 다시 ══
+            print("\n     ② 옛 바탕(오늘 아침 규칙)으로 잰 결론 — **실전 바탕에서 다시**")
+            print(f"        {'무엇':<34}{'끝 자산':>16}{'실전의%':>9}{'낙폭':>8}{'산 것':>7}")
+
+            def _한줄L(라, r):
+                if not r:
+                    print(f"        {라:<34}{'(안 나왔다)':>16}")
+                    return
+                print(f"        {라:<34}{r['끝']:>16,.0f}{r['끝'] / _바L['끝'] * 100:>8.0f}%"
+                      f"{r['낙']:>7.1f}%{r['산']:>7}")
+
+            try:
+                _재무옵.clear()
+                _재무옵.update({"잉여금": None, "부채": None, "흑자": False, "대금": 0.0})
+                _한줄L("재무 문 넷 다 끄기 (B137)", 시뮬(_c(_H, **_실전L)))
+            finally:
+                _재무옵.clear()
+            for _v in (0.005, 0.02):
+                _한줄L(f"거래대금 한도 {_v * 100:g}% (B136)", 시뮬(_c(_H, **_더L({"대금비율": _v}))))
+            _종L = None     # 아래 try 가 중간에 터져도 뒤에서 읽을 수 있게
+            _원살L, _원비L, _원이L = _살때, _비용, _이자
+            try:
+                globals()["_살때"] = "종가"
+                _종L = 시뮬(_c(_H, **_실전L))
+                _한줄L("사는 값 = 종가 (B140)", _종L)
+                globals()["_살때"] = _원살L
+                globals()["_비용"] = _원비L * 2
+                _한줄L("거래 비용 2배 (B140)", 시뮬(_c(_H, **_실전L)))
+                globals()["_비용"] = _원비L
+                globals()["_이자"] = 0.0
+                _한줄L("현금 이자 0% (B140)", 시뮬(_c(_H, **_실전L)))
+            finally:
+                globals()["_살때"], globals()["_비용"], globals()["_이자"] = _원살L, _원비L, _원이L
+            if _종L and _종L["끝"] > _바L["끝"]:
+                print("\n        [사는 값 = 종가] 이 실전보다 낫다 — 걷기 (앞뒤마다 시가 한 번 · 종가 한 번)")
+                _줄Z, _sa, _sb = [], None, None
+                try:
+                    for _라w, _시w, _끝w in (("앞 2010~2020", "2010", "2020"),
+                                            ("뒤 2021~2026", "2021", "2026")):
+                        globals()["_살때"] = "시가"
+                        _aw = 시뮬(_c(_H, **_실전L), 시작년=_시w, 끝년=_끝w, 시드=_sa)
+                        globals()["_살때"] = "종가"
+                        _bw = 시뮬(_c(_H, **_실전L), 시작년=_시w, 끝년=_끝w, 시드=_sb)
+                        if _aw and _bw:
+                            _줄Z.append((_라w, _aw, _bw,
+                                         (_bw["끝"] / _aw["끝"] - 1) * 100 if _aw["끝"] > 0 else 0))
+                            _sa, _sb = _aw["끝"], _bw["끝"]
+                finally:
+                    globals()["_살때"] = _원살L
+                _걷기찍기(_줄Z, 들여="          ")
+
+            # ══ ③ 화면 성적표 후보 ══
+            print("\n     ③ **화면 성적표 후보** — 지금 화면(rule-capital.json 9/28)은 오늘 아침 규칙의 숫자다")
+            print(f"        끝 자산 {_바L['끝']:,.0f}원 · 연평균 {_바L['연']:.2f}% · "
+                  f"낙폭 {_바L['낙']:.1f}% · 산 것 {_바L['산']}")
+            try:
+                import datetime as _dtL
+                _몫L = {"만든날": _dtL.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "출처": "gate7_lab LIVE 절 — 실전 바탕(섹터 자리 2 · 업종 -1.5%p · "
+                                "악재 감자·유상증자(반대말 뺌)) · 제약 있는 판",
+                        "소형상한억": _규칙크기상한,
+                        "시작자산": 5000000.0, "연평균": round(_바L["연"], 2),
+                        "계좌낙폭": round(_바L["낙"], 1), "끝자산": round(_바L["끝"]),
+                        "산것": _바L["산"]}
+                _밖L = os.path.join(O._DATA, "_labs",
+                                    "rule-capital_실전후보" + ("_RULEHI" if os.environ.get("RULE_HI") else "")
+                                    + ".json")
+                io.open(_밖L, "w", encoding="utf-8").write(json.dumps(_몫L, ensure_ascii=False, indent=1))
+                print(f"        → 후보로 남겼다: {os.path.basename(_밖L)} (실전 파일은 안 건드렸다)")
+            except Exception as _eL:  # noqa: BLE001
+                print(f"        ⚠️ 후보 파일을 못 남겼다: {type(_eL).__name__}")
+        finally:
+            _악재표.clear()
+            _악재표.update(_원표L)
         print("=" * 122)
         if "+" not in _ONLY:
             return 0
