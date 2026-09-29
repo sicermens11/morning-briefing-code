@@ -43,7 +43,10 @@ LOG = os.path.join(_DATA, "_gaps.log")
 _볼것 = [
     ("krx-daily", "주가(KRX)", 2, "morning_krx.py", []),
     ("index-daily", "지수(KRX)", 2, "morning_krx.py", []),
-    ("flow-daily", "수급(네이버)", 2, "collect_flow.py", []),
+    # ⚠️⚠️ 허용치 **0** (2026-09-29 밤 고침). 네이버는 그날 수급을 **19시 넘어서** 올린다.
+    #    저녁 수집(19:04)은 9/15~9/28 열흘 내내 「0종목」이었고, 여기 허용치가 2 라서
+    #    수급이 **이틀씩 늦게** 쌓였다 (9/29 밤 flow-daily 마지막이 0923). 20:30 이면 그날치가 있다
+    ("flow-daily", "수급(네이버)", 0, "collect_flow.py", []),
     ("dart-daily", "공시(DART)", 2, "fetch_dart.py", []),
     # ⚠️ kind-time 은 collect_evening 안의 함수가 받는다 —
     #    따로 돌릴 스크립트가 없어 **보기만** 한다
