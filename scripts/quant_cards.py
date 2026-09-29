@@ -38,7 +38,12 @@ _요일 = "월화수목금토일"
 #      3개 ✅ 여유 · 4개 +42px(하한 90 에 48 모자람) · 5개 **-205px** · 8개 -644px
 #    ⇒ **3개**. 그보다 많으면 장을 늘린다 (글을 줄이지 않는다)
 #    ⚠️ 2026-09-29 아침에 6개를 그려 **190px 가 잘렸다.** 조판 검사는 「통과」라고 했다
-_한장에 = 3
+# ⭐⭐⭐ 2026-09-29 (사용자 「8개라면 차라리 한페이지당 4개씩 낫겠는데?」)
+#    3 -> 4. 8개면 **4+4 두 장**이다. 상자가 `flex:1` 로 자리를 나눠 먹으므로
+#    3개일 때처럼 아래가 휑하지 않다
+_한장에 = 4
+# ⭐ 상자가 무한정 길어지지 않게. 한 장에 1~2개만 남는 날 우스꽝스러워진다
+_상자최대 = 340
 
 # ⭐ **Q2 한 장에 담는 규칙 줄 수** (2026-09-29 · 실측)
 #    Q2 는 143px 넘쳤다 (속 1,420 / 보이는 1,277). 업종 줄이 압도적으로 길다
@@ -347,9 +352,22 @@ def _줄3(x, 상태):
 
 
 def _종목블록(x, 업종, 상태, 확정):
+    r"""종목 상자 하나.
+
+    ⭐⭐⭐ 2026-09-29 (사용자 「**종목 상자는 다 크기가 같아야 해.**
+       상자마다 크기가 다르면 그것도 아마추어 같아」)
+       전에는 내용 높이대로 커서 업종 딱지가 줄바꿈하는 종목만 상자가 컸다
+       (케이씨텍 233px vs 웅진 219px, 실측).
+       ⇒ `flex:1` 로 **남는 자리를 고루 나눈다.** 한 장 안 상자가 전부 같아지고
+         아래에 빈 자리도 안 남는다 (사용자 「공간이 비어보이면 아마추어 같아」).
+       ⚠️ `min-height:0` 이 없으면 flex 항목이 내용 밑으로 안 줄어든다
+       ⚠️ 속은 `space-between` — 상자가 내용보다 커지면 세 줄이 고루 퍼진다
+    """
     return (f'<div data-block="1" style="background:{C["블록"]};border:1px solid {C["선"]};'
             # ⭐ 2026-09-29 (사용자 「너무 꽉차 있다」) — 안쪽 여백 14→20 · 줄 사이 10→14
             f'border-radius:16px;padding:20px 24px;display:flex;flex-direction:column;'
+            f'flex:1;min-height:0;max-height:{_상자최대}px;'
+            f'justify-content:space-between;'
             f'gap:14px">{_줄1(x, 업종, 확정)}{_줄2(x)}{_줄3(x, 상태)}</div>')
 
 
@@ -546,19 +564,34 @@ def _장1(q, 보유):
 
     # ⭐⭐ 2026-09-29 — **3개씩 끊어 여러 장으로** (사용자 「3개씩으로 하자」)
     #    한 장에 4개부터 잘린다 (실측). 글을 줄이는 대신 **장을 늘린다**
-    _쪽들 = [목록[_i:_i + _한장에] for _i in range(0, len(목록), _한장에)] or [[]]
+    # ⭐⭐ 2026-09-29 — **고르게 나눈다.** 앞에서부터 채우면 8개가 4+4 가 아니라
+    #    4+4 여도 6개는 4+2 가 되어 마지막 장이 휑하다. 8->4+4 · 7->4+3 · 6->3+3 · 5->3+2
+    _쪽수 = max(1, -(-len(목록) // _한장에))
+    _쪽들, _i0, _남 = [], 0, len(목록)
+    for _j in range(_쪽수):
+        _몫 = -(-_남 // (_쪽수 - _j))
+        _쪽들.append(목록[_i0:_i0 + _몫])
+        _i0 += _몫
+        _남 -= _몫
+    _쪽들 = _쪽들 or [[]]
     _장들 = []
     for _k, _쪽 in enumerate(_쪽들):
         블록들 = "".join(_종목블록(x, (업.get(x.get("종목코드", "")) or {}).get("업종명")
                               or (x.get("섹터") or ""), 상태, 확정) for x in _쪽)
         _라 = 라벨 if _k == 0 else f"{라벨} (이어서 {_k + 1}/{len(_쪽들)})"
         _부 = list(부) if _k == 0 else []
-        _부.append(f'<div style="display:flex;flex-direction:column;gap:12px">'
-                   f'<span style="font-size:32px;font-weight:700;color:{라벨색}">'
-                   f'{_esc(_라)}</span>{블록들}</div>')
+        # ⭐⭐⭐ 상자 묶음이 **남는 자리를 다 쓴다** (flex:1). 라벨·각주는 제 높이만.
+        #    이러면 아래에 빈 자리가 안 남고, 상자들이 그 자리를 똑같이 나눠 갖는다
+        _부.append(f'<div style="flex:1;min-height:0;display:flex;'
+                   f'flex-direction:column;gap:12px">'
+                   f'<span style="flex:none;font-size:32px;font-weight:700;color:{라벨색}">'
+                   f'{_esc(_라)}</span>'
+                   f'<div style="flex:1;min-height:0;display:flex;flex-direction:column;'
+                   f'gap:14px">{블록들}</div></div>')
         if _k == len(_쪽들) - 1:
-            # ⭐ 각주는 **바닥**에 (margin-top:auto) — 위로 붙인 뒤에도 자리가 같다
-            _부.append(f'<div style="margin-top:auto;font-size:30px;line-height:1.55;'
+            # ⭐ 각주는 마지막 장 맨 아래. `margin-top:auto` 는 **뺐다** —
+            #    이제 위의 상자 묶음이 자리를 다 먹으므로 저절로 바닥에 온다
+            _부.append(f'<div style="flex:none;font-size:30px;line-height:1.55;'
                        f'color:{C["보"]}">{_esc(각주)}</div>')
         _머 = _머리(킥, "%d / %%d" % (_k + 1), _esc(제) if _k == 0 else _esc(제) + " (이어서)",
                    크기=68, 배지=(배 if _k == 0 else None), 배지색=배색, 틈=24, 밑=32)
