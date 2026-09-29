@@ -223,6 +223,32 @@ setTimeout(function(){
       ⚠️ 덩이(블록)마다 따로 센다 — 옆으로 놓인 칸은 top 이 오르내린다
       ⚠️ 퀀트 장에서만 — 카드 파일은 26일치 x 9장이라 너무 느리다
       ⚠️ 눈에 안 보이는 글자(U+200B·U+2060·NBSP)는 건너뛴다 */
+   /* ⭐⭐⭐ QUANT-ANSWER-0929 검사 6 — **종목 상자 네 행 모두 한 줄.**
+      행은 nowrap 이라 글이 길면 줄바꿈 대신 **옆으로 삐져나간다** — 둘 다 본다 */
+   var _행실패=[];
+   if((s.dataset.label||"").indexOf("퀀트")===0){
+     s.querySelectorAll('div[data-block="1"]').forEach(function(bx){
+       var 이름=((bx.querySelector("span")||{}).textContent||"?").trim().slice(0,8);
+       Array.prototype.forEach.call(bx.children,function(row,ri){
+         if(row.scrollWidth>row.clientWidth+1)
+           _행실패.push(이름+":"+(ri+1)+"행:옆으로 "+(row.scrollWidth-row.clientWidth)+"px");
+         var top=1e9,bot=-1e9,fmax=0;
+         var tw=document.createTreeWalker(row,NodeFilter.SHOW_TEXT,null),tn;
+         while((tn=tw.nextNode())){
+           if(!(tn.nodeValue||"").trim()) continue;
+           var rg=document.createRange(); rg.selectNodeContents(tn);
+           var rs=rg.getClientRects();
+           for(var k=0;k<rs.length;k++){
+             if(rs[k].height<3) continue;
+             top=Math.min(top,rs[k].top); bot=Math.max(bot,rs[k].bottom);
+           }
+           fmax=Math.max(fmax,parseFloat(getComputedStyle(tn.parentElement).fontSize)||0);
+         }
+         if(fmax>0&&(bot-top)>fmax*1.6)
+           _행실패.push(이름+":"+(ri+1)+"행:줄바꿈 "+Math.round(bot-top)+"px");
+       });
+     });
+   }
    var _나쁜시작=[];
    if((s.dataset.label||"").indexOf("퀀트")===0){
      var _막={}, _막n=0;
@@ -271,7 +297,7 @@ setTimeout(function(){
                var 끝=블[블.length-1].getBoundingClientRect().bottom;
                return String(Math.round(sr.bottom-끝));
              })(),
-             _본문넘침, _나쁜시작.join(";")].join("|"));
+             _본문넘침, _나쁜시작.join(";"), _행실패.join(";")].join("|"));
   });
   document.title="R::"+out.join("@@");
  },600);
@@ -670,6 +696,12 @@ def check(cards_path, site_path=None):
                 if _갭q and max(_갭q) > 80:
                     notes.append(f"🔴 {label}: **항목 사이가 {max(_갭q)}px 벌어졌다** "
                                  f"(한계 80) — 내용 적은 장이 벌어진 구멍이다")
+                # ⭐⭐⭐ QUANT-ANSWER-0929 검사 6 — **종목 상자 네 행 모두 한 줄**
+                _행q = [z for z in (p[16].split(";") if len(p) > 16 and p[16] else [])
+                        if z.strip()]
+                if _행q:
+                    notes.append(f"🔴 {label}: **종목 상자 행이 한 줄이 아니다** "
+                                 f"({len(_행q)}곳 · {' / '.join(_행q[:3])})")
                 # ⭐⭐⭐ QUANT-FIX-0929 검사 5 — **줄이 기호로 시작하면 안 된다**
                 _시작q = [z for z in (p[15].split(";") if len(p) > 15 and p[15] else [])
                           if z.strip()]

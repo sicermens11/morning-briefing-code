@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 r"""
 publish_pages.py — 만들어진 사이트를 GitHub Pages에 올린다 (고정 링크 · 항상 최신)
 
@@ -140,6 +140,11 @@ def main():
     ap.add_argument("--repo", default="morning-briefing")
     ap.add_argument("--owner", default=None, help="비우면 토큰 주인으로 잡는다")
     ap.add_argument("--dry-run", action="store_true")
+    # ⭐ 2026-09-29 — 게시 폴더에 **파일을 더** 올린다 (QUANT-ANSWER-0929 답 5 · 상태 화면 셋).
+    #    `--extra qt-buy.html=data/qt-buy.html` 처럼 여러 번 줄 수 있다.
+    #    ⚠️ 이름은 맨 윗단 파일 이름만 — 저장소 안 다른 자리를 덮어쓰지 못하게
+    ap.add_argument("--extra", action="append", default=[],
+                    metavar="이름=경로", help="같이 올릴 파일 (여러 번)")
     a = ap.parse_args()
 
     out = {"ok": False}
@@ -186,6 +191,25 @@ def main():
     files = [("index.html", html),
              ("robots.txt", ROBOTS.encode("utf-8")),
              (".nojekyll", b"")]
+    _늘 = {p for p, _ in files}
+    for _e in a.extra:
+        if "=" not in _e:
+            out["오류"] = f"--extra 는 이름=경로 꼴이어야 한다: {_e}"
+            print(json.dumps(out, ensure_ascii=False))
+            return 2
+        _이름, _길 = _e.split("=", 1)
+        _이름 = _이름.strip()
+        if (not _이름 or any(c in _이름 for c in "/\\") or ".." in _이름
+                or _이름 in _늘):
+            out["오류"] = f"--extra 이름이 안 된다(맨 윗단 파일 이름만 · 기본 셋 제외): {_이름}"
+            print(json.dumps(out, ensure_ascii=False))
+            return 2
+        if not os.path.exists(_길):
+            out["오류"] = f"--extra 파일이 없다: {_길}"
+            print(json.dumps(out, ensure_ascii=False))
+            return 2
+        with open(_길, "rb") as _f:
+            files.append((_이름, _f.read()))
 
     if a.dry_run:
         out.update(ok=True, dry_run=True,

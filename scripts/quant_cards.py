@@ -30,6 +30,9 @@ C = {
     "쪽": "#e8e3d8", "카드": "#f2efe8", "블록": "#ffffff",
     "먹": "#1c1813", "본": "#4b4740", "보": "#6b665c", "선": "#d5cec0", "금": "#8a7038",
     "빨": "#c8352b", "파": "#2050c8", "딱": "#f0e7d2", "경고": "#fbeeea",
+    # ⭐ QUANT-ANSWER-0929 ★ — 종목 상자 4행 표형 (정본 quant-box-source 맨 왼쪽 카드)
+    "줄선": "#ece5d6",   # 행 사이 가는 선 (상자 테두리 #d5cec0 보다 옅다)
+    "금진": "#8a6425",   # 행 라벨 · 문턱가 값 (금 #8a7038 보다 진하다)
 }
 _요일 = "월화수목금토일"
 
@@ -44,13 +47,13 @@ _요일 = "월화수목금토일"
 _한장에 = 4
 # ⭐ 상자가 무한정 길어지지 않게. 한 장에 1~2개만 남는 날 우스꽝스러워진다
 _상자최대 = 340
-# ⭐⭐⭐ 2026-09-29 (사용자 「상자 속 폰트 위치가 다른 곳이 있는 거 같은데? 통일해야돼」)
-#    줄1 두 줄의 **높이를 못 박는다.** 안 박으면 업종에 가운뎃점(「의료·정밀·광학」)이나
-#    숫자(「1차금속」)가 섞일 때 글꼴 여유가 달라져 줄 높이가 **69 <-> 63px** 로 갈렸고,
-#    그 6px 이 아래 줄을 통째로 밀어 줄2 가 84/91, 줄3 이 117/123 으로 어긋났다.
-#    글자는 안 깎는다 — **칸만** 고정한다
-_줄1윗 = 52    # 이름 40px 이 들어가는 줄
-_줄1아래 = 46  # 낙폭 38px 이 들어가는 줄
+# ⭐⭐⭐ **글자 계단** (QUANT-FIX-0929 E + ANSWER 답 4) — 이 파일은 이 단만 쓴다
+#    제목 68(1장) / 64(2~6장) · 부제 35 · 본문 31 · 라벨 26~28 ·
+#    보조·각주 24~25 · 큰 수치 38~40 · **30 = 종목 상자 값**(ANSWER 답 4 에서 추가)
+#    계단 밖으로 남긴 둘 (디자인이 「그대로」라고 답함):
+#      · 13px  — 카드 **밖** 「← 옆으로 넘겨서 보세요 →」 (화면 안내지 카드가 아니다)
+#      · 114px — 「0개」 카드의 큰 숫자 (일부러 크게 쓴 것)
+#    ⚠️ 옛 `_줄1윗`·`_줄1아래` 는 상자를 4행 표형으로 갈아 끼우며 **아무도 안 쓴다** — 치웠다
 
 # ⭐ **Q2 한 장에 담는 규칙 줄 수** (2026-09-29 · 실측)
 #    Q2 는 143px 넘쳤다 (속 1,420 / 보이는 1,277). 업종 줄이 압도적으로 길다
@@ -235,7 +238,12 @@ def _선택지(앞, 뒤):
     #    전에는 한 줄에 25px 로 숫자가 여섯이라 뜻이 안 읽혔다
     #    (`지금 40:60은 111.4억 · 낙폭 −8.9%. 30:70이면 149.3억 · −10.5%로 …`).
     #    ⚠️ 숫자는 그대로 `sell-options.json` 에서 읽는다 — 손으로 안 적는다
-    _말1 = (f"지금 비율({비(지금)}) · 11년에 {지금['돈억']:g}억 · "
+    # ⭐ QUANT-ANSWER-0929 답 6(b) — **기간 말을 뺐다.**
+    #    문서 초안은 「11년에」였는데 재보니 시뮬은 **10.5년**이고
+    #    (2016-05-19~2026-08-04 · 52.17배 · 연평균 45.77%),
+    #    `sell-options.json` 에는 **기간 칸 자체가 없다.**
+    #    자료에 없는 기간을 화면에 적지 않는다
+    _말1 = (f"지금 비율({비(지금)}) · {지금['돈억']:g}억 · "
             f"가장 크게 빠질 때 {낙(지금)}")
     _말2 = (f"{비(a)}로 바꾸면 · {a['돈억']:g}억 · {낙(a)} · "
             + ("더 벌고 더 흔들립니다" if a["돈억"] > 지금["돈억"]
@@ -334,133 +342,85 @@ def _딱지(x):
     return " · ".join(t)
 
 
-def 확정갭(x):
-    """상대갭은 08:55 확정 뒤에만 있다. 없으면 안 그린다"""
-    return x.get("상대갭") is not None
+def _행(라1, 값1, 라2, 값2, 색1=None, 색2=None):
+    r"""종목 상자의 한 행 — [라벨 130px][값] x 2 (정본 C 카드).
 
-
-def _딱지칩(x):
-    """걸린 규칙 칩 — **이름 줄, 코드 바로 뒤** (QUANT-FIX-0929 D2).
-
-    전에는 수치 줄 맨 끝(`margin-left:auto`)이라 이름과 멀어 어느 종목 딱지인지 약했다.
+    라벨 25px/700 금색 · 값 30px/800. **전부 nowrap** — 한 행은 한 줄이다.
     """
-    딱 = _딱지(x)
-    if not 딱:
-        return ""
-    return (f'<span style="flex:none;font-size:26px;font-weight:700;color:{C["금"]};'
-            f'background:{C["딱"]};border-radius:6px;padding:3px 11px;'
-            f'white-space:nowrap">{_esc(딱)}</span>')
-
-
-def _줄1(x, 업종, 확정):
-    r"""첫 줄 — 이름 · 업종 · 코드 · 딱지 ……… 20일 낙폭 (QUANT-FIX-0929 D1·D2).
-
-    ⭐ 20일 낙폭이 **이름과 같은 줄** 오른쪽 끝에 온다. 전에는 상대갭과 묶여
-       둘째 줄에 혼자 떠 있어 어느 종목 값인지 약했다.
-       상대갭은 셋째 줄(문턱가 줄) 보조 자리로 내렸다 (`_줄3`).
-    ⚠️ `min-height` 다 — 고정 높이가 아니다. 이름·업종이 아주 긴 종목이 오면
-       고정 높이는 글자를 칸 밖으로 밀어낸다 [[layout-never-cuts-content]].
-       왼쪽 묶음에 `flex-wrap:wrap` 을 남겨 밖으로 나가지 않게 한다
-       (2026-09-29 아침 「20일 낙폭이 박스 바깥으로」 나갔던 그 방어)
-    """
-    낙 = x.get("20일낙폭")
-    낙글 = _esc(_음(낙, 1)) if 낙 is not None else "—"
-    _왼 = (f'<div style="flex:1;min-width:0;display:flex;align-items:baseline;'
-           f'gap:16px;flex-wrap:wrap">'
-           f'<span style="flex:none;font-size:40px;font-weight:700;letter-spacing:-.02em;'
-           f'white-space:nowrap">{_esc(x.get("이름", ""))}</span>'
-           + (f'<span style="flex:none;font-size:31px;font-weight:700;color:{C["본"]};'
-              f'white-space:nowrap">{_esc(업종)}</span>' if 업종 else "")
-           + f'<span style="flex:none;font-size:27px;color:{C["보"]};white-space:nowrap">'
-             f'{_esc(x.get("종목코드", ""))}</span>'
-           + _딱지칩(x)
-           + '</div>')
-    # ⭐ 시안(2026-09-17) · **낙폭에서 색을 뺀다.** 1장 낙폭 −9.6% 는 빨강(좋은 신호)인데
-    #    4장 손실 −42.0% 는 파랑이라, 같은 마이너스가 두 색이었다.
-    #    빨강·파랑은 **등락·수익률에만** 남긴다 — 낙폭은 굵기로만 눈에 띄게
-    _오른 = (f'<span style="flex:none;font-size:28px;color:{C["보"]};white-space:nowrap">'
-             f'20일 낙폭 <b style="font-weight:800;font-size:38px;'
-             f'color:{C["먹"]}">{낙글}</b></span>')
-    return (f'<div style="min-height:{_줄1윗}px;display:flex;align-items:baseline;'
-            f'gap:16px">{_왼}{_오른}</div>')
-
-
-def _줄2(x):
-    def 칸(라, 값):
-        return (f'<span style="flex:none;font-size:27px;color:{C["보"]};white-space:nowrap">'
-                f'{라} <b style="font-weight:800;font-size:31px;color:{C["먹"]}">{값}</b></span>')
-    잉 = x.get("잉여금비율")
-    부 = x.get("부채비율")
-    칸들 = [칸("전날 종가", f'{x.get("어제종가", 0):,}원'),
-           칸("시총", f'{x.get("시총억", 0):,}억')]
-    if 잉 is not None:
-        칸들.append(칸("이익", f"{잉:.0f}%"))
-    if 부 is not None:
-        칸들.append(칸("빚", f"{부:.0f}%"))
-    # ⭐ QUANT-FIX-0929 D2 — 딱지는 **이름 줄**로 올라갔다 (`_딱지칩`)
-    return ('<div style="display:flex;align-items:baseline;gap:18px">'
-            + "".join(칸들) + '</div>')
-
-
-def _줄3(x, 상태):
-    r"""셋째 줄 — 문턱가 · 보조말 · **상대갭** · (사는 날만) 지정가 주문 칩.
-
-    ⭐ QUANT-FIX-0929 D1 — 상대갭이 여기 **보조 자리**로 내려왔다
-       (전에는 낙폭과 묶여 둘째 줄에 혼자 떠 있었다).
-    ⭐ QUANT-FIX-0929 D3 — **「안 산다」 칩을 뺐다.** 머리 배지 1번 + 블록마다 4번 =
-       한 장에 5번 나왔다. 머리 배지와 위 라벨 「사지 않습니다」로 충분하다.
-       **사는 날만** `지정가 주문` 칩을 둔다.
-    ⭐ QUANT-FIX-0929 D4 — 보조말은 25px (카드 최소 글자 24px 을 지킨다).
-    """
-    갭 = ""
-    if 확정갭(x):
-        갭 = (f'<span style="flex:none;font-size:25px;color:{C["보"]};'
-              f'white-space:nowrap">상대갭 {_esc(_음(x["상대갭"], 2, "%p"))}</span>')
-    칩 = ""
-    if 상태 == "pre":
-        a, b = R.매수범위(x.get("어제종가", 0) or 0)
-        라, 값 = "매수 적정 범위", f"{a:,}~{b:,}원"
-        보 = f"전날 종가 −{abs(R.상대갭문턱):g}%p"
-    else:
-        문 = x.get("문턱가")
-        값 = f"{문:,}원" if 문 else "—"
-        라 = "문턱가 · 이 값 아래여야 산다"
-        if 상태 == "buy":
-            주 = x.get("주문가")
-            보 = f"주문가 {주:,}원" if 주 else "주문가 —"
-            칩 = (f'<span style="flex:none;font-size:28px;font-weight:700;'
-                  f'color:{C["빨"]}">지정가 주문</span>')
-        else:
-            보 = "넘겨서 안 샀습니다" if 문 else "예상체결가를 못 받았습니다"
+    def _칸(라, 값, 색):
+        return (f'<span style="flex:none;width:130px;font-size:25px;font-weight:700;'
+                f'color:{C["금진"]}">{라}</span>'
+                f'<span style="flex:1;min-width:0;font-size:30px;font-weight:800;'
+                f'letter-spacing:-.02em;color:{색 or C["먹"]}">{값}</span>')
     return (f'<div style="display:flex;align-items:baseline;gap:12px;'
-            f'border-top:1px solid {C["선"]};padding-top:11px">'
-            f'<span style="flex:none;font-size:27px;font-weight:700;color:{C["금"]};'
-            f'white-space:nowrap">{라}</span>'
-            f'<span style="flex:none;font-size:38px;font-weight:800;letter-spacing:-.03em;'
-            f'color:{C["먹"]};white-space:nowrap">{_esc(값)}</span>'
-            f'<span style="flex:1;min-width:0;font-size:25px;color:{C["보"]};'
-            f'white-space:nowrap">{_esc(보)}</span>'
-            + 갭 + 칩 + '</div>')
+            f'white-space:nowrap;padding:8px 0;border-top:1px solid {C["줄선"]}">'
+            + _칸(라1, 값1, 색1) + _칸(라2, 값2, 색2) + '</div>')
 
 
 def _종목블록(x, 업종, 상태, 확정):
-    r"""종목 상자 하나.
+    r"""종목 상자 — **4행 표형** (QUANT-ANSWER-0929 ★).
 
-    ⭐⭐⭐ 2026-09-29 (사용자 「**종목 상자는 다 크기가 같아야 해.**
-       상자마다 크기가 다르면 그것도 아마추어 같아」)
-       전에는 내용 높이대로 커서 업종 딱지가 줄바꿈하는 종목만 상자가 컸다
-       (케이씨텍 233px vs 웅진 219px, 실측).
-       ⇒ `flex:1` 로 **남는 자리를 고루 나눈다.** 한 장 안 상자가 전부 같아지고
-         아래에 빈 자리도 안 남는다 (사용자 「공간이 비어보이면 아마추어 같아」).
-       ⚠️ `min-height:0` 이 없으면 flex 항목이 내용 밑으로 안 줄어든다
-       ⚠️ 속은 `space-between` — 상자가 내용보다 커지면 세 줄이 고루 퍼진다
+    정본: `quant-box-source.dc.html` 맨 왼쪽 카드 「C · 라벨 강조 (금색 굵게)」.
+    한 행에 **한 가지 뜻**만 둔다. 전에는 3줄인데 맨 위 줄이 넘쳐 줄바꿈됐다.
+
+    ⚠️ 상자 안 「넘겨서 안 샀습니다」·「안 산다」는 **넣지 않는다** —
+       머리 배지와 목록 라벨이 이미 말한다 (한 장에 다섯 번 나오던 것)
+    ⚠️ **종목코드가 빠졌다.** 정본 1행에도 답 문서 1행에도 코드가 없다.
+       내용이 하나 사라지는 것이지만 둘 다 같은 말이라 그대로 따랐다
+    ⚠️ 낙폭에 **색이 다시 들어온다** — 정본이 음수 파랑·양수 빨강이다
     """
-    return (f'<div data-block="1" style="background:{C["블록"]};border:1px solid {C["선"]};'
-            # ⭐ 2026-09-29 (사용자 「너무 꽉차 있다」) — 안쪽 여백 14→20 · 줄 사이 10→14
-            f'border-radius:16px;padding:20px 24px;display:flex;flex-direction:column;'
+    # ── 1행 — 종목명 · 업종 ……… (사는 날) 지정가 주문 칩 · 딱지 ──
+    _칩들 = ""
+    if 상태 == "buy":
+        _칩들 += (f'<span style="flex:none;font-size:24px;font-weight:700;color:#ffffff;'
+                  f'background:{C["빨"]};border-radius:6px;padding:3px 12px">'
+                  f'지정가 주문</span>')
+    _딱 = _딱지(x)
+    if _딱:
+        _칩들 += (f'<span style="flex:none;font-size:24px;font-weight:700;'
+                  f'color:{C["금"]};background:{C["딱"]};border-radius:6px;'
+                  f'padding:3px 12px">{_esc(_딱)}</span>')
+    _1행 = (f'<div style="display:flex;align-items:center;gap:14px;white-space:nowrap;'
+            f'padding-bottom:10px">'
+            f'<span style="font-size:38px;font-weight:800;letter-spacing:-.03em">'
+            f'{_esc(x.get("이름", ""))}</span>'
+            + (f'<span style="font-size:26px;font-weight:700;color:{C["본"]}">'
+               f'{_esc(업종)}</span>' if 업종 else "")
+            + '<span style="flex:1"></span>' + _칩들 + '</div>')
+
+    # ── 2행 — 20일 낙폭 │ 상대갭 ──
+    _낙 = x.get("20일낙폭")
+    _낙글 = _esc(_음(_낙, 1)) if _낙 is not None else "—"
+    _낙색 = None if _낙 is None else (C["빨"] if _낙 >= 0 else C["파"])
+    if x.get("상대갭") is not None:
+        _갭글, _갭색 = _esc(_음(x["상대갭"], 2, "%p")), None
+    else:
+        # 08:00 후보 때는 상대갭이 아직 없다 (08:55 에 정해진다)
+        _갭글 = (f'<span style="font-size:24px;font-weight:700;color:{C["보"]}">'
+                 f'{_esc(R.판정시각)} 확정 뒤</span>')
+        _갭색 = None
+    _2행 = _행("20일 낙폭", _낙글, "상대갭", _갭글, _낙색, _갭색)
+
+    # ── 3행 — 전날 종가 │ 시가총액 ──
+    _3행 = _행("전날 종가", f'{x.get("어제종가", 0):,}원',
+               "시가총액", f'{x.get("시총억", 0):,}억')
+
+    # ── 4행 — 문턱가(또는 매수 적정 범위) │ 이익 · 빚 ──
+    if 상태 == "pre":
+        _a, _b = R.매수범위(x.get("어제종가", 0) or 0)
+        _라4, _값4 = "매수 적정 범위", f"{_a:,}~{_b:,}원"
+    else:
+        _문 = x.get("문턱가")
+        _라4, _값4 = "문턱가", (f"{_문:,}원" if _문 else "—")
+    _잉, _부 = x.get("잉여금비율"), x.get("부채비율")
+    _재 = " · ".join(f"{v:.0f}%" for v in (_잉, _부) if v is not None) or "—"
+    _4행 = _행(_라4, _esc(_값4), "이익 · 빚", _esc(_재), C["금진"], None)
+
+    return (f'<div data-block="1" style="background:{C["블록"]};'
+            f'border:1px solid {C["선"]};border-radius:16px;padding:16px 24px;'
+            f'display:flex;flex-direction:column;'
             f'flex:1;min-height:0;max-height:{_상자최대}px;'
-            f'justify-content:space-between;'
-            f'gap:14px">{_줄1(x, 업종, 확정)}{_줄2(x)}{_줄3(x, 상태)}</div>')
+            f'justify-content:space-between">{_1행}{_2행}{_3행}{_4행}</div>')
 
 
 # ⭐ 2026-09-23 (사용자 「고쳐」) — 갈래 수를 **켜진 것에서 센다.** 「넷 중 하나」가 손으로 적혀 있어
@@ -783,9 +743,12 @@ def _장2():
     #    ⚠️ 「변동성·자사주」는 28px 로 176px 이라 한 줄에 안 들어간다 —
     #       **글자를 줄이지 않고** 칩 안에서 두 줄로 접는다. 폭이 고정이라 x 는 같다
     #       [[layout-never-cuts-content]]
-    칩 = (f'flex:none;width:120px;box-sizing:border-box;text-align:center;'
-         f'font-size:28px;font-weight:700;line-height:1.3;'
-         f'white-space:normal;word-break:keep-all;border-radius:7px;'
+    # ⭐⭐⭐ QUANT-ANSWER-0929 답 3 — 칩 폭 **180px 한 값.**
+    #    120px 으로는 「변동성·자사주」(28px 로 약 176px)가 한 줄에 안 들어가
+    #    두 줄로 접혔다. 디자인 답: **두 줄 칩은 쓰지 않는다. 180 으로 올려라.**
+    #    라벨 문구는 안 바꾼다. 폭이 한 값이라 본문 시작 x 가 전부 같다
+    칩 = (f'flex:none;width:180px;box-sizing:border-box;text-align:center;'
+         f'font-size:28px;font-weight:700;white-space:nowrap;border-radius:7px;'
          f'padding:5px 8px;color:{C["금"]};background:{C["딱"]}')
     # ⚠️ 아래 `_한줄짜리` 와 **같은 것**을 두 벌 써 놓으면 한쪽만 고치고 갈라진다.
     #    첫 장도 `_한줄짜리` 를 쓴다 (정의가 아래라 쓰는 자리는 쪽 나누기 뒤다)
