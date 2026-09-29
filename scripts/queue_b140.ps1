@@ -112,19 +112,19 @@ if ($LASTEXITCODE -ne 0) { 적기 "❌ 소형 규칙 오염 조사에서 걸렸�
 $chk = & $py "scripts\check_lab_ready.py" 2>&1
 $chk | Select-Object -Last 3 | ForEach-Object { 적기 "    $_" }
 if ($LASTEXITCODE -ne 0) { 적기 "❌ 실행 전 검사에서 걸렸다 — 판을 띄우지 않는다"; exit 1 }
-적기 "[B140] BUYAT2+BUYAT — 사는 값(시가·종가) + 거래 비용 다시 - 시작"
+적기 "[B140] CASH+BUYAT2+BUYAT — 현금 이자 + 사는 값(시가·종가) + 거래 비용 다시 - 시작"
 $env:BASE_GAP = "표본만+실전표본"
 $env:BASE_RELGAP = "-3.5"
 $env:BASE_SELL = "0.4,15,40 / 0.6,40,90"
 $env:BASE_PICKS = "120"
 $env:SIZE_HI = "999999"
-$env:ONLY = "BUYAT2+BUYAT"
+$env:ONLY = "CASH+BUYAT2+BUYAT"
 
-$env:LAB_OUT = "2026-09-29_B140_사는값_거래비용.txt"
+$env:LAB_OUT = "2026-09-29_B140_이자_사는값_거래비용.txt"
 try { & $py "scripts\gate7_lab.py" 2>&1 | Select-Object -Last 6 | ForEach-Object { 적기 "    $_" } }
 catch { 적기 "⚠️ [B140] 터졌다: $($_.Exception.Message)" }
 foreach ($k in "TIMEMAP", "TIMEMAP", "BASE_GAP", "BASE_RELGAP", "BASE_SELL", "BASE_PICKS", "SIZE_HI", "VANISH_KIND", "OPENFIN", "SIZE_LO", "SIZE_HI2", "LAB_OUT", "ONLY") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
-$밖 = Join-Path "data\_labs" "2026-09-29_B140_사는값_거래비용.txt"
+$밖 = Join-Path "data\_labs" "2026-09-29_B140_이자_사는값_거래비용.txt"
 if (Test-Path $밖) { 적기 "[B140] 끝 — $('{0:N0}' -f (Get-Item $밖).Length) B" } else { 적기 "⚠️ [B140] 결과 파일이 없다" }
 메모리적기 "판 끝난 뒤"
 # ⭐ 2026-09-24 — 제 로그를 제가 읽는다. 터졌으면 깃발을 세워 **뒤 판을 멈춘다**
