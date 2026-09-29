@@ -33,6 +33,13 @@ C = {
 }
 _요일 = "월화수목금토일"
 
+# ⭐⭐ **한 장에 담는 종목 수** (2026-09-29 · 크롬으로 실측)
+#    블록에 숨 자리를 넣은 뒤 재보니
+#      3개 ✅ 여유 · 4개 +42px(하한 90 에 48 모자람) · 5개 **-205px** · 8개 -644px
+#    ⇒ **3개**. 그보다 많으면 장을 늘린다 (글을 줄이지 않는다)
+#    ⚠️ 2026-09-29 아침에 6개를 그려 **190px 가 잘렸다.** 조판 검사는 「통과」라고 했다
+_한장에 = 3
+
 
 def _esc(s):
     return html.escape("" if s is None else str(s), quote=True)
@@ -502,17 +509,32 @@ def _장1(q, 보유):
         _악 = _악재줄()
         if _악:
             부.append(_악)
-    else:
-        블록들 = "".join(_종목블록(x, (업.get(x.get("종목코드", "")) or {}).get("업종명")
-                              or (x.get("섹터") or ""), 상태, 확정) for x in 목록)
-        부.append(f'<div style="display:flex;flex-direction:column;gap:12px">'
-                 f'<span style="font-size:32px;font-weight:700;color:{라벨색}">{_esc(라벨)}</span>'
-                 f'{블록들}</div>')
-    부.append(f'<div style="font-size:30px;line-height:1.55;color:{C["보"]}">{_esc(각주)}</div>')
+        부.append(f'<div style="font-size:30px;line-height:1.55;color:{C["보"]}">'
+                 f'{_esc(각주)}</div>')
+        머리 = _머리(킥, "1 / %d", _esc(제), 크기=68, 배지=배, 배지색=배색, 틈=24, 밑=32)
+        return [_카드("퀀트1 종목", 머리, "".join(부), 패딩="12px 18px",
+                      틈=40 if 상태 == "none" else None)]
 
-    머리 = _머리(킥, "1 / 4", _esc(제), 크기=68, 배지=배, 배지색=배색, 틈=24, 밑=32)
-    return _카드("퀀트1 종목", 머리, "".join(부), 패딩="12px 18px",
-              틈=40 if 상태 == "none" else None)
+    # ⭐⭐ 2026-09-29 — **3개씩 끊어 여러 장으로** (사용자 「3개씩으로 하자」)
+    #    한 장에 4개부터 잘린다 (실측). 글을 줄이는 대신 **장을 늘린다**
+    _쪽들 = [목록[_i:_i + _한장에] for _i in range(0, len(목록), _한장에)] or [[]]
+    _장들 = []
+    for _k, _쪽 in enumerate(_쪽들):
+        블록들 = "".join(_종목블록(x, (업.get(x.get("종목코드", "")) or {}).get("업종명")
+                              or (x.get("섹터") or ""), 상태, 확정) for x in _쪽)
+        _라 = 라벨 if _k == 0 else f"{라벨} (이어서 {_k + 1}/{len(_쪽들)})"
+        _부 = list(부) if _k == 0 else []
+        _부.append(f'<div style="display:flex;flex-direction:column;gap:12px">'
+                   f'<span style="font-size:32px;font-weight:700;color:{라벨색}">'
+                   f'{_esc(_라)}</span>{블록들}</div>')
+        if _k == len(_쪽들) - 1:
+            _부.append(f'<div style="font-size:30px;line-height:1.55;color:{C["보"]}">'
+                       f'{_esc(각주)}</div>')
+        _머 = _머리(킥, "%d / %%d" % (_k + 1), _esc(제) if _k == 0 else _esc(제) + " (이어서)",
+                   크기=68, 배지=(배 if _k == 0 else None), 배지색=배색, 틈=24, 밑=32)
+        _장들.append(_카드(f"퀀트1 종목{'' if _k == 0 else _k + 1}", _머,
+                        "".join(_부), 패딩="12px 18px"))
+    return _장들
 
 
 # ── 2장 · 어떻게 뽑았나 (딱지 한 줄형) ───────────────────────────
@@ -687,6 +709,24 @@ def _장4():
     return _카드("퀀트4 성적표", _머리("TRACK RECORD", "4 / 4", "과거에 어땠나", 부제=_esc(부제), 틈=18, 밑=28), 몸)
 
 
+def _쪽번호매기기(장들):
+    r"""`1 / 4` 를 **전체 장 수**에 맞춰 다시 매긴다 (2026-09-29).
+
+    1장이 여러 쪽으로 늘면 뒤 장의 번호도 밀린다. 손으로 적으면 어긋난다
+    ([[hand-written-numbers-freeze]]) — 여기서 한 번에 센다
+    """
+    _n = len(장들)
+    _밖 = []
+    for _i, _h in enumerate(장들, 1):
+        if "%d / %d" in _h:
+            _h = _h.replace("%d / %d", f"{_i} / {_n}")
+        _h = _h.replace("%d / %%d" % _i, f"{_i} / {_n}")
+        for _옛 in ("1 / 4", "2 / 4", "3 / 4", "4 / 4"):
+            _h = _h.replace(_옛, f"{_i} / {_n}")
+        _밖.append(_h)
+    return "".join(_밖)
+
+
 # ── 화면 ────────────────────────────────────────────────────────
 def quant_view(q, 보유=None):
     """`build_site.quant_view` 가 여기로 넘긴다. `q` 는 forward-log 마지막 줄, `보유` 는 `_보유()`."""
@@ -696,7 +736,8 @@ def quant_view(q, 보유=None):
             f'<button class="tbtn" data-home type="button">← 처음</button>'
             f'<span class="now">퀀트 후보</span></div></div>'
             f'<div class="rail qrail" data-active="true">'
-            + _장1(q, 보유) + _장2() + _장3() + _장4()
+            # ⭐ 2026-09-29 — _장1 이 **여러 장**을 돌려준다. 쪽 번호를 전체에 맞춰 다시 매긴다
+            + _쪽번호매기기(_장1(q, 보유) + [_장2(), _장3(), _장4()])
             + '</div>'
             f'<div style="text-align:center;font-size:13px;color:{C["보"]};padding:0 0 30px">'
             f'← 옆으로 넘겨서 보세요 →</div></section>')
