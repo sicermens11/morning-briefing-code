@@ -264,6 +264,19 @@ setTimeout(function(){
        if(넘>1) _글넘침.push((el.textContent||"").trim().slice(0,14)+":"+넘+"px");
      });
    }
+   /* ⭐ ANSWER-0929-4 ⑧ — 종목 상자 장의 **목록 라벨 · 첫 상자 윗변 · 마지막 상자 아랫변** (1080 기준) */
+   var _자리값="";
+   (function(){
+     var 상=s.querySelectorAll('div[data-block="1"]');
+     if(!상.length) return;
+     var k=sr.width/1080;
+     var 무리=상[0].parentElement && 상[0].parentElement.parentElement;
+     var 라=무리 && 무리.firstElementChild;
+     var r0=라?라.getBoundingClientRect().top:0;
+     _자리값=[Math.round((r0-sr.top)/k),
+              Math.round((상[0].getBoundingClientRect().top-sr.top)/k),
+              Math.round((상[상.length-1].getBoundingClientRect().bottom-sr.top)/k)].join("/");
+   })();
    var _나쁜시작=[];
    if((s.dataset.label||"").indexOf("퀀트")===0){
      var _막={}, _막n=0;
@@ -317,7 +330,9 @@ setTimeout(function(){
                return String(Math.round(sr.bottom-끝));
              })(),
              _본문넘침, _나쁜시작.join(";"), _행실패.join(";"),
-             _글넘침.join(";")].join("|"));
+             _글넘침.join(";"),
+             (_bd && _bd.dataset && _bd.dataset.align) ? 1 : 0,
+             _자리값].join("|"));
   });
   document.title="R::"+out.join("@@");
  },600);
@@ -714,8 +729,14 @@ def check(cards_path, site_path=None):
                 _갭q = [int(z) for z in (p[9].split(",") if len(p) > 9 and p[9] else [])
                         if z.lstrip("-").isdigit()]
                 _상자장 = bool(len(p) > 13 and p[13].lstrip("-").isdigit())
-                _기대 = 40 if _상자장 else 56
-                _틀 = [g for g in _갭q if abs(g - _기대) > 2]
+                _정렬됨 = len(p) > 18 and p[18] == "1"
+                # ⭐ ANSWER-0929-4 — 채움 70% 이상(정렬 안 밝힌 5·6장)은 space-between · **≥ 20**
+                if not _정렬됨:
+                    _틀 = [g for g in _갭q if g < 20]
+                    _기대 = "≥20"
+                else:
+                    _기대 = 40 if _상자장 else 56
+                    _틀 = [g for g in _갭q if abs(g - _기대) > 2]
                 if _틀:
                     notes.append(f"🔴 {label}: **항목 사이가 {_기대}px 가 아니다** "
                                  f"({', '.join(map(str, _틀[:4]))}px)")

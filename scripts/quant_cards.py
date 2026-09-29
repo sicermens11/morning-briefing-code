@@ -268,13 +268,18 @@ def _킥커(글, 쪽):
             f'{쪽}</span></div>')
 
 
-def _머리(킥커, 쪽, 제목, 크기=64, 부제=None, 배지=None, 배지색=None, 틈=20, 밑=30):
+def _머리(킥커, 쪽, 제목, 크기=64, 부제=None, 배지=None, 배지색=None, 틈=20, 밑=30, 제목높이=None):
     제 = (f'<span style="flex:1;min-width:0;font-size:{크기}px;font-weight:800;'
           f'line-height:1.2;letter-spacing:-.045em">{제목}</span>')
     if 배지:
         제 = (f'<div style="display:flex;align-items:flex-end;gap:20px">{제}'
               f'<span style="flex:none;font-size:28px;font-weight:700;color:{배지색};'
               f'white-space:nowrap;padding-bottom:10px">{_esc(배지)}</span></div>')
+    # ⭐ ANSWER-0929-4 — 여러 장을 **같은 높이로** 맞출 때 제목 줄 높이를 고정한다
+    #    (1장 68px · 2장 64px 이라 그대로면 머리가 약 5px 다르다)
+    if 제목높이:
+        제 = (f'<div style="height:{제목높이}px;display:flex;flex-direction:column;'
+              f'justify-content:flex-end">{제}</div>')
     부 = (f'<span style="font-size:35px;line-height:1.5;color:{C["보"]}">{부제}</span>'
           if 부제 else "")
     return (f'<div style="flex:none;display:flex;flex-direction:column;gap:{틈}px;'
@@ -649,11 +654,33 @@ def _장1(q, 보유):
         _남 -= _몫
     _쪽들 = _쪽들 or [[]]
     _장들 = []
+    # ⭐⭐⭐ ANSWER-0929-4 — **1·2장 위치 맞추기.** 여러 장이면 쪽마다 「리드 칸」에 넣을 글:
+    #    1장 = 알림 + 리드 · 마지막 장 = **원래 맨 아래 각주**(1장 리드와 같은 글꼴로) · 사이 장 = 없음.
+    #    **모든 장의 리드 칸에 이 글들을 겹쳐 넣고 제 것만 보이게** 한다 → 칸 높이가 저절로
+    #    긴 쪽에 맞아 목록 라벨·첫 상자·마지막 상자가 두 장에서 같은 높이가 된다
+    _여러 = len(_쪽들) > 1
+    _리드글 = []
+    if _여러:
+        for _k0 in range(len(_쪽들)):
+            if _k0 == 0:
+                _리드글.append("".join(부))
+            elif _k0 == len(_쪽들) - 1:
+                _리드글.append(_본문(_esc(각주), 35))
+            else:
+                _리드글.append("")
+
+    def _리드칸(보일):
+        return ('<div style="flex:none;display:grid">'
+                + "".join(f'<div style="grid-area:1/1;display:flex;flex-direction:column;gap:40px;'
+                          f'visibility:{"visible" if _i == 보일 else "hidden"}">{_g}</div>'
+                          for _i, _g in enumerate(_리드글))
+                + '</div>')
+
     for _k, _쪽 in enumerate(_쪽들):
         블록들 = "".join(_종목블록(x, (업.get(x.get("종목코드", "")) or {}).get("업종명")
                               or (x.get("섹터") or ""), 상태, 확정) for x in _쪽)
         _라 = 라벨 if _k == 0 else f"{라벨} (이어서 {_k + 1}/{len(_쪽들)})"
-        _부 = list(부) if _k == 0 else []
+        _부 = [_리드칸(_k)] if _여러 else (list(부) if _k == 0 else [])
         # ⭐⭐⭐ 상자 묶음이 **남는 자리를 다 쓴다** (flex:1). 라벨·각주는 제 높이만.
         #    이러면 아래에 빈 자리가 안 남고, 상자들이 그 자리를 똑같이 나눠 갖는다
         _부.append(f'<div style="flex:1;min-height:0;display:flex;'
@@ -662,15 +689,16 @@ def _장1(q, 보유):
                    f'{_esc(_라)}</span>'
                    f'<div style="flex:1;min-height:0;display:flex;flex-direction:column;'
                    f'gap:14px">{블록들}</div></div>')
-        if _k == len(_쪽들) - 1:
-            # ⭐ 각주는 마지막 장 맨 아래. `margin-top:auto` 는 **뺐다** —
-            #    이제 위의 상자 묶음이 자리를 다 먹으므로 저절로 바닥에 온다
+        if _k == len(_쪽들) - 1 and not _여러:
+            # ⭐ 한 장뿐인 날만 맨 아래 각주. 여러 장이면 마지막 장 **리드 칸**으로 올라갔다
+            #    (ANSWER-0929-4 — 같은 문구를 두 번 안 쓴다)
             _부.append(f'<div style="flex:none;font-size:25px;line-height:1.55;'
                        f'color:{C["보"]}">{_esc(각주)}</div>')
         # ⭐ E — 제목은 **1장만 68**, 이어지는 장은 64 (정본 계단)
         _머 = _머리(킥, _쪽표, _esc(제) if _k == 0 else _esc(제) + " (이어서)",
                    크기=68 if _k == 0 else 64,
-                   배지=(배 if _k == 0 else None), 배지색=배색, 틈=24, 밑=32)
+                   배지=(배 if _k == 0 else None), 배지색=배색, 틈=24, 밑=32,
+                   제목높이=(82 if _여러 else None))   # ⭐ 68px x 1.2 — 두 장 머리 같게
         _장들.append(_카드(f"퀀트1 종목{'' if _k == 0 else _k + 1}", _머,
                         "".join(_부), 패딩="12px 18px", 정렬="flex-start", 틈=40))   # ★ 상자 장 40
     return _장들

@@ -1451,7 +1451,10 @@ PAGE_JS = """<script>
      if(_s&&(_s.dataset.label||"").indexOf("01")===0&&el.children.length>=3)
        성김=false;
      el.style.justifyContent = 성김 ? 'flex-start' : 'space-between';
-     el.style.gap = 성김 ? '60px' : '';
+     /* ⭐ ANSWER-0929-4 — **퀀트 장**은 70% 미만이면 ★ 와 같은 **56px** (브리핑 카드는 60 그대로).
+        규칙: 채움 70% 이상 → space-between / 70% 미만 → 위로 붙이고 56 고정 */
+     var _퀀=(_s&&(_s.dataset.label||"").indexOf("퀀트")===0);
+     el.style.gap = 성김 ? (_퀀 ? '56px' : '60px') : '';
    }
  }
  채움();
