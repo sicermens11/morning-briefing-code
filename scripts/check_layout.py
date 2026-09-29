@@ -249,6 +249,21 @@ setTimeout(function(){
        });
      });
    }
+   /* ⭐⭐⭐ QUANT-FIX-0929-2 ① — **모든 글자 요소**의 넘침.
+      6장 「283,000원」이 칸을 12px 넘었는데 옛 ① 은 overflow:hidden 안만 봐서 못 잡았다.
+      글자를 직접 품은 요소마다 scrollWidth > clientWidth 를 본다 (인라인·폭 0 은 뺀다) */
+   var _글넘침=[];
+   if((s.dataset.label||"").indexOf("퀀트")===0){
+     s.querySelectorAll("*").forEach(function(el){
+       if(!el.clientWidth) return;
+       var 글=false;
+       for(var c=el.firstChild;c;c=c.nextSibling)
+         if(c.nodeType===3&&(c.nodeValue||"").trim()){글=true;break;}
+       if(!글) return;
+       var 넘=el.scrollWidth-el.clientWidth;
+       if(넘>1) _글넘침.push((el.textContent||"").trim().slice(0,14)+":"+넘+"px");
+     });
+   }
    var _나쁜시작=[];
    if((s.dataset.label||"").indexOf("퀀트")===0){
      var _막={}, _막n=0;
@@ -269,7 +284,11 @@ setTimeout(function(){
          if(_r3.height<3) continue;
          var _top=Math.round(_r3.top);
          var _앞=_막[_blk._zzid];
-         if(_앞===undefined||_top>_앞+2){
+         /* ⭐ QUANT-FIX-0929-2 — **덩이의 첫 줄은 뺀다.** ⑤ 는 「줄바꿈 때문에 기호가
+            줄 앞에 온 것」을 잡는다. 첫 줄은 줄바꿈이 아니다 — 문서가 준 각주
+            「↑ 이 값 이상 · …」 처럼 **일부러 기호로 여는 글**을 실패로 잡았다 */
+         if(_앞===undefined){ _막[_blk._zzid]=_top; }
+         else if(_top>_앞+2){
            if("\u00b7)\u2191\u2193".indexOf(_ch)>=0)
              _나쁜시작.push(_ch+_t3.slice(_i3,_i3+12).replace(/\s+/g," ").trim());
            _막[_blk._zzid]=_top;
@@ -297,7 +316,8 @@ setTimeout(function(){
                var 끝=블[블.length-1].getBoundingClientRect().bottom;
                return String(Math.round(sr.bottom-끝));
              })(),
-             _본문넘침, _나쁜시작.join(";"), _행실패.join(";")].join("|"));
+             _본문넘침, _나쁜시작.join(";"), _행실패.join(";"),
+             _글넘침.join(";")].join("|"));
   });
   document.title="R::"+out.join("@@");
  },600);
@@ -696,6 +716,17 @@ def check(cards_path, site_path=None):
                 if _갭q and max(_갭q) > 80:
                     notes.append(f"🔴 {label}: **항목 사이가 {max(_갭q)}px 벌어졌다** "
                                  f"(한계 80) — 내용 적은 장이 벌어진 구멍이다")
+                # ⭐⭐⭐ QUANT-FIX-0929-2 검사 ① — **모든 글자 요소**의 넘침
+                _글q = [z for z in (p[17].split(";") if len(p) > 17 and p[17] else [])
+                        if z.strip()]
+                if _글q:
+                    notes.append(f"🔴 {label}: **글자가 칸을 넘는다** ({len(_글q)}곳 · "
+                                 f"{' / '.join(_글q[:3])}) — 옆 칸으로 삐져나가 겹친다")
+                # ⭐⭐⭐ QUANT-FIX-0929-2 검사 ⑦ — **아래 여백 <= 200px**
+                _아q = int(p[2]) if len(p) > 2 and p[2].lstrip("-").isdigit() else None
+                if _아q is not None and _아q > 200:
+                    notes.append(f"🔴 {label}: **아래가 {_아q}px 비었다** (한계 200) "
+                                 f"— 절반 가까이 빈 장이다")
                 # ⭐⭐⭐ QUANT-ANSWER-0929 검사 6 — **종목 상자 네 행 모두 한 줄**
                 _행q = [z for z in (p[16].split(";") if len(p) > 16 and p[16] else [])
                         if z.strip()]

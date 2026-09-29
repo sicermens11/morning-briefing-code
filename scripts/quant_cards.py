@@ -347,14 +347,21 @@ def _행(라1, 값1, 라2, 값2, 색1=None, 색2=None):
 
     라벨 25px/700 금색 · 값 30px/800. **전부 nowrap** — 한 행은 한 줄이다.
     """
-    def _칸(라, 값, 색):
-        return (f'<span style="flex:none;width:130px;font-size:25px;font-weight:700;'
+    # ⭐ QUANT-FIX-0929-2 ③ — **왼쪽 라벨 열만 180px** (오른쪽은 130 그대로).
+    #    pre 의 「매수 적정 범위」(7자)가 130 을 넘어 값에 붙어 보였다.
+    #    네 상태 모두 같은 폭 — 상태마다 열이 움직이지 않게
+    # ⭐ QUANT-FIX-0929-2 ③ 실측 — 왼쪽 라벨을 180 으로 넓히니 pre 의 「42,350~42,700원」이
+    #    왼쪽 값 칸(245px)을 **11px 넘었다.** 오른쪽 값 칸을 190px 로 두어 왼쪽 값이
+    #    나머지(약 300px)를 다 쓴다. ⚠️ 정본은 두 값 칸이 flex:1 — 다른 자리라 디자인에 알렸다
+    def _칸(라, 값, 색, 폭, 값폭=None):
+        _vs = (f"flex:none;width:{값폭}px" if 값폭 else "flex:1;min-width:0")
+        return (f'<span style="flex:none;width:{폭}px;font-size:25px;font-weight:700;'
                 f'color:{C["금진"]}">{라}</span>'
-                f'<span style="flex:1;min-width:0;font-size:30px;font-weight:800;'
+                f'<span style="{_vs};font-size:30px;font-weight:800;'
                 f'letter-spacing:-.02em;color:{색 or C["먹"]}">{값}</span>')
     return (f'<div style="display:flex;align-items:baseline;gap:12px;'
             f'white-space:nowrap;padding:8px 0;border-top:1px solid {C["줄선"]}">'
-            + _칸(라1, 값1, 색1) + _칸(라2, 값2, 색2) + '</div>')
+            + _칸(라1, 값1, 색1, 180) + _칸(라2, 값2, 색2, 130, 190) + '</div>')
 
 
 def _종목블록(x, 업종, 상태, 확정):
@@ -481,7 +488,7 @@ def _악재줄():
                    + (" (반대말일 수 있습니다)" if z.get("반대말") else ""))
     for z in _후[:2]:
         _글.append(f"후보였던 {_esc(z.get('이름') or z.get('종목코드'))}에 "
-                   f"{_esc(str(z.get('공시명'))[:28])} — 참고")
+                   f"{_esc(str(z.get('공시명'))[:28])} · 참고")    # ⭐ QUANT-FIX-0929-2 ④ — 「—」 안 씀
     _색 = C["빨"] if _보 else C["본"]
     _머 = "🔴 보유 종목 악재 — 규칙은 <b>다음 날 시가 매도</b>입니다" if _보 else "악재 공시 (참고)"
     return (f'<div style="font-size:31px;line-height:1.5;color:{_색};'
@@ -666,51 +673,59 @@ def _장1(q, 보유):
 
 
 def _업종표그리기():
-    r"""업종 규칙을 **표**로 (QUANT-FIX-0929 B2).
+    r"""업종 규칙을 **표**로 (QUANT-FIX-0929 B2 → **0929-2 ② 로 다시**).
 
-    전에는 한 문단에 세미콜론·화살표·괄호가 7줄로 엉켜 읽히지 않았다:
-      「의료·정밀기기는 60일 동안 21.83% 넘게 빠지면 걸린다; 금속(2,000~10,000억)은 …
-       (재무 문도 그 업종 값: 잉여금 44.18%↑ · 빚 67.2%↓ · 거래 4.05억↑); …」
+    칸 여섯 — 업종·시총 flex(min 260) · 기간 90 · 빠지면 120 · 잉여금 110 · 빚 110 · 거래 110
+    전부 오른쪽 정렬(업종 빼고) · 칸 사이 14 · **모든 칸 nowrap**.
+    머리 24px #6b665c 한 줄 · 업종 28/700 · 시총 범위는 **아랫줄 23px** #6b665c ·
+    값 28/700 (화살표는 값 뒤에 한 묶음) · 문턱 없으면 세 칸 모두 「없음」 24px #6b665c ·
+    행 padding 12px 0 · border-top 1px #e6e0d3.
     ⚠️ 숫자는 `rule_def.업종규칙` 에서 읽는다 — 손으로 안 적는다
+    ⚠️ 「23px」은 계단(최소 24)보다 작다 — **디자인 지시 그대로** 따랐다 (보고에 적는다)
     """
     _기간말 = {"낙폭60": "60일", "낙120": "120일", "낙폭20": "20일", "낙40": "40일"}
-    _머칸 = ("업종", "기간", "이만큼 빠지면", "재무 문턱 (잉여금 / 빚 / 거래)")
-    _폭 = (300, 110, 190, "flex")
+    _열 = (("업종·시총", None), ("기간", 90), ("빠지면", 120),
+           ("잉여금", 110), ("빚", 110), ("거래", 110))
+    _선 = "#e6e0d3"
 
-    def _칸(글, 폭, 크기, 색, 굵=None):
-        _st = ("flex:1;min-width:0" if 폭 == "flex" else f"flex:none;width:{폭}px")
-        return (f'<span style="{_st};font-size:{크기}px;color:{색};'
-                + (f"font-weight:{굵};" if 굵 else "")
-                + f'line-height:1.35">{글}</span>')
+    def _칸(속, 폭, 오른=True):
+        _st = ("flex:1;min-width:260px" if 폭 is None else f"flex:none;width:{폭}px")
+        return (f'<div style="{_st};white-space:nowrap;'
+                + ("text-align:right;" if (오른 and 폭 is not None) else "")
+                + f'">{속}</div>')
 
-    _줄 = ('<div style="display:flex;align-items:baseline;gap:14px;padding-bottom:8px;'
-           f'border-bottom:1px solid {C["선"]}">'
-           + "".join(_칸(_esc(h), w, 24, C["보"]) for h, w in zip(_머칸, _폭))
+    def _값(글):
+        return (f'<span style="font-size:28px;font-weight:700;color:{C["먹"]}">'
+                f'{_esc(글)}</span>')
+    _없 = f'<span style="font-size:24px;color:{C["보"]}">없음</span>'
+
+    _머 = ('<div style="display:flex;align-items:baseline;gap:14px;padding-bottom:10px">'
+           + "".join(_칸(f'<span style="font-size:24px;color:{C["보"]}">{_esc(h)}</span>', w)
+                     for h, w in _열)
            + "</div>")
+    _줄 = ""
     for _업, _v in R.업종규칙.items():
-        _이름 = _esc(_업) + (f" {_v['띠'][0]:,}~{_v['띠'][1]:,}억" if _v.get("띠") else "")
         _재, _문, _ = _v["재료"][0]
-        _기 = _기간말.get(_재, _esc(str(_재)))
-        _빠 = f"{abs(_문):g}%"
+        _이름 = (f'<div style="font-size:28px;font-weight:700;color:{C["먹"]};'
+                 f'line-height:1.25">{_esc(_업)}</div>'
+                 + (f'<div style="font-size:23px;color:{C["보"]};line-height:1.3">'
+                    f'{_v["띠"][0]:,}~{_v["띠"][1]:,}억</div>' if _v.get("띠") else ""))
         if _v.get("재무"):
-            _fin = (f"{_v['재무'][0]:g}%↑ / {_v['재무'][1]:g}%↓ / "
-                    f"{_v['대금하한억']:g}억↑")
+            _잉 = _값(f"{_v['재무'][0]:g}%↑")
+            _빚 = _값(f"{_v['재무'][1]:g}%↓")
+            _거 = _값(f"{_v['대금하한억']:g}억↑")
         else:
-            _fin = "(없음)"
-        _줄 += ('<div style="display:flex;align-items:baseline;gap:14px;padding:10px 0;'
-                f'border-bottom:1px solid {C["선"]}">'
-                + _칸(_이름, _폭[0], 28, C["먹"], 700)
-                + _칸(_esc(_기), _폭[1], 26, C["본"])
-                + _칸(_esc(_빠), _폭[2], 26, C["본"])
-                # ⚠️ 「↑」「↓」로 줄이 시작하면 안 된다 (검사 5) — 한 묶음으로 묶는다
-                + _칸("".join(f'<span style="white-space:nowrap">{_esc(t)}</span>'
-                              + ("<span> / </span>" if i < len(_fin.split(" / ")) - 1 else "")
-                              for i, t in enumerate(_fin.split(" / "))),
-                      _폭[3], 26, C["본"])
+            _잉 = _빚 = _거 = _없
+        _줄 += (f'<div style="display:flex;align-items:center;gap:14px;padding:12px 0;'
+                f'border-top:1px solid {_선}">'
+                + _칸(_이름, None, 오른=False)
+                + _칸(_값(_기간말.get(_재, str(_재))), 90)
+                + _칸(_값(f"{abs(_문):g}%"), 120)
+                + _칸(_잉, 110) + _칸(_빚, 110) + _칸(_거, 110)
                 + "</div>")
-    _줄 += (f'<div style="font-size:25px;line-height:1.5;color:{C["보"]};padding-top:10px">'
-            f'전부 그 업종 자료로만 낸 기준이라 업종마다 숫자가 다르다</div>')
-    return f'<div style="display:flex;flex-direction:column">{_줄}</div>'
+    _각 = (f'<div style="font-size:25px;line-height:1.5;color:{C["보"]};padding-top:12px">'
+           f'↑ 이 값 이상 · ↓ 이 값 이하 · 업종마다 그 업종 자료로만 낸 기준이라 숫자가 다르다</div>')
+    return f'<div style="display:flex;flex-direction:column">{_머}{_줄}{_각}</div>'
 
 
 # ── 2장 · 어떻게 뽑았나 (딱지 한 줄형) ───────────────────────────
@@ -761,22 +776,30 @@ def _장2():
     #    (속 1,420 / 보이는 1,277). 업종 줄이 압도적으로 길다.
     #    글을 줄이는 대신 **장을 늘린다** ([[layout-never-cuts-content]])
     def _한줄짜리(태, 글):
-        # ⭐ QUANT-FIX-0929 B2 — 글이 `("표", html)` 이면 그대로 넣는다
-        _속 = (f'<div style="flex:1;min-width:0">{글[1]}</div>'
-               if isinstance(글, tuple) and 글[0] == "표"
-               else _본문(_묶음(_굵(글))))
+        # ⭐⭐ QUANT-FIX-0929-2 ② — 표면 **왼쪽 칩 열을 없애고 칩은 표 위에 한 번**,
+        #    표는 카드 본문 **전폭**. 칩 열(180px)이 표를 좁혀 칸 안 글자가 쌓였다
+        if isinstance(글, tuple) and 글[0] == "표":
+            return (f'<div style="display:flex;flex-direction:column;gap:12px">'
+                    f'<span style="{칩};align-self:flex-start">{태}</span>'
+                    f'{글[1]}</div>')
+        # ⭐ QUANT-FIX-0929-2 ① — 옮긴 뒤에도 3장 아래가 259px 비어 **31 → 33px** 한 단 올린다
+        _속 = _본문(_묶음(_굵(글)), 33)
         return (f'<div style="display:flex;align-items:flex-start;gap:16px">'
                 f'<div style="display:flex;align-items:center;gap:12px;flex:none;'
                 f'padding-top:4px"><span style="{칩}">{태}</span></div>'
                 f'{_속}</div>')
 
-    _쪽규칙 = [규칙[_i:_i + _장2에] for _i in range(0, len(규칙), _장2에)] or [()]
+    # ⭐⭐ QUANT-FIX-0929-2 ① — **3장 = 업종 빼고 전부 · 4장 = 업종 하나만.**
+    #    전엔 셋씩 끊어 3장은 넷째 이하가 비어 아래 465px 이 남았고,
+    #    4장은 업종 표 + 변동성·자사주라 표가 좁아 칸 안 글자가 다섯 줄로 쌓였다
+    _쪽규칙 = [z for z in (tuple(r for r in 규칙 if r[0] != "업종"),
+                           tuple(r for r in 규칙 if r[0] == "업종")) if z] or [()]
     _장들2 = []
     for _k2, _쪽2 in enumerate(_쪽규칙):
         _줄2 = "".join(_한줄짜리(태, 글) for 태, 글 in _쪽2)
         if _k2 == 0:
             _몸2 = (_본문(_esc(리드), 35)
-                    + _블록("먼저, 이걸 모두 통과 — 크게 빠진 종목은 대개 여기도 통과합니다",
+                    + _블록("먼저, 이걸 모두 통과 · 크게 빠진 종목은 대개 여기도 통과합니다",
                             _본문(_묶음(_굵(통과))))
                     + _블록(f"그 다음, {_갈래수} 중 하나만 맞으면 후보 · 1장 딱지가 이것입니다",
                             _줄2, 틈=14))
@@ -880,8 +903,8 @@ def _장4():
                 f'white-space:nowrap">{_esc(글)}</span>')
     머리행 = ('<div style="display:flex;align-items:baseline;gap:14px;white-space:nowrap;'
             f'padding-bottom:9px;border-bottom:1px solid {C["선"]}">'
-            + 셀("날짜", 200, 24, C["보"]) + 셀("종목", 240, 24, C["보"], 늘=True)
-            + 셀("산 값", 120, 24, C["보"], 오른=True) + 셀("수익률", 130, 24, C["보"], 오른=True)
+            + 셀("날짜", 200, 24, C["보"]) + 셀("종목", 220, 24, C["보"], 늘=True)
+            + 셀("산 값", 140, 24, C["보"], 오른=True) + 셀("수익률", 130, 24, C["보"], 오른=True)
             + 셀("며칠", 90, 24, C["보"], 오른=True) + '</div>')
     행들 = ""
     for r in (s.get("최근") or [])[:3]:
@@ -889,8 +912,8 @@ def _장4():
         행들 += ('<div style="display:flex;align-items:baseline;gap:14px;white-space:nowrap;'
                f'padding:9px 0;border-bottom:1px solid {C["선"]}">'
                + 셀(r.get("날짜", ""), 200, 26, C["보"])
-               + 셀(r.get("이름", ""), 240, 31, C["먹"], 굵=700, 늘=True)
-               + 셀(f'{r.get("매수가", 0):,}원', 120, 26, C["본"], 오른=True)
+               + 셀(r.get("이름", ""), 220, 31, C["먹"], 굵=700, 늘=True)
+               + 셀(f'{r.get("매수가", 0):,}원', 140, 26, C["본"], 오른=True)    # ⭐ 0929-2 ⑤ 「283,000원」이 12px 넘쳤다
                + 셀(_음(결, 1) if 결 is not None else "—", 130, 31, _수익색(결), 굵=800, 오른=True)
                + 셀(f'{r.get("며칠")}일' if r.get("며칠") is not None else "—", 90, 26, C["보"], 오른=True)
                + '</div>')

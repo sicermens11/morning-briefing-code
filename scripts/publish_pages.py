@@ -99,6 +99,20 @@ def put_file(owner, repo, path, data: bytes, token, message):
     return f"올리기 실패({code}): {res.get('message', '')}"
 
 
+def del_file(owner, repo, path, token, message):
+    """파일 하나를 내린다. 반환: 'jium' | 'eopda'(원래 없음) | 오류문자열"""
+    code, cur, _ = _req("GET", f"/repos/{owner}/{repo}/contents/{path}", token)
+    if code == 404:
+        return "eopda"
+    if code != 200 or not isinstance(cur, dict) or not cur.get("sha"):
+        return f"기존 파일 확인 실패({code}): {(cur or {}).get('message', '')}"
+    code, res, _ = _req("DELETE", f"/repos/{owner}/{repo}/contents/{path}", token,
+                        {"message": message, "sha": cur["sha"]})
+    if code == 200:
+        return "jium"
+    return f"내리기 실패({code}): {(res or {}).get('message', '')}"
+
+
 def ensure_pages(owner, repo, token, branch="main"):
     """Pages를 켠다. 이미 켜져 있으면 조용히 넘어간다.
 
@@ -145,6 +159,9 @@ def main():
     #    ⚠️ 이름은 맨 윗단 파일 이름만 — 저장소 안 다른 자리를 덮어쓰지 못하게
     ap.add_argument("--extra", action="append", default=[],
                     metavar="이름=경로", help="같이 올릴 파일 (여러 번)")
+    # ⭐ 2026-09-29 — 게시 폴더에서 **내린다** (강제 상태 화면 셋을 다 잰 뒤)
+    ap.add_argument("--remove", action="append", default=[],
+                    metavar="이름", help="내릴 파일 (여러 번) · 기본 셋은 못 내린다")
     a = ap.parse_args()
 
     out = {"ok": False}
@@ -222,6 +239,21 @@ def main():
         r = put_file(owner, a.repo, path, data, token, f"브리핑 {stamp}")
         결과[path] = r
         if r not in ("olim", "gatta"):
+            out["오류"] = r
+            out["부분결과"] = 결과
+            print(json.dumps(out, ensure_ascii=False))
+            return 1
+    for _이름 in a.remove:
+        _이름 = _이름.strip()
+        if (not _이름 or any(c in _이름 for c in "/\\") or ".." in _이름
+                or _이름 in ("index.html", "robots.txt", ".nojekyll")):
+            out["오류"] = f"--remove 이름이 안 된다(맨 윗단 · 기본 셋 제외): {_이름}"
+            out["부분결과"] = 결과
+            print(json.dumps(out, ensure_ascii=False))
+            return 2
+        r = del_file(owner, a.repo, _이름, token, f"내림 {_이름} {stamp}")
+        결과[_이름] = r
+        if r not in ("jium", "eopda"):
             out["오류"] = r
             out["부분결과"] = 결과
             print(json.dumps(out, ensure_ascii=False))
