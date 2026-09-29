@@ -733,157 +733,166 @@ def _장1(q, 보유):
     return _장들
 
 
-def _업종표그리기():
-    r"""업종 규칙 **표** — 격자 하나 (QUANT-FIX-0929-2 새 판 2절).
+def _억말(v):
+    r"""시총 억 → 「2,000억」 · 「1조」 (1만억 단위로 딱 떨어지면 조)"""
+    v = float(v)
+    if v >= 10000 and v % 10000 == 0:
+        return f"{v / 10000:g}조"
+    return f"{v:,.0f}억"
 
-    ⭐ **고정 px 칸을 쓰지 않는다.** 값 길이가 날마다 바뀌어 고정 폭은 언젠가 넘친다
-       (디자인 미리보기에서 세 번 넘쳤다). `minmax(0,1fr) repeat(5, max-content)` —
-       숫자 칸은 제 내용만큼, 첫 칸이 나머지를 다 가진다.
-    ⚠️ 숫자는 `rule_def.업종규칙` 에서 읽는다 — 손으로 안 적는다
+
+def _거래소업종(묶음):
+    r"""업종지수 이름 → 거래소 업종 이름들 (규칙 파일 `업종맵` 을 거꾸로).
+
+    「자동차」「자동차부품」처럼 앞말이 같은 짝은 「자동차·부품」으로 붙인다 (글자 뜻은 그대로)
     """
-    _기간말 = {"낙폭60": "60일", "낙120": "120일", "낙폭20": "20일", "낙40": "40일"}
-    _선 = "#e6e0d3"
-    _머칸 = (("업종 · 시총", False), ("기간", True), ("빠지면", True),
-             ("잉여금", True), ("빚", True), ("거래", True))
+    이름들 = [k for k, v in R.업종맵.items() if v == 묶음]
+    out = []
+    for k in 이름들:
+        짝 = next((z for z in 이름들 if z != k and k.startswith(z) and len(k) > len(z)), None)
+        if 짝:
+            continue                       # 「자동차부품」은 「자동차」 쪽에서 붙인다
+        긴 = next((z for z in 이름들 if z != k and z.startswith(k) and len(z) > len(k)), None)
+        out.append(f"{k}·{긴[len(k):]}" if 긴 else k)
+    return " · ".join(out)
 
-    # ⚠️ 줄선은 **칸마다 긋지 않는다** — 첫 칸이 두 줄이라 한 행 안 칸 높이가 달라
-    #    칸마다 그은 선이 계단처럼 엇갈렸고, 칸 사이 18px 마다 머리 선이 끊겼다 (떠서 봤다).
-    #    머리 아래 · 행마다 `grid-column:1/-1` **한 줄**로 긋는다 (굵기·색은 문서 그대로)
-    def _머(글, 오른):
-        return (f'<div style="font-size:24px;color:{C["보"]};white-space:nowrap;'
-                f'padding-bottom:10px;'
-                + ("text-align:right;" if 오른 else "") + f'">{_esc(글)}</div>')
 
-    def _줄(굵기, 색):
-        return f'<div style="grid-column:1/-1;border-top:{굵기}px solid {색}"></div>'
+def _업종덩이들():
+    r"""4장 — 업종마다 **한 덩이** (QUANT-PICK-0929 · 표를 없앴다).
 
-    def _칸(속, 오른=True):
-        return (f'<div style="padding:30px 0;'
-                + ("white-space:nowrap;text-align:right;" if 오른 else "min-width:0;")
-                + f'">{속}</div>')
-
-    def _값(글, 크기=27, 굵=700, 색=None):
-        return (f'<span style="font-size:{크기}px;font-weight:{굵};color:{색 or C["먹"]}">'
-                f'{_esc(글)}</span>')
-    _없 = f'<span style="font-size:24px;font-weight:400;color:{C["보"]}">없음</span>'
-
-    셀 = [_머(h, r) for h, r in _머칸] + [_줄(2, C["먹"])]
+    1줄 묶음 이름 · 거래소 업종 · 시총 / 2줄 「60거래일 동안 20.59% 넘게 빠지면 걸립니다」 /
+    3줄 재무 문. ⚠️ 숫자는 전부 `rule_def.업종규칙` 에서 — 손으로 안 적는다
+    ⚠️ 1·2줄은 nowrap — 말줄임하지 않는다. 넘치면 검사 ①·⑨ 가 잡는다 (디자인: 「알려줘」)
+    """
+    _기간 = {"낙폭60": 60, "낙120": 120, "낙폭20": 20, "낙40": 40}
+    _칩 = (f'flex:none;font-size:23px;font-weight:700;color:{C["먹"]};background:#f4f1ea;'
+           f'border-radius:6px;padding:3px 10px;white-space:nowrap')
+    덩이 = []
     for _업, _v in R.업종규칙.items():
-        _재, _문, _ = _v["재료"][0]
-        _첫 = (f'<div style="font-size:27px;font-weight:700;line-height:1.4;color:{C["먹"]}">'
-               f'{_esc(_업)}'
-               + (f'<br>{_v["띠"][0]:,}~{_v["띠"][1]:,}억' if _v.get("띠") else "")
-               + '</div>')
-        셀.append(_칸(_첫, 오른=False))
-        셀.append(_칸(_값(_기간말.get(_재, str(_재)))))
-        셀.append(_칸(_값(f"{abs(_문):g}%", 28, 800, C["파"])))
+        띠 = _v.get("띠")
+        시총 = (f"{_억말(띠[0])}~{_억말(띠[1])}" if 띠 else f"{_억말(R.시총하한억)} 이상")
+        빠짐 = " · ".join(
+            f'<b style="font-weight:800;color:{C["먹"]}">{_기간.get(재, 재)}거래일</b> 동안 '
+            f'<b style="font-weight:800;color:{C["파"]}">{abs(문):g}%</b>'
+            for 재, 문, _ in _v["재료"]) + " 넘게 빠지면 걸립니다"
         if _v.get("재무"):
-            셀 += [_칸(_값(f"{_v['재무'][0]:g}%↑")), _칸(_값(f"{_v['재무'][1]:g}%↓")),
-                   _칸(_값(f"{_v['대금하한억']:g}억↑"))]
+            라 = "재무 문 · 1단계 대신"
+            칩들 = [f"잉여금 {_v['재무'][0]:g}%↑", f"빚 {_v['재무'][1]:g}%↓",
+                  f"거래 {_v['대금하한억']:g}억↑"] + (["흑자"] if R.흑자필수 else [])
         else:
-            셀 += [_칸(_없), _칸(_없), _칸(_없)]
-        셀.append(_줄(1, _선))
-    _표 = ('<div style="display:grid;grid-template-columns:minmax(0,1fr) repeat(5,max-content);'
-           'column-gap:18px;align-items:baseline">' + "".join(셀) + '</div>')
-    _각 = (f'<div style="font-size:25px;line-height:1.5;color:{C["보"]};padding-top:14px">'
-           f'↑ 이 값 이상 · ↓ 이 값 이하 · 여러 규칙에 걸린 종목이 1장 위쪽에 옵니다.</div>')
-    return f'<div style="display:flex;flex-direction:column">{_표}{_각}</div>'
+            라 = "재무 문"
+            칩들 = ["1단계 공통 문 그대로"]
+        덩이.append(
+            f'<div data-lump="1" style="background:#ffffff;border:1px solid {C["선"]};'
+            f'border-radius:16px;padding:16px 24px;display:flex;flex-direction:column;gap:8px">'
+            f'<div style="display:flex;align-items:baseline;gap:12px;white-space:nowrap">'
+            f'<span style="flex:none;font-size:33px;font-weight:800;letter-spacing:-.03em">'
+            f'{_esc(_업)}</span>'
+            f'<span style="flex:1;min-width:0;font-size:23px;color:{C["보"]}">'
+            f'{_esc(_거래소업종(_업))}</span>'
+            f'<span style="flex:none;font-size:23px;color:{C["보"]}">시총 '
+            f'<b style="font-weight:800;color:{C["먹"]}">{시총}</b></span></div>'
+            f'<span style="font-size:30px;line-height:1.4;color:{C["본"]};white-space:nowrap">'
+            f'{빠짐}</span>'
+            f'<div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 8px;'
+            f'border-top:1px solid #ece5d6;padding-top:9px">'
+            f'<span style="flex:none;font-size:22px;font-weight:700;color:#8a6425">{_esc(라)}</span>'
+            + "".join(f'<span style="{_칩}">{_esc(z)}</span>' for z in 칩들)
+            + '</div></div>')
+    return 덩이
 
 
-# ── 2장 · 어떻게 뽑았나 (딱지 한 줄형) ───────────────────────────
+# ── 3장 · 어떻게 뽑았나 (1단계 → 2단계) · 4장 · 업종마다 다른 문 ──────────
 def _장2():
-    # ⭐ 2026-09-23 (사용자 「고쳐!」) — 「회사 사정과 상관없이」는 규칙이 하는 것보다 세게 쓴 말이었다.
-    #    규칙은 왜 빠졌는지를 **안 본다** (관리종목·스팩만 뺀다). 「작은 회사」도 이제 정확하지 않다 —
-    #    섹터·업종 갈래로 큰 회사도 들어온다. 실제로 보는 것만 적는다
-    # ⭐ 2026-09-29 (사용자 결정) — B137 에서 **재무 문 넷을 다 없애도 결과가 한 원도 안 바뀌었다**
-    #    (산 것 348 그대로). 재무 때문에 빠진 종목이 11년에 **한 건도 없다.**
-    #    「번 돈을 착실히 쌓아온 회사가 …날을 찾습니다」는 **재무로 고른다**는 인상을 준다.
-    #    ⚠️ 「재무를 안 본다」고 쓰면 그것도 틀리다 — 문은 실제로 있다.
-    #       사실대로: **재무도 보지만, 실제로 가르는 건 주가다**
-    리드 = ("재무가 튼튼한 회사가 크게 빠진 날을 찾습니다. 왜 빠졌는지(회사 사정)는 보지 않고 "
+    # ⭐⭐⭐ 2026-09-29 밤 QUANT-PICK-0929 — 3장은 「어떤 순서로 거르나」 하나만,
+    #    4장은 표 대신 업종마다 한 덩이. 문구는 디자인 판 그대로 · 숫자는 규칙 파일에서.
+    #    ASK-QUANT-0929-5 에서 짚은 것: 「업종」→「섹터」(⑥) · 지수 숫자/종목 숫자 분리(⑦) ·
+    #    「섹터·업종 갈래는 시가총액 범위를 따로」(⑧) · 「없음」→「1단계 공통 문 그대로」(①)
+    # (옛 판의 이력: 2026-09-23 「회사 사정과 상관없이」 삭제 · 09-29 B137 재무 문 — 커밋 d39873f 이전 참고)
+    리드 = ("재무가 튼튼한 회사가 크게 빠진 날을 찾습니다. "
           "재무제표와 주가만 보는 기계 규칙이라 브리핑과 종목이 다른 것이 정상입니다.")
-    통과 = (f"자기 돈의 {R.잉여금하한:g}% 이상이 벌어서 쌓은 이익 · 빚은 {R.부채상한:g}% 이하 · "
-          f"작년 순이익 흑자 · 시가총액 {R.시총하한억:,.0f}억~{R.시총상한억:,.0f}억 · "
-          f"하루 거래 {R.대금하한억:g}억 이상 (관리종목·우선주·스팩 제외"
-          + (" · 섹터·업종 규칙에 걸린 종목은 그 규칙의 문을 따른다" if _제문 else "") + ")")
-    규칙 = (
-        ("낙폭", f"20거래일 동안 {abs(R.낙폭20문턱):g}% 넘게 빠졌고, 값이 평소 움직이던 폭의 "
-                f"아래쪽(볼린저 −{abs(R.볼린저문턱):g}σ)에 있다"),
-        ("섹터", f"방산·원전·반도체 등 {len(R.섹터규칙)}개 업종은 업종마다 다른 기준을 쓴다. "
-                "잘 빠지는 업종은 더 많이 빠져야 걸린다"),
-        ("시장", f"지수가 눌려 있는 날(20일 −{abs(R.지수낙20문턱):g}% · 60일 −{abs(R.지수낙60문턱):g}%)"
-                f"에는 조금만 빠져도 걸린다 (볼린저 −{abs(R.시장볼문턱):g}σ · "
-                f"20일 −{abs(R.시장낙20문턱):g}% · 60일 −{abs(R.시장낙60문턱):g}%)"),
-    # ⭐⭐⭐ QUANT-FIX-0929 B2 — 업종 규칙은 **표**다 (`("표", html)`).
-    #    한 문단에 세미콜론·화살표·괄호가 7줄로 엉켜 읽히지 않았다
-    ) + ((("업종", ("표", _업종표그리기())),)
-        if (R.업종규칙_켬 and R.업종규칙) else ()) + ((("변동성·자사주", f"시장이 크게 출렁이는 날(지수 20일 변동성 {R.시장변동성문턱:g}% 이상)에는, "
-                          f"최근 {R.자사주창일}거래일 안에 자기 주식을 사겠다고 공시한 회사도 걸린다. "
-                          "회사가 제 주식을 사는 중인데 시장이 흔들리는 때다"),) if R.변동성자사주_켬 else ())
-    # ⭐⭐⭐ QUANT-FIX-0929 B3 — 칩 폭을 **한 값(120px)** 으로.
-    #    전에는 「업종」과 「변동성·자사주」 폭이 달라 본문 시작 x 가 98 / 155px 로 어긋났다.
-    #    ⚠️ 「변동성·자사주」는 28px 로 176px 이라 한 줄에 안 들어간다 —
-    #       **글자를 줄이지 않고** 칩 안에서 두 줄로 접는다. 폭이 고정이라 x 는 같다
-    #       [[layout-never-cuts-content]]
-    # ⭐⭐⭐ QUANT-ANSWER-0929 답 3 — 칩 폭 **180px 한 값.**
-    #    120px 으로는 「변동성·자사주」(28px 로 약 176px)가 한 줄에 안 들어가
-    #    두 줄로 접혔다. 디자인 답: **두 줄 칩은 쓰지 않는다. 180 으로 올려라.**
-    #    라벨 문구는 안 바꾼다. 폭이 한 값이라 본문 시작 x 가 전부 같다
-    칩 = (f'flex:none;width:180px;box-sizing:border-box;text-align:center;'
-         f'font-size:28px;font-weight:700;white-space:nowrap;border-radius:7px;'
-         f'padding:5px 8px;color:{C["금"]};background:{C["딱"]}')
-    # ⚠️ 아래 `_한줄짜리` 와 **같은 것**을 두 벌 써 놓으면 한쪽만 고치고 갈라진다.
-    #    첫 장도 `_한줄짜리` 를 쓴다 (정의가 아래라 쓰는 자리는 쪽 나누기 뒤다)
-    # ⭐⭐ 2026-09-29 — **규칙 줄을 쪽마다 나눈다.** Q2 가 143px 넘쳤다
-    #    (속 1,420 / 보이는 1,277). 업종 줄이 압도적으로 길다.
-    #    글을 줄이는 대신 **장을 늘린다** ([[layout-never-cuts-content]])
-    def _한줄짜리(태, 글):
-        # ⭐⭐ QUANT-FIX-0929-2 ② — 표면 **왼쪽 칩 열을 없애고 칩은 표 위에 한 번**,
-        #    표는 카드 본문 **전폭**. 칩 열(180px)이 표를 좁혀 칸 안 글자가 쌓였다
-        if isinstance(글, tuple) and 글[0] == "표":
-            # ⭐ 0929-2 새 판 — 칩은 **머리 「걸리는 조건 (이어서 2/2)」 옆**으로 (아래 _장들2)
-            return 글[1]
-        # ⭐ QUANT-FIX-0929-2 ① — 옮긴 뒤에도 3장 아래가 259px 비어 **31 → 33px** 한 단 올린다
-        _속 = _본문(_묶음(_굵(글)), 33)
-        return (f'<div style="display:flex;align-items:flex-start;gap:16px">'
-                f'<div style="display:flex;align-items:center;gap:12px;flex:none;'
-                f'padding-top:4px"><span style="{칩}">{태}</span></div>'
-                f'{_속}</div>')
+    문들 = ([(f"{R.잉여금하한:g}%", "이상 · 벌어서 쌓은 이익"), (f"{R.부채상한:g}%", "이하 · 빚")]
+          + ([("흑자", "· 작년 순이익")] if R.흑자필수 else [])
+          + [(f"{R.시총하한억:,.0f}억~{R.시총상한억:,.0f}억", "· 시가총액"),
+             (f"{R.대금하한억:g}억", "이상 · 하루 거래")])
+    _업켬 = bool(R.업종규칙_켬 and R.업종규칙)
+    규칙 = ((("낙폭", f"20거래일 동안 {abs(R.낙폭20문턱):g}% 넘게 빠졌고, 평소 움직이던 폭의 "
+                     f"아래쪽(볼린저 −{abs(R.볼린저문턱):g}σ)에 있다"),
+             ("섹터", f"방산·원전·반도체 등 {len(R.섹터규칙)}개 섹터는 섹터마다 기준이 다르다"),
+             ("시장", f"지수가 눌린 날(20일 −{abs(R.지수낙20문턱):g}% · 60일 −{abs(R.지수낙60문턱):g}%)"
+                     f"에는 종목이 조금만 빠져도 걸린다 (볼린저 −{abs(R.시장볼문턱):g}σ · "
+                     f"20일 −{abs(R.시장낙20문턱):g}% · 60일 −{abs(R.시장낙60문턱):g}%)"))
+            + ((("변동성·자사주", f"지수가 크게 출렁이는 날(20일 변동성 {R.시장변동성문턱:g}% 이상)에는 "
+                                f"{R.자사주창일}거래일 안에 자사주 매입을 공시한 회사도 걸린다"),)
+               if R.변동성자사주_켬 else ())
+            + ((("업종", "업종마다 따로 낸 기준 · 다음 장에 있다"),) if _업켬 else ()))
+    _갈 = {3: "세", 4: "네", 5: "다섯", 6: "여섯"}.get(len(규칙), str(len(규칙)))
 
-    # ⭐⭐ QUANT-FIX-0929-2 ① — **3장 = 업종 빼고 전부 · 4장 = 업종 하나만.**
-    #    전엔 셋씩 끊어 3장은 넷째 이하가 비어 아래 465px 이 남았고,
-    #    4장은 업종 표 + 변동성·자사주라 표가 좁아 칸 안 글자가 다섯 줄로 쌓였다
-    _쪽규칙 = [z for z in (tuple(r for r in 규칙 if r[0] != "업종"),
-                           tuple(r for r in 규칙 if r[0] == "업종")) if z] or [()]
-    _장들2 = []
-    for _k2, _쪽2 in enumerate(_쪽규칙):
-        _줄2 = "".join(_한줄짜리(태, 글) for 태, 글 in _쪽2)
-        if _k2 == 0:
-            _몸2 = (_본문(_esc(리드), 35)
-                    + _블록("먼저, 이걸 모두 통과 · 크게 빠진 종목은 대개 여기도 통과합니다",
-                            _본문(_묶음(_굵(통과))))
-                    + _블록(f"그 다음, {_갈래수} 중 하나만 맞으면 후보 · 1장 딱지가 이것입니다",
-                            _줄2, 틈=14))
-            _제2 = "어떻게 뽑았나"
-        else:
-            # ⭐ 0929-2 새 판 — 표만 있는 장이면 칩을 **머리 옆**에 한 번
-            _표칩 = "".join(f'<span style="{칩}">{태}</span>' for 태, 글 in _쪽2
-                            if isinstance(글, tuple) and 글[0] == "표")
-            _머글 = f"걸리는 조건 (이어서 {_k2 + 1}/{len(_쪽규칙)})"
-            _몸2 = _블록((f'<span style="display:inline-flex;align-items:center;gap:16px">'
-                         f'{_esc(_머글)}{_표칩}</span>') if _표칩 else _머글, _줄2, 틈=14)
-            _제2 = "어떻게 뽑았나 (이어서)"
-        if _k2 == len(_쪽규칙) - 1:
-            # ⚠️ 0929-2 새 판 — 업종 표 각주에 「여러 규칙에 걸린 종목이 1장 위쪽에 옵니다」가
-            #    들어갔다. 이 장에 표가 있으면 맺음말에서 그 문장을 빼 **두 번 나오지 않게**
-            _겹 = any(isinstance(글, tuple) and 글[0] == "표" for 태, 글 in _쪽2)
-            _몸2 += (f'<span style="font-size:25px;line-height:1.55;color:{C["보"]}">'
-                     + ("" if _겹 else "여러 규칙에 걸린 종목이 1장 위쪽에 옵니다. ")
-                     + '다음 장은 언제 사고 언제 파는지입니다.</span>')
-        _장들2.append(_카드(f"퀀트2 어떻게뽑았나{'' if _k2 == 0 else _k2 + 1}",
-                          _머리("HOW THEY WERE PICKED", _쪽표, _제2), _몸2,
-                          정렬="flex-start", 틈=56))   # ★ 56
-    return _장들2
+    def _단계(칩글, 제목, 속, 틈):
+        return (f'<div style="display:flex;flex-direction:column;gap:{틈}px;'
+                f'border-top:1px solid {C["선"]};padding-top:20px">'
+                f'<div style="display:flex;align-items:baseline;gap:14px">'
+                f'<span style="flex:none;font-size:26px;font-weight:800;color:#ffffff;'
+                f'background:{C["금"]};border-radius:7px;padding:3px 13px">{칩글}</span>'
+                f'<span style="font-size:28px;font-weight:700;color:{C["금"]}">{제목}</span></div>'
+                f'{속}</div>')
+
+    def _각주(글):
+        return (f'<span style="font-size:25px;line-height:1.55;color:{C["보"]}">{글}</span>')
+
+    격자 = ('<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 28px">'
+          + "".join(f'<span style="font-size:31px;line-height:1.45;color:{C["본"]}">'
+                    f'<b style="font-weight:800;color:{C["먹"]};white-space:nowrap">{_esc(v)}</b> '
+                    f'{_점안끊김(_esc(k))}</span>' for v, k in 문들)
+          + '</div>'
+          + _각주("섹터·업종 갈래는 시가총액 범위를 따로 씁니다" + (f" ({_다음쪽}장)." if _업켬 else ".")))
+    # ⚠️ 「(4장)」을 손으로 적지 않는다 — 종목 장 수가 날마다 달라 업종 장이 3~4쪽을 오간다
+    줄들 = "".join(
+        f'<div style="display:flex;align-items:flex-start;gap:18px">'
+        f'<span style="flex:none;width:176px;box-sizing:border-box;text-align:center;'
+        f'font-size:25px;font-weight:700;color:{C["금"]};background:{C["딱"]};border-radius:7px;'
+        f'padding:5px 0;white-space:nowrap">{태}</span>'
+        f'<span style="flex:1;min-width:0;font-size:30px;line-height:1.5;color:{C["본"]}">'
+        f'{_묶음(_esc(글))}</span></div>' for 태, 글 in 규칙)
+    몸3 = (_본문(_esc(리드), 33)
+          + _단계("1단계", "먼저, 이걸 모두 통과", 격자, 14)
+          + _단계("2단계", f"{_갈} 갈래 중 하나에 걸리면 후보", 줄들, 16)
+          + _각주("여러 갈래에 걸린 종목이 1장 위쪽에 옵니다."
+                 + ("" if _업켬 else " 다음 장은 언제 사고 언제 파는지입니다.")))
+    장들 = [_카드("퀀트2 어떻게뽑았나", _머리("HOW THEY WERE PICKED", _쪽표, "어떻게 뽑았나"),
+                몸3, 정렬="flex-start", 틈=56)]
+    if not _업켬:
+        return 장들
+
+    # ── 4장 · 한 장에 덩이 넷까지 · 다섯 이상이면 「(이어서)」 장으로 ──
+    덩이 = _업종덩이들()
+    묶 = [덩이[i:i + 4] for i in range(0, len(덩이), 4)]
+    _업갭 = getattr(R, "업종전용상대갭", None)
+    for k, 쪽 in enumerate(묶):
+        몸4 = ""
+        if k == 0:
+            몸4 += _본문("2단계 「업종」 갈래는 업종마다 그 업종 자료로만 낸 기준을 씁니다. "
+                        "잘 빠지는 업종일수록 더 많이 빠져야 걸립니다.", 33)
+        몸4 += ('<div style="display:flex;flex-direction:column;gap:16px">'
+                + "".join(쪽) + '</div>')
+        if k == len(묶) - 1:
+            if _업갭 is not None:
+                몸4 += (f'<div style="display:flex;flex-direction:column;gap:8px;'
+                        f'border-top:1px solid {C["선"]};padding-top:18px">'
+                        f'<span style="font-size:26px;font-weight:700;color:{C["금"]}">'
+                        f'이 갈래로 걸린 종목은 사는 문턱이 다릅니다</span>'
+                        f'<span style="font-size:31px;line-height:1.5;color:{C["본"]}">'
+                        f'{R.판정시각} 상대갭이 <b style="font-weight:800;color:{C["먹"]};'
+                        f'white-space:nowrap">−{abs(_업갭):g}%p</b> 아래면 삽니다. 다른 갈래는 '
+                        f'<b style="font-weight:800;color:{C["먹"]};white-space:nowrap">'
+                        f'−{abs(R.상대갭문턱):g}%p</b>입니다.</span></div>')
+            몸4 += _각주("기간은 거래일 기준 · ↑ 이 값 이상, ↓ 이 값 이하입니다. "
+                        "다음 장은 언제 사고 언제 파는지입니다.")
+        장들.append(_카드(f"퀀트2 업종문{'' if k == 0 else k + 1}",
+                         _머리("HOW THEY WERE PICKED", _쪽표,
+                               "업종마다 다른 문" + ("" if k == 0 else " (이어서)")),
+                         몸4, 정렬="flex-start", 틈=56))
+    return 장들
 
 
 # ── 3장 · 어떻게 사고 파나 (라벨 2열형) ──────────────────────────
@@ -925,7 +934,8 @@ def _장3():
           + (f" 다만 들고 있는 종목에 {'·'.join(_파는말())} 공시가 뜨면 다음 날 시가에 팝니다."
              if _파는말() else "")]),
     )
-    행 = "".join(
+    def _행(라, 줄들):
+        return (
         f'<div style="display:flex;gap:28px;border-top:1px solid {C["선"]};padding-top:18px">'
         # ⭐ QUANT-FIX-0929 C — 라벨 `목표에 닿으면 · 둘로 나눠 판다` 가
         #    `목표에 닿으면 ·` ↵ `둘로 나눠 판다` 로 끊겼다.
@@ -939,20 +949,27 @@ def _장3():
         + "".join(_본문(_묶음(_굵(x)))
                   if isinstance(x, str) else
                   _본문(_묶음(_굵(x[0])), x[1], 1.5, C["보"])
-                  for x in 줄들) + '</div></div>'
-        for 라, 줄들 in 블록)
+                  for x in 줄들) + '</div></div>')
+    행들 = [_행(라, 줄들) for 라, 줄들 in 블록]
     # ⭐ 비교 줄은 **블록 밖 · 세 블록 다 끝난 뒤** (디자인 답 2 · 2026-09-14).
     #    「목표에 닿으면」 안에 두면 그 블록만 규칙이 둘인 것처럼 보인다. 각주 계단(25px 보조색)
     비교 = "".join(_본문(_묶음(_굵(x[0])), x[1], 1.5, C["보"]) for x in _선택지(앞, 뒤))
-    몸 = (_본문(_esc("규칙이 정하는 것은 언제 사고 언제 파는지 둘뿐입니다. 얼마를 넣을지는 정하지 않습니다."), 35)
-         + 행
-         + 비교
-         + f'<span style="font-size:25px;line-height:1.55;color:{C["보"]}">다음 장은 이 규칙이 '
-           f'과거에 어땠는지입니다.</span>')
-    # ⚠️ 0929-2 새 판 ★(56 고정)을 걸면 **아래로 114px 삐져나간다** — 꽉 찬 장이다.
-    #    전처럼 둔다(정렬 안 밝힘 → 화면 JS 가 채움 70%↑ 면 space-between). 디자인에 물었다
-    return _카드("퀀트3 사고파나", _머리("HOW TO BUY &amp; SELL", _쪽표, "어떻게 사고 파나"), 몸,
-                 정렬=None)
+    # ⭐⭐ 2026-09-29 밤 QUANT-PICK-0929 5장 — **두 장으로 나눈다 (a).**
+    #    설명글(업종 −1.5%p · 섹터 +2 · 감자·유상증자 매도)이 늘어 항목 사이 0px · 아래 78px.
+    #    문서 순서대로 (b) 라벨 열 170 + (c) 리드 31 을 먼저 해 봤다 → 아래 90px 이 됐지만
+    #    **항목 사이는 여전히 0px** (기준 ≥ 20). 그래서 (a) · (b)(c) 는 되돌렸다.
+    #    1장 = 어떻게 사나 · 목표에 닿으면 / 2장 = 목표에 안 닿으면(감자·유상증자 매도 포함) ·
+    #    비교 줄 · 각주. 두 장 모두 위로 붙이고 56px 고정. 글은 한 글자도 안 줄였다
+    몸1 = (_본문(_esc("규칙이 정하는 것은 언제 사고 언제 파는지 둘뿐입니다. 얼마를 넣을지는 정하지 않습니다."), 35)
+          + "".join(행들[:2]))
+    몸2 = ("".join(행들[2:])
+          + 비교
+          + f'<span style="font-size:25px;line-height:1.55;color:{C["보"]}">다음 장은 이 규칙이 '
+            f'과거에 어땠는지입니다.</span>')
+    return [_카드("퀀트3 사고파나", _머리("HOW TO BUY &amp; SELL", _쪽표, "어떻게 사고 파나"), 몸1,
+                  정렬="flex-start", 틈=56),
+            _카드("퀀트3 사고파나2", _머리("HOW TO BUY &amp; SELL", _쪽표, "어떻게 사고 파나 (이어서)"),
+                  몸2, 정렬="flex-start", 틈=56)]
 
 
 # ── 4장 · 과거에 어땠나 ─────────────────────────────────────────
@@ -1034,6 +1051,9 @@ def _장4():
                  정렬=None)
 
 
+_다음쪽 = "@@NEXTPAGE@@"   # 「다음 장 번호」 표식 — `_쪽번호매기기` 가 바꾼다
+
+
 def _쪽번호매기기(장들):
     r"""`1 / 4` 를 **전체 장 수**에 맞춰 다시 매긴다 (2026-09-29).
 
@@ -1045,8 +1065,8 @@ def _쪽번호매기기(장들):
     for _i, _h in enumerate(장들, 1):
         # ⭐ QUANT-FIX-0929 A — 표식 하나만 바꾼다. 장이 제 번호를 셈하지 않으므로
         #    장 수가 어떻게 바뀌어도 어긋날 데가 없다
-        _밖.append(_h.replace(_쪽표, f"{_i} / {_n}"))
-    _남 = [h for h in _밖 if _쪽표 in h]
+        _밖.append(_h.replace(_쪽표, f"{_i} / {_n}").replace(_다음쪽, str(_i + 1)))
+    _남 = [h for h in _밖 if _쪽표 in h or _다음쪽 in h]
     assert not _남, f"쪽 번호 표식이 안 바뀐 장 {len(_남)}개"
     return "".join(_밖)
 
@@ -1061,7 +1081,7 @@ def quant_view(q, 보유=None):
             f'<span class="now">퀀트 후보</span></div></div>'
             f'<div class="rail qrail" data-active="true">'
             # ⭐ 2026-09-29 — _장1 이 **여러 장**을 돌려준다. 쪽 번호를 전체에 맞춰 다시 매긴다
-            + _쪽번호매기기(_장1(q, 보유) + _장2() + [_장3(), _장4()])
+            + _쪽번호매기기(_장1(q, 보유) + _장2() + _장3() + [_장4()])
             + '</div>'
             f'<div style="text-align:center;font-size:13px;color:{C["보"]};padding:0 0 30px">'
             f'← 옆으로 넘겨서 보세요 →</div></section>')

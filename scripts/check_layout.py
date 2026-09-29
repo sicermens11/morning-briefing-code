@@ -277,6 +277,34 @@ setTimeout(function(){
               Math.round((상[0].getBoundingClientRect().top-sr.top)/k),
               Math.round((상[상.length-1].getBoundingClientRect().bottom-sr.top)/k)].join("/");
    })();
+   /* ⭐ QUANT-PICK-0929 ⑧⑨ — 4장 **업종 덩이**(data-lump) 높이 (1080 기준) · 1·2줄 줄바꿈/옆 넘침 */
+   var _덩이높=[], _덩이줄=[];
+   (function(){
+     var k=sr.width/1080;
+     s.querySelectorAll('div[data-lump="1"]').forEach(function(bx){
+       _덩이높.push(Math.round(bx.getBoundingClientRect().height/k));
+       var 이름=((bx.querySelector("span")||{}).textContent||"?").trim().slice(0,8);
+       [bx.children[0],bx.children[1]].forEach(function(row,ri){
+         if(!row) return;
+         if(row.scrollWidth>row.clientWidth+1)
+           _덩이줄.push(이름+":"+(ri+1)+"줄:옆으로 "+(row.scrollWidth-row.clientWidth)+"px");
+         var top=1e9,bot=-1e9,fmax=0;
+         var tw=document.createTreeWalker(row,NodeFilter.SHOW_TEXT,null),tn;
+         while((tn=tw.nextNode())){
+           if(!(tn.nodeValue||"").trim()) continue;
+           var rg=document.createRange(); rg.selectNodeContents(tn);
+           var rs=rg.getClientRects();
+           for(var j=0;j<rs.length;j++){
+             if(rs[j].height<3) continue;
+             top=Math.min(top,rs[j].top); bot=Math.max(bot,rs[j].bottom);
+           }
+           fmax=Math.max(fmax,parseFloat(getComputedStyle(tn.parentElement).fontSize)||0);
+         }
+         if(fmax>0&&(bot-top)>fmax*1.6*k)
+           _덩이줄.push(이름+":"+(ri+1)+"줄:줄바꿈");
+       });
+     });
+   })();
    var _나쁜시작=[];
    if((s.dataset.label||"").indexOf("퀀트")===0){
      var _막={}, _막n=0;
@@ -332,7 +360,7 @@ setTimeout(function(){
              _본문넘침, _나쁜시작.join(";"), _행실패.join(";"),
              _글넘침.join(";"),
              (_bd && _bd.dataset && _bd.dataset.align) ? 1 : 0,
-             _자리값].join("|"));
+             _자리값, _덩이높.join(","), _덩이줄.join(";")].join("|"));
   });
   document.title="R::"+out.join("@@");
  },600);
@@ -752,6 +780,15 @@ def check(cards_path, site_path=None):
                 if (not (len(p) > 13 and p[13].lstrip("-").isdigit())
                         and _아q is not None and _아q < 90):
                     notes.append(f"🔴 {label}: **아래 여백 {_아q}px** (90 이상이어야)")
+                # ⭐⭐⭐ QUANT-PICK-0929 ⑧ 덩이 높이 같음(±4px) · ⑨ 덩이 1·2줄 한 줄
+                _덩높 = [int(z) for z in (p[20].split(",") if len(p) > 20 and p[20] else [])
+                         if z.isdigit()]
+                if _덩높 and max(_덩높) - min(_덩높) > 4:
+                    notes.append(f"🔴 {label}: **업종 덩이 높이가 다르다** ({_덩높}px · ±4 안이어야)")
+                _덩줄 = [z for z in (p[21].split(";") if len(p) > 21 and p[21] else []) if z.strip()]
+                if _덩줄:
+                    notes.append(f"🔴 {label}: **업종 덩이 1·2줄이 한 줄이 아니다** "
+                                 f"({' / '.join(_덩줄[:3])})")
                 # ⭐⭐⭐ QUANT-ANSWER-0929 검사 6 — **종목 상자 네 행 모두 한 줄**
                 _행q = [z for z in (p[16].split(";") if len(p) > 16 and p[16] else [])
                         if z.strip()]
