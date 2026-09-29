@@ -58,9 +58,11 @@ function 메모리적기($때) {
     적기 ("[메모리] $때 — 물리 남음 {0} GB · 커밋 여유 {1} GB" -f
           [math]::Round($o.FreePhysicalMemory / 1MB, 1), [math]::Round($o.FreeVirtualMemory / 1MB, 1))
 }
-function 메모리관문($필요GB = 18) {
+function 메모리관문($필요GB = 18, $최대분 = 40) {
     $ㅁ = 0
-    while ((메모리여유GB) -lt $필요GB -and $ㅁ -lt 40) {
+    # ⭐ 2026-09-29 — 기다리는 동안 **아침 시간대면 여유가 돼도 안 뜬다.**
+    #    밤새 기다리다 07:20~09:10 에 메모리가 풀리면 브리핑과 겹쳐 뜬다. 브리핑이 먼저다
+    while ((((메모리여유GB) -lt $필요GB) -or (아침인가)) -and $ㅁ -lt $최대분) {
         if ($ㅁ -eq 0) { 적기 ("[메모리] 여유 {0} GB — {1} GB 될 때까지 기다린다" -f (메모리여유GB), $필요GB) }
         Start-Sleep -Seconds 60; $ㅁ = $ㅁ + 1
     }
@@ -99,7 +101,8 @@ while ((아침인가) -and ($ㅇ -lt 180)) {
     if ($ㅇ -eq 0) { 적기 "[0] 아침 시간대다 — 09:10 지나가길 기다린다" }
     Start-Sleep -Seconds 60; $ㅇ = $ㅇ + 1
 }
-메모리관문 18
+# ⭐ 2026-09-29 (사용자 「B140은 메모리 괜찮을 때 바로 돌려」) — 720분(12시간)까지 기다린다
+메모리관문 18 720
 메모리적기 "판 시작 전"
 
 적기 "[0] 실행 전 검사 (이름·거름 겹침·짝 풀기)"
@@ -109,19 +112,19 @@ if ($LASTEXITCODE -ne 0) { 적기 "❌ 소형 규칙 오염 조사에서 걸렸�
 $chk = & $py "scripts\check_lab_ready.py" 2>&1
 $chk | Select-Object -Last 3 | ForEach-Object { 적기 "    $_" }
 if ($LASTEXITCODE -ne 0) { 적기 "❌ 실행 전 검사에서 걸렸다 — 판을 띄우지 않는다"; exit 1 }
-적기 "[B140] BUYAT 다시 — **거래 비용** (캐시 열쇠를 고친 뒤) - 시작"
+적기 "[B140] BUYAT2+BUYAT — 사는 값(시가·종가) + 거래 비용 다시 - 시작"
 $env:BASE_GAP = "표본만+실전표본"
 $env:BASE_RELGAP = "-3.5"
 $env:BASE_SELL = "0.4,15,40 / 0.6,40,90"
 $env:BASE_PICKS = "120"
 $env:SIZE_HI = "999999"
-$env:ONLY = "BUYAT"
+$env:ONLY = "BUYAT2+BUYAT"
 
-$env:LAB_OUT = "2026-09-29_B140_거래비용_다시.txt"
+$env:LAB_OUT = "2026-09-29_B140_사는값_거래비용.txt"
 try { & $py "scripts\gate7_lab.py" 2>&1 | Select-Object -Last 6 | ForEach-Object { 적기 "    $_" } }
 catch { 적기 "⚠️ [B140] 터졌다: $($_.Exception.Message)" }
 foreach ($k in "TIMEMAP", "TIMEMAP", "BASE_GAP", "BASE_RELGAP", "BASE_SELL", "BASE_PICKS", "SIZE_HI", "VANISH_KIND", "OPENFIN", "SIZE_LO", "SIZE_HI2", "LAB_OUT", "ONLY") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
-$밖 = Join-Path "data\_labs" "2026-09-29_B140_거래비용_다시.txt"
+$밖 = Join-Path "data\_labs" "2026-09-29_B140_사는값_거래비용.txt"
 if (Test-Path $밖) { 적기 "[B140] 끝 — $('{0:N0}' -f (Get-Item $밖).Length) B" } else { 적기 "⚠️ [B140] 결과 파일이 없다" }
 메모리적기 "판 끝난 뒤"
 # ⭐ 2026-09-24 — 제 로그를 제가 읽는다. 터졌으면 깃발을 세워 **뒤 판을 멈춘다**

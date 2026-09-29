@@ -386,6 +386,11 @@ def _종목블록(x, 업종, 상태, 확정):
             f'{_esc(x.get("이름", ""))}</span>'
             + (f'<span style="font-size:26px;font-weight:700;color:{C["본"]}">'
                f'{_esc(업종)}</span>' if 업종 else "")
+            # ⭐ 2026-09-29 (사용자 결정) — **종목코드를 업종 옆에** 되살린다.
+            #    정본 1행엔 코드가 없다 — 정본과 다른 자리라 디자인에 알렸다
+            #    (design-share/ASK-QUANT-0929-2.md). 보조 24px · #6b665c
+            + (f'<span style="font-size:24px;color:{C["보"]}">'
+               f'{_esc(x.get("종목코드", ""))}</span>' if x.get("종목코드") else "")
             + '<span style="flex:1"></span>' + _칩들 + '</div>')
 
     # ── 2행 — 20일 낙폭 │ 상대갭 ──
