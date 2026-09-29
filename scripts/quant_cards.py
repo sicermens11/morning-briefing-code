@@ -44,6 +44,13 @@ _요일 = "월화수목금토일"
 _한장에 = 4
 # ⭐ 상자가 무한정 길어지지 않게. 한 장에 1~2개만 남는 날 우스꽝스러워진다
 _상자최대 = 340
+# ⭐⭐⭐ 2026-09-29 (사용자 「상자 속 폰트 위치가 다른 곳이 있는 거 같은데? 통일해야돼」)
+#    줄1 두 줄의 **높이를 못 박는다.** 안 박으면 업종에 가운뎃점(「의료·정밀·광학」)이나
+#    숫자(「1차금속」)가 섞일 때 글꼴 여유가 달라져 줄 높이가 **69 <-> 63px** 로 갈렸고,
+#    그 6px 이 아래 줄을 통째로 밀어 줄2 가 84/91, 줄3 이 117/123 으로 어긋났다.
+#    글자는 안 깎는다 — **칸만** 고정한다
+_줄1윗 = 52    # 이름 40px 이 들어가는 줄
+_줄1아래 = 46  # 낙폭 38px 이 들어가는 줄
 
 # ⭐ **Q2 한 장에 담는 규칙 줄 수** (2026-09-29 · 실측)
 #    Q2 는 143px 넘쳤다 (속 1,420 / 보이는 1,277). 업종 줄이 압도적으로 길다
@@ -283,23 +290,37 @@ def _줄1(x, 업종, 확정):
               f'white-space:nowrap">상대갭 {_esc(_음(x["상대갭"], 2, "%p"))}</span>')
     낙 = x.get("20일낙폭")
     낙글 = _esc(_음(낙, 1)) if 낙 is not None else "—"
-    _오른 = (f'<span style="flex:none;margin-left:auto;display:flex;align-items:baseline;'
+    # ⭐ 제 줄을 가지므로 `margin-left:auto` 대신 줄 자체를 오른쪽 정렬한다
+    _오른 = (f'<span style="flex:none;display:flex;align-items:baseline;'
              f'gap:16px">{갭}'
              f'<span style="flex:none;font-size:28px;color:{C["보"]};white-space:nowrap">'
              f'20일 낙폭 <b style="font-weight:800;font-size:38px;'
              f'color:{C["먹"]}">{낙글}</b></span></span>')
-    return (f'<div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap">'
+    # ⭐⭐⭐ 2026-09-29 (사용자 「상자 속 폰트 위치가 다른 곳이 있는 거 같은데? 통일해야돼」)
+    #    전에는 **한 줄 + `flex-wrap:wrap`** 이라 이름·업종이 길면 상대갭·낙폭이
+    #    아랫줄로 넘어가고 짧으면 같은 줄에 남았다 — 상자마다 글자 자리가 달랐다
+    #    (동방선기·케이씨텍은 두 줄, 부국철강·디와이·웅진·토니모리는 한 줄).
+    #    ⇒ **늘 두 줄로 고정한다.** 윗줄 이름·업종·코드 / 아랫줄 상대갭·낙폭(오른쪽).
+    #    ⚠️ 윗줄의 `flex-wrap:wrap` 은 남겨 둔다 — 이름이 아주 길어도 밖으로 안 나가게
+    #       (2026-09-29 아침 「20일 낙폭이 박스 바깥으로」 나갔던 그 방어)
+    return (f'<div style="display:flex;flex-direction:column;gap:8px">'
+            f'<div style="height:{_줄1윗}px;flex:none;'
+            f'display:flex;align-items:baseline;gap:16px;flex-wrap:wrap">'
             f'<span style="flex:none;font-size:40px;font-weight:700;letter-spacing:-.02em;'
             f'white-space:nowrap">{_esc(x.get("이름", ""))}</span>'
             + (f'<span style="flex:none;font-size:31px;font-weight:700;color:{C["본"]};'
                f'white-space:nowrap">{_esc(업종)}</span>' if 업종 else "")
             + f'<span style="flex:none;font-size:27px;color:{C["보"]};white-space:nowrap">'
               f'{_esc(x.get("종목코드", ""))}</span>'
-            + _오른
+            + '</div>'
             # ⭐ 시안(2026-09-17) · **낙폭에서 색을 뺀다.** 1장 낙폭 −9.6% 는 빨강(좋은 신호)인데
             #    4장 손실 −42.0% 는 파랑이라, 같은 마이너스가 두 색이었다.
             #    빨강·파랑은 **등락·수익률에만** 남긴다 — 낙폭은 굵기로만 눈에 띄게
-            + '</div>')
+            + f'<div style="height:{_줄1아래}px;flex:none;'
+              f'display:flex;align-items:baseline;gap:16px;'
+              f'justify-content:flex-end;flex-wrap:wrap">'
+            + _오른
+            + '</div></div>')
 
 
 def _줄2(x):
@@ -497,8 +518,14 @@ def _장1(q, 보유):
         리드 = (f"상대갭이 −{abs(R.상대갭문턱):g}%p까지 내려온 종목이 없었습니다. "
               "아무것도 사지 않는 것도 규칙대로 한 것입니다.")
         라벨, 라벨색 = "사지 않습니다 · 조건에 걸린 종목 (참고용)", C["보"]
-        각주 = (f"후보 {전체}종목 중 갭이 깊은 순으로 {n}개 · 문턱가를 넘어 안 샀습니다."
-              + (f" 나머지 {전체 - n}개는 상세에." if 전체 > n else ""))
+        # ⭐⭐⭐ 2026-09-29 (사용자 「세로 상세는 오늘 브리핑 보기 쪽인데 연관 없잖아?」)
+        #    전에는 「나머지 N개는 **상세에**」라고 썼는데 **거짓말이었다.**
+        #    세로 상세는 브리핑 카드 쪽 화면이고 퀀트 후보는 거기에 없다
+        #    (사이트 레일 26일치에 브리핑 카드는 다 있지만 퀀트 장은 0일치다).
+        #    ⇒ 없는 곳을 가리키지 말고 **싣지 않는다고 그대로 쓴다**
+        각주 = (f"후보 {전체}종목 중 갭이 깊은 순으로 {n}개만 싣습니다."
+              + (f" 나머지 {전체 - n}개는 화면에 넣지 않습니다." if 전체 > n else "")
+              + " 오늘은 문턱가를 넘어 아무것도 사지 않았습니다.")
     elif 상태 == "buy":
         킥, 제, 배, 배색 = (f"QUANT · {R.판정시각} 확정", f"오늘 살 것: {n}개",
                         f"지정가 주문 {n}", C["빨"])
