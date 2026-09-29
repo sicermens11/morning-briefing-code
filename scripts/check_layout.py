@@ -709,24 +709,28 @@ def check(cards_path, site_path=None):
                     continue
                 label = p[0]
                 _cut = int(p[6]) if p[6].isdigit() else 0
-                # ⭐⭐⭐ QUANT-FIX-0929 검사 4 — **항목 사이 최대 간격 <= 80px**
-                #    3장 249 · 4장 552 같은 구멍을 잡는다 (`space-between` 이 벌린 것)
+                # ⭐⭐⭐ QUANT-FIX-0929-2 새 판 검사 4 — **항목 사이 56px 고정 (상자 장 40px)**
+                #    ★ 빈 자리 규칙: 위로 붙이고 남는 자리는 아래. ±2px 만 봐 준다
                 _갭q = [int(z) for z in (p[9].split(",") if len(p) > 9 and p[9] else [])
                         if z.lstrip("-").isdigit()]
-                if _갭q and max(_갭q) > 80:
-                    notes.append(f"🔴 {label}: **항목 사이가 {max(_갭q)}px 벌어졌다** "
-                                 f"(한계 80) — 내용 적은 장이 벌어진 구멍이다")
+                _상자장 = bool(len(p) > 13 and p[13].lstrip("-").isdigit())
+                _기대 = 40 if _상자장 else 56
+                _틀 = [g for g in _갭q if abs(g - _기대) > 2]
+                if _틀:
+                    notes.append(f"🔴 {label}: **항목 사이가 {_기대}px 가 아니다** "
+                                 f"({', '.join(map(str, _틀[:4]))}px)")
                 # ⭐⭐⭐ QUANT-FIX-0929-2 검사 ① — **모든 글자 요소**의 넘침
                 _글q = [z for z in (p[17].split(";") if len(p) > 17 and p[17] else [])
                         if z.strip()]
                 if _글q:
                     notes.append(f"🔴 {label}: **글자가 칸을 넘는다** ({len(_글q)}곳 · "
                                  f"{' / '.join(_글q[:3])}) — 옆 칸으로 삐져나가 겹친다")
-                # ⭐⭐⭐ QUANT-FIX-0929-2 검사 ⑦ — **아래 여백 <= 200px**
+                # ⭐ QUANT-FIX-0929-2 새 판 — ⑦(아래 여백 ≤200)은 **삭제** (위 한도 없음).
+                #    ★ 「아래 여백 90 이상」은 ③ 에 합친다: 상자 없는 장은 마지막 글 밑
                 _아q = int(p[2]) if len(p) > 2 and p[2].lstrip("-").isdigit() else None
-                if _아q is not None and _아q > 200:
-                    notes.append(f"🔴 {label}: **아래가 {_아q}px 비었다** (한계 200) "
-                                 f"— 절반 가까이 빈 장이다")
+                if (not (len(p) > 13 and p[13].lstrip("-").isdigit())
+                        and _아q is not None and _아q < 90):
+                    notes.append(f"🔴 {label}: **아래 여백 {_아q}px** (90 이상이어야)")
                 # ⭐⭐⭐ QUANT-ANSWER-0929 검사 6 — **종목 상자 네 행 모두 한 줄**
                 _행q = [z for z in (p[16].split(";") if len(p) > 16 and p[16] else [])
                         if z.strip()]
