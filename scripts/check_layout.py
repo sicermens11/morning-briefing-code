@@ -218,6 +218,39 @@ setTimeout(function(){
       `scrollHeight > clientHeight` 는 **못 빠져나간다** */
    var _bd=s.querySelector("div[data-body]");
    var _본문넘침=_bd?(_bd.scrollHeight-_bd.clientHeight):0;
+   /* ⭐⭐⭐ QUANT-FIX-0929 검사 5 — **줄이 `·` `)` `↑` `↓` 로 시작하면 안 된다.**
+      글자 하나씩 Range 로 재서 **줄이 바뀌는 자리의 첫 글자**를 본다.
+      ⚠️ 덩이(블록)마다 따로 센다 — 옆으로 놓인 칸은 top 이 오르내린다
+      ⚠️ 퀀트 장에서만 — 카드 파일은 26일치 x 9장이라 너무 느리다
+      ⚠️ 눈에 안 보이는 글자(U+200B·U+2060·NBSP)는 건너뛴다 */
+   var _나쁜시작=[];
+   if((s.dataset.label||"").indexOf("퀀트")===0){
+     var _막={}, _막n=0;
+     var _w3=document.createTreeWalker(s,NodeFilter.SHOW_TEXT,null),_n3;
+     var _rg3=document.createRange();
+     while((_n3=_w3.nextNode())){
+       var _t3=_n3.nodeValue||"";
+       if(!_t3.replace(/[\s\u200b\u2060\u00a0]/g,"")) continue;
+       var _blk=_n3.parentElement;
+       while(_blk&&_blk!==s&&getComputedStyle(_blk).display==="inline")
+         _blk=_blk.parentElement;
+       if(!_blk._zzid){ _blk._zzid="b"+(++_막n); }
+       for(var _i3=0;_i3<_t3.length;_i3++){
+         var _ch=_t3[_i3];
+         if(/[\s\u200b\u2060\u00a0]/.test(_ch)) continue;
+         _rg3.setStart(_n3,_i3); _rg3.setEnd(_n3,_i3+1);
+         var _r3=_rg3.getBoundingClientRect();
+         if(_r3.height<3) continue;
+         var _top=Math.round(_r3.top);
+         var _앞=_막[_blk._zzid];
+         if(_앞===undefined||_top>_앞+2){
+           if("\u00b7)\u2191\u2193".indexOf(_ch)>=0)
+             _나쁜시작.push(_ch+_t3.slice(_i3,_i3+12).replace(/\s+/g," ").trim());
+           _막[_blk._zzid]=_top;
+         }
+       }
+     }
+   }
    out.push([s.dataset.label, Math.round(t), Math.round(H-b),
              Math.round(l), Math.round(W-r), bad.join(";"),
              cut, cutTxt, Math.round(H), gaps.join(","), noRule, kvBad,
@@ -238,7 +271,7 @@ setTimeout(function(){
                var 끝=블[블.length-1].getBoundingClientRect().bottom;
                return String(Math.round(sr.bottom-끝));
              })(),
-             _본문넘침].join("|"));
+             _본문넘침, _나쁜시작.join(";")].join("|"));
   });
   document.title="R::"+out.join("@@");
  },600);
@@ -630,6 +663,19 @@ def check(cards_path, site_path=None):
                     continue
                 label = p[0]
                 _cut = int(p[6]) if p[6].isdigit() else 0
+                # ⭐⭐⭐ QUANT-FIX-0929 검사 4 — **항목 사이 최대 간격 <= 80px**
+                #    3장 249 · 4장 552 같은 구멍을 잡는다 (`space-between` 이 벌린 것)
+                _갭q = [int(z) for z in (p[9].split(",") if len(p) > 9 and p[9] else [])
+                        if z.lstrip("-").isdigit()]
+                if _갭q and max(_갭q) > 80:
+                    notes.append(f"🔴 {label}: **항목 사이가 {max(_갭q)}px 벌어졌다** "
+                                 f"(한계 80) — 내용 적은 장이 벌어진 구멍이다")
+                # ⭐⭐⭐ QUANT-FIX-0929 검사 5 — **줄이 기호로 시작하면 안 된다**
+                _시작q = [z for z in (p[15].split(";") if len(p) > 15 and p[15] else [])
+                          if z.strip()]
+                if _시작q:
+                    notes.append(f"🔴 {label}: **줄이 「{' / '.join(_시작q[:4])}」 로 "
+                                 f"시작한다** ({len(_시작q)}곳) — 기호로 줄을 열면 안 된다")
                 if _cut:
                     fails.append(f"🔴 {label}: **글 {_cut}마디가 칸 안에서 잘렸다** (게시는 막지 않는다) "
                                  f"— 화면에 안 나온다 (첫 조각: "
