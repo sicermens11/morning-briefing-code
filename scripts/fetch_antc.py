@@ -240,18 +240,30 @@ def main():
     #    판정의 중앙갭을 후보가 아니라 **표본 30개**로 낸다(시험이 그랬다).
     #    네이버 실시간(check_entry.fetch_quote · auto_0850 이 쓰던 경로)이라
     #    NH 호출 예산을 안 쓴다. 30개 x 0.15초 ≈ 5초
+    # ⚠️⚠️⚠️ 2026-09-29 밤 — **표본 갭이 9/14 부터 매일 정확히 +0.00% 였다.**
+    #    네이버 실시간의 `now`(closePrice) 는 장 시작 전엔 **전날 종가 그대로**라
+    #    30개 모두 갭 0 이 나왔다. 실전 중앙갭이 늘 0 → 「상대갭」이 사실상 「제 갭」이었다.
+    #    시험(표본만+실전표본)은 표본의 **진짜 시초가 갭**을 쓴다 (9/15~9/28 진짜 중앙: −0.64 ~ +0.97%).
+    #    그동안 산다·안 산다가 바뀐 날은 없었다 (scratchpad sample_replay 로 다시 셈).
+    #    ⇒ 표본도 후보처럼 **NH 예상체결가**로 받는다. 전날 종가는 네이버 prev_close(장 전 = 전날 종가).
+    #       못 받은 종목은 **0 으로 채우지 않고 뺀다** — 10개 미만이면 record_pick 이 후보 중앙값(㉠)으로 간다
     표본갭 = []
     try:
         from auto_0850 import _시장표본
         from check_entry import fetch_quote
+        _호가전 = dict(_호가모음)            # 표본은 호가 스냅샷에 안 섞는다
         for c2 in _시장표본:
             try:
+                가2, _량2, _구2 = 예상체결가(c2)
                 q2 = fetch_quote(c2)
-                if q2.get("now") and q2.get("prev_close"):
-                    표본갭.append((q2["now"] / q2["prev_close"] - 1) * 100)
+                전2 = q2.get("prev_close")
+                if 가2 and 전2:
+                    표본갭.append((가2 / 전2 - 1) * 100)
             except Exception:  # noqa: BLE001
                 pass
-            time.sleep(0.15)
+            time.sleep(0.2)
+        _호가모음.clear()
+        _호가모음.update(_호가전)
         찍기(f"  시장 표본 {len(표본갭)}/{len(_시장표본)}개 · 중앙갭 "
              + (f"{sorted(표본갭)[len(표본갭) // 2]:+.2f}%" if 표본갭 else "—"))
         if len(표본갭) < 10:
