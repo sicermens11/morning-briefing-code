@@ -612,9 +612,20 @@ def check(cards_path, site_path=None):
                 #    잘림 0(차단) · 높이 1350 · **마지막 블록 밑 -> 카드 아래끝 >= 90**
                 _블아래 = (int(p[13]) if len(p) > 13 and p[13].lstrip("-").isdigit()
                            else None)
-                if _블아래 is not None and _블아래 < MIN_MARGIN:
+                # ⭐⭐ 2026-09-29 — **「빡빡하다」와 「글자가 사라졌다」를 가른다.**
+                #    2026-09-29 아침: -46px 을 찍어 놓고 바로 다음 줄에 「통과」라고
+                #    하고 올렸다. 사용자가 사진으로 잡아냈다 (「문턱가」 줄이 사라졌다).
+                #    · 음수 = 블록이 **카드 밖으로 나갔다** → 내용이 안 보인다 → **게시 금지**
+                #    · 0 이상이지만 하한 미만 = 빡빡할 뿐 읽힌다 → 경고
+                #    ⚠️ 2026-08-28 결정(한 장 때문에 사이트를 어제 것으로 두지 않는다)은
+                #       그대로다 — **음수만** 막는다
+                if _블아래 is not None and _블아래 < 0:
+                    fails.append(f"{label}: **게시 금지 · 마지막 블록이 카드 "
+                                 f"밖으로 나갔다 ({_블아래}px)** — 그만큼이 화면에서 "
+                                 f"잘려 안 보인다")
+                elif _블아래 is not None and _블아래 < MIN_MARGIN:
                     fails.append(f"{label}: **마지막 블록 밑에서 카드 아래끝까지 "
-                                 f"{_블아래}px** (하한 {MIN_MARGIN})")
+                                 f"{_블아래}px** (하한 {MIN_MARGIN}) — 빡빡하다")
                 _qH = int(p[8]) if len(p) > 8 and p[8].lstrip("-").isdigit() else 0
                 if _qH and abs(_qH - _CARD_H) > 1:
                     fails.append(f"{label}: 카드 높이 {_qH}px ({_CARD_H}이어야 한다)")
