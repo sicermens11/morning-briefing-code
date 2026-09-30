@@ -101,7 +101,13 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     받 = {os.path.basename(f)[:-5] for f in os.listdir(OUT) if f.endswith(".json")} \
         if os.path.isdir(OUT) else set()
-    할것 = [m for m in 달들(부터, 까지) if m not in 받]
+    # ⚠️⚠️ 2026-09-30 전수조사 #10: 이미 받은 달을 건너뛰어 **9/14 에 만든 202609 를 다시 안 받았다** —
+    #    9/14 뒤 새 리포트 0. 달이 안 끝났을 때 받은 파일은 반쪽이다
+    #    ⇒ **이번 달과 지난달은 늘 다시** 받는다 (지난달 말일에 받은 반쪽도 채운다)
+    _오늘 = dt.date.today()
+    _지난 = (_오늘.replace(day=1) - dt.timedelta(days=1)).strftime("%Y%m")
+    _늘 = {_오늘.strftime("%Y%m"), _지난}
+    할것 = [m for m in 달들(부터, 까지) if m not in 받 or m in _늘]
     찍기(f"  {부터}~{까지} · 이미 받음 {len(받)}달 · 받을 것 {len(할것)}달 "
          f"· 예상 약 {len(할것)*17*(_쉼+0.35)/60:.0f}분")
     if 확인만 or not 할것:
@@ -140,6 +146,16 @@ def main():
         if 실패 and not 모:
             찍기(f"  [{mi}/{len(할것)}] {m} — ❌ 못 받았다 (빈 파일을 안 남긴다)")
             continue
+        # 다시 받는 달: 중간에 끊겨 **전보다 적으면** 덮어쓰지 않는다
+        _옛 = os.path.join(OUT, m + ".json")
+        if 실패 and os.path.exists(_옛):
+            try:
+                _옛건 = json.load(io.open(_옛, encoding="utf-8")).get("건수", 0)
+            except ValueError:
+                _옛건 = 0
+            if len(모) < _옛건:
+                찍기(f"  [{mi}/{len(할것)}] {m} — ⚠️ 중간에 끊겨 {len(모)}건 < 전 {_옛건}건 — 옛 파일을 둔다")
+                continue
         io.open(os.path.join(OUT, m + ".json"), "w", encoding="utf-8").write(
             json.dumps({"달": m, "건수": len(모), "리포트": 모}, ensure_ascii=False))
         총 += len(모)
