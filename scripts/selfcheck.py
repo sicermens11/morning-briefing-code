@@ -612,12 +612,18 @@ def main():
     if not 조용:
         print("\n  ══ H 예약 마지막 실행 결과 ══")
     try:
+        # ⚠️ 2026-09-30 전수조사 #13: 「실패했나」만 봐서 **안 돈 날**(계정 잠김으로 19:00 저녁 수집 통째로)도 ✅ 였다.
+        #    ⇒ 평일 매일 도는 예약은 **마지막 실행이 76시간(금 저녁→월 밤)보다 오래됐으면** 알린다.
+        #    예약 넷(FetchAntc·KrxFetch·NightlyNews·Overnight)도 점검에 넣는다
         _ps2 = (
             "Get-ScheduledTask | Where-Object { $_.TaskName -match "
-            "'AutoSearch|Capital|Weekend|Forward|SelfCheck|Morning|Evening'"
+            "'AutoSearch|Capital|Weekend|Forward|SelfCheck|Morning|Evening|Antc|KrxFetch|NightlyNews|Overnight'"
             " } | ForEach-Object { $i=$_ | Get-ScheduledTaskInfo; "
-            "\"$($_.TaskName)`t$($i.LastTaskResult)`t$($i.LastRunTime)\" }"
+            "$l = if ($i.LastRunTime) { $i.LastRunTime.ToString('yyyy-MM-ddTHH:mm') } else { '' }; "
+            "\"$($_.TaskName)`t$($i.LastTaskResult)`t$l`t$($_.State)\" }"
         )
+        _매일 = ("MorningSectorBriefing", "EveningDataCollect", "ForwardRecord", "FetchAntc0850",
+                 "KrxFetchBeforeBriefing", "NightlyNews", "OvernightDataCollect")
         _r2 = subprocess.run(
             ["powershell", "-NoProfile", "-Command", _ps2],
             capture_output=True, timeout=60)
@@ -627,7 +633,18 @@ def main():
                 continue
             # 0=정상 · 267011(0x41303)=아직 안 돔 · 267014=사용자가 끝냄
             # ⚠️ SelfCheck 은 문제를 찾으면 일부러 1로 끝난다 — 위와 같은 이유로 뺀다
-            if _p[0].startswith("SelfCheck") or _p[1] in ("0", "267011", "267014"):
+            _늙음 = None
+            if _p[0] in _매일 and (len(_p) < 4 or _p[3] != "Disabled"):
+                try:
+                    _늙음 = (dt.datetime.now()
+                             - dt.datetime.strptime(_p[2], "%Y-%m-%dT%H:%M")).total_seconds() / 3600
+                except ValueError:
+                    _늙음 = 9999.0
+            if _늙음 is not None and _늙음 > 76:
+                알림(True, f"예약 **{_p[0]}**이 {_늙음:.0f}시간째 안 돌았다 (마지막 {_p[2] or '없음'}) — "
+                           f"계정 잠김·PC 꺼짐을 의심")
+            elif _p[0].startswith("SelfCheck") or _p[1] in ("0", "267011", "267014", "267009"):
+                # 267009 = 지금 도는 중
                 if not 조용:
                     print(f"    ✅ {_p[0]:<24}{_p[2][:16]}")
             else:

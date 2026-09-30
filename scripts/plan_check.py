@@ -71,8 +71,23 @@ def main():
     문제, 경고, 정상 = [], [], 0
     for 상태, 무엇, 왜, 파일 in 줄들:
         기 = 파일.replace("data/_labs/", "").strip()
-        있 = 기 in 있는파일
-        크 = os.path.getsize(os.path.join(_L, 기)) if 있 else 0
+        # ⚠️ 2026-09-30 전수조사 #14: 결과 칸에 **코드·문서 파일**(docs/재료대장.md · fetch_antc.py)이나
+        #    **판 이름**(PAIRS8·9 · COMBO6 · BIG5)이 적힌 줄을 _labs 에서만 찾아 「결과 파일이 없다」고 매번 7개씩 외쳤다
+        #    ⇒ 경로가 있으면 저장소에서, .py 는 scripts/ 에서 찾는다. 파일 이름이 아닌 판 이름은 파일을 안 본다
+        if 기 and "/" in 기 and not 기.startswith("data/_labs"):
+            _p = os.path.join(_BASE, 기)
+            있 = os.path.exists(_p)
+            크 = os.path.getsize(_p) if os.path.isfile(_p) else (10 ** 6 if (있 and "✅" in 상태) else 0)
+        elif 기.endswith(".py") and "/" not in 기:
+            _p = os.path.join(_BASE, "scripts", 기)
+            있, 크 = os.path.exists(_p), (os.path.getsize(_p) if os.path.exists(_p) else 0)
+        elif 기 and "." not in 기:
+            # 판 이름(파일 아님) — 결과 파일로 확인할 수 없다. 표에 적힌 상태를 그대로 믿는다
+            #    (예정 줄을 「결과 있음」으로 치면 「예정인데 결과가 있다」 거짓 경보가 난다)
+            있, 크 = ("✅" in 상태), (10 ** 6 if "✅" in 상태 else 0)
+        else:
+            있 = 기 in 있는파일
+            크 = os.path.getsize(os.path.join(_L, 기)) if 있 else 0
         # ⚠ 짧은 결과도 있다 (173차는 1,573바이트인데 완전하다).
         #    「죽었나」만 가린다 — 너무 높게 잡으면 멀젖한 경보가 난다
         찼 = 크 > 1000
@@ -88,6 +103,9 @@ def main():
                 정상 += 1
         elif "🔄" in 상태:
             경고.append(f"{무엇} — 도는 중")
+        elif "⚠️" in 상태 and "다시" in 상태:
+            # 9/30: 「⚠️ 다시」 는 **다시 돌려야 한다**는 뜻 — 옛 결과 파일이 있어도 끝난 게 아니다
+            경고.append(f"{무엇} — 다시 돌려야 함 (옛 결과 {크:,}바이트)")
         elif "⏸" in 상태:
             경고.append(f"{무엇} — 멈춤: {왜}")
         else:               # 예정
