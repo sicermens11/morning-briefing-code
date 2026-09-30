@@ -152,8 +152,22 @@ def main():
                                 "get", "CommandLine"],
                                capture_output=True, text=True, timeout=30).stdout
         except Exception:  # noqa: BLE001
-            return []
-        return sorted({n for n in 큰것 if f"{n}.py" in o})
+            o = ""
+        이름들 = {n for n in 큰것 if f"{n}.py" in o}
+        # ⚠️⚠️ 2026-10-01 00:44 — own_lab 무리 판(10GB)이 돌 때 여기 시험 18개가 **그냥 시작해**
+        #    여유 1.7GB 까지 내려갔고 대기열이 제 판을 껐다. own_lab·combo4 가 이름 목록에 없었다.
+        #    이름 목록은 새 판이 생길 때마다 빠진다 ⇒ **3GB 넘게 쓰는 파이썬이 있으면** 이름과 상관없이 기다린다
+        try:
+            m = subprocess.run(
+                ["powershell", "-NoProfile", "-Command",
+                 f"@(Get-Process python -EA SilentlyContinue | Where-Object {{ $_.Id -ne {os.getpid()} "
+                 f"-and $_.WorkingSet64 -gt 3GB }}).Count"],
+                capture_output=True, text=True, timeout=60).stdout.strip()
+            if m.isdigit() and int(m) > 0:
+                이름들.add(f"큰 파이썬 {m}개(3GB↑)")
+        except Exception:  # noqa: BLE001
+            pass
+        return sorted(이름들)
 
     import time as _t
     while True:
