@@ -10,13 +10,14 @@
 #  쓰는 법:  powershell -File scripts\queue_own.ps1 -Which 시험     (작은 무리 빠른 판 하나)
 #            powershell -File scripts\queue_own.ps1 -Which 전부
 # ==============================================================
-param([string]$Which = "전부", [string]$After = "", [switch]$Dry)
+param([string]$Which = "전부", [string]$After = "", [switch]$Dry, [string]$Skip = "", [string]$Kinds = "")
 $ErrorActionPreference = "Continue"
 Set-Location "C:\Users\mrblue\Claude\morning breifing_code"
 $env:PYTHONIOENCODING = "utf-8"
 [Console]::OutputEncoding = [Text.Encoding]::UTF8   # verify_own 대조표가 로그에서 깨졌다 (9/30 13:26)
 $py = "C:\Users\mrblue\AppData\Local\Programs\Python\Python313\python.exe"
-$log = "run-logs\queue_own_$Which`_$(Get-Date -f yyyyMMdd_HHmm).log"
+# ⚠️ 9/30 16:01 대기열 둘을 같은 분에 띄워 로그 이름이 겹쳤다 — 초와 종류를 넣는다
+$log = "run-logs\queue_own_$Which`_$(Get-Date -f yyyyMMdd_HHmmss)$(if ($Kinds) { '_' + ($Kinds -replace ',', '') }).log"
 function 적기($s) {
     $줄 = "$(Get-Date -f 'MM-dd HH:mm')  $s"
     Write-Output $줄
@@ -51,6 +52,10 @@ $전부 += , @("B196", "규모", "", "300", "700", "소형_300_700", "")
 $전부 += , @("B197", "규모", "", "700", "2000", "소형_700_2000", "")
 # ⚠️ `$목록 = if (…) { $시험 }` 은 한 줄짜리 목록을 풀어 「무리 7개」로 만들었다 (9/30 두 번) — if 안에서 대입한다
 if ($Which -eq "시험") { $목록 = $시험 } else { $목록 = $전부 }
+# ⭐ 9/30 16:10 — 낮엔 브라우저 몫 때문에 중형(관문 24GB)이 못 시작한다 → -Kinds 섹터 로 섹터만 먼저,
+#    -Skip B158 로 끝난 판을 뺀다. (순서는 내가 정한다 — [[when-to-stop-testing]])
+if ($Skip) { $뺄 = $Skip -split ','; $목록 = @($목록 | Where-Object { $뺄 -notcontains $_[0] }) }
+if ($Kinds) { $종류들 = $Kinds -split ','; $목록 = @($목록 | Where-Object { $종류들 -contains $_[1] }) }
 if ($Dry) {
     Write-Output "무리 $($목록.Count)개"
     foreach ($g in $목록) { $번, $종, $값, $lo, $hi, $표, $빠른 = $g; Write-Output "$번 | $종 | $값 | $lo~$hi | $표 | 빠른=$빠른" }
