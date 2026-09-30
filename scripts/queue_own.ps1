@@ -10,7 +10,7 @@
 #  쓰는 법:  powershell -File scripts\queue_own.ps1 -Which 시험     (작은 무리 빠른 판 하나)
 #            powershell -File scripts\queue_own.ps1 -Which 전부
 # ==============================================================
-param([string]$Which = "전부", [string]$After = "", [switch]$Dry, [string]$Skip = "", [string]$Kinds = "")
+param([string]$Which = "전부", [string]$After = "", [switch]$Dry, [string]$Skip = "", [string]$Kinds = "", [switch]$Batch)
 $ErrorActionPreference = "Continue"
 Set-Location "C:\Users\mrblue\Claude\morning breifing_code"
 $env:PYTHONIOENCODING = "utf-8"
@@ -83,6 +83,63 @@ if ($After) {
     }
 }
 적기 "===== queue_own ($Which) 시작 · 무리 $($목록.Count)개 ====="
+
+# ⭐ 10/1 -Batch — 「한 번 읽기」: 한 프로세스가 공통 준비를 한 번 하고 무리를 차례로 (own_lab OWN_GROUPS)
+#    판마다 7~9분 같은 자료를 다시 읽던 것을 없앤다. 끝나면 무리마다 결과를 따로 대조한다
+function 뜻한무리($종, $값, $lo, $hi) {
+    if ($종 -eq "규모") { return ("규모 {0:N0}억~{1}" -f [double]$lo, $(if ($hi) { ("{0:N0}억" -f [double]$hi) } else { "(상한 없음)" })) }
+    return "$종 = $값"
+}
+if ($Batch) {
+    if (Test-Path $깃발) { 적기 "🛑 멈춤 깃발 — 시작 안 함"; 적기 "===== queue_own_$Which 끝 ====="; exit 1 }
+    $ㅇ = 0
+    while ((아침인가) -and ($ㅇ -lt 180)) { if ($ㅇ -eq 0) { 적기 "[묶음] 아침 시간대 — 09:10 지나가길 기다린다" }; Start-Sleep 60; $ㅇ++ }
+    $ㅁ = 0
+    while ((((여유GB) -lt 18) -or ((큰파이썬) -gt 0)) -and ($ㅁ -lt 720)) {
+        if ($ㅁ -eq 0) { 적기 "[묶음] 메모리 여유 $(여유GB)GB · 큰 파이썬 $(큰파이썬)개 — 기다린다" }
+        Start-Sleep 60; $ㅁ++
+    }
+    $칸들 = @(); $파일들 = @()
+    foreach ($g in $목록) {
+        $번, $종, $값, $lo, $hi, $표, $빠른 = $g
+        $밖 = "$(Get-Date -f yyyy-MM-dd)_$번`_무리전용_$표.txt"
+        $칸들 += "$종|$값|$lo|$hi|$밖"; $파일들 += , @($번, $밖, (뜻한무리 $종 $값 $lo $hi))
+    }
+    $env:OWN_GROUPS = ($칸들 -join ';'); $env:LAB_OUT = "$(Get-Date -f yyyy-MM-dd)_묶음_$($목록[0][0])-$($목록[-1][0]).txt"; $env:MAXDD = "-12"
+    적기 "[묶음] 시작 — 무리 $($목록.Count)개 한 프로세스 · 여유 $(여유GB)GB"
+    $최대 = 0.0; $끔 = $false
+    $p = Start-Process -FilePath $py -ArgumentList "scripts\own_lab.py" -PassThru -WindowStyle Hidden
+    while (-not $p.HasExited) {
+        Start-Sleep 30
+        try { $ws = (Get-Process -Id $p.Id -ErrorAction Stop).WorkingSet64 / 1GB; if ($ws -gt $최대) { $최대 = $ws } } catch { }
+        if ((여유GB) -lt 3) {
+            적기 "🛑 [묶음] 메모리 여유 $(여유GB)GB — 이 판을 끈다"
+            try { Stop-Process -Id $p.Id -Force -ErrorAction Stop } catch { }
+            $끔 = $true
+            Set-Content $깃발 "queue_own 묶음 메모리 여유 3GB 밑 — 스스로 껐다 $(Get-Date -f 'MM-dd HH:mm')" -Encoding UTF8
+            break
+        }
+    }
+    foreach ($k in "OWN_GROUPS", "LAB_OUT", "MAXDD") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
+    적기 ("[묶음] 끝 — 코드 {0} · 최대 메모리 {1:N1}GB" -f $p.ExitCode, $최대)
+    $터진것 = 0
+    foreach ($x in $파일들) {
+        $번, $밖, $뜻 = $x
+        $f = Join-Path "data\_labs" $밖
+        $끝 = (Test-Path $f) -and (Select-String -Path $f -Pattern "\[대조\] 무리" -Quiet)
+        $터 = (Test-Path $f) -and (Select-String -Path $f -Pattern "Traceback" -Quiet)
+        $env:OWN_EXPECT = $뜻
+        $vo = & $py "scripts\verify_own.py" $f 2>&1
+        Remove-Item env:OWN_EXPECT -ErrorAction SilentlyContinue
+        $요 = ($vo | Select-String "⑨ 뒤 기간" | Select-Object -First 1)
+        적기 ("[$번] {0} · {1}" -f $(if ($끝 -and -not $터) { "끝까지 ✅" } else { "터짐 ❌" }), ($요 -replace '^\s+', ''))
+        if (($vo | Out-String) -match "❌") { $vo | Select-String "❌" | ForEach-Object { 적기 "    $_" } }
+        if (-not $끝 -or $터) { $터진것++ }
+    }
+    if ($터진것 -gt 0 -or $끔) { Set-Content $깃발 "queue_own 묶음 — 터진 무리 $터진것 개 $(Get-Date -f 'MM-dd HH:mm')" -Encoding UTF8; 적기 "🛑 [묶음] 터진 무리 $터진것 개 — 깃발" }
+    적기 "===== queue_own_$Which 끝 ====="
+    exit 0
+}
 foreach ($g in $목록) {
     $번, $종, $값, $lo, $hi, $표, $빠른 = $g
     if (Test-Path $깃발) { 적기 "🛑 멈춤 깃발 — 여기서 멈춘다: $((Get-Content $깃발 -Raw) -replace "`r`n", ' ')"; break }
