@@ -119,7 +119,7 @@ def main():
           f"후보 120 을 10**9 로 덮음 {'✅' if 덮 else '❌'}")
     print(f"  ② 미래를 보는 재료: {'없음 ✅' if not 미 else '❌ ' + ', '.join(미)}")
     파일들 = sys.argv[1:] or sorted(p for p in glob.glob(os.path.join(_B, "data", "_labs", "2026-*_B1[5-9][0-9]_무리*.txt"))
-                                if not any(k in os.path.basename(p) for k in ("잘못", "죽음", "중단")))
+                                if not any(k in os.path.basename(p) for k in ("잘못", "죽음", "중단", ".시간.")))
     모두 = True
     for p in 파일들:
         이름, 줄 = 판검사(p)

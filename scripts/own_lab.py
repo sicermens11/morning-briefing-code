@@ -1965,20 +1965,32 @@ if __name__ == "__main__":
     _p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                       "data", "_labs", os.environ.get("LAB_OUT") or "own_lab.txt")
 
+    import time as _time
+
     class _Tee:
-        def __init__(self, f):
-            self.f, self.o = f, sys.__stdout__
+        # ⭐ 9/30 사용자 「왜 자체적으로는 효율적인 방법을 안 한거야?」 — 시간이 어디서 쓰이는지 재지 않았다.
+        #    결과 파일은 그대로 두고, 옆 「.시간.txt」 에 **줄마다 판 시작부터 걸린 초·메모리**를 적는다
+        def __init__(self, f, t):
+            self.f, self.o, self.t = f, sys.__stdout__, t
+            self.시작 = _time.time()
 
         def write(self, s):
             self.o.write(s)
             self.f.write(s)
+            try:
+                for 줄 in s.splitlines():
+                    if 줄.strip():
+                        self.t.write(f"{_time.time() - self.시작:8.1f}s  {줄[:110]}\n")
+            except Exception:  # noqa: BLE001
+                pass
 
         def flush(self):
             self.o.flush()
             self.f.flush()
+            self.t.flush()
 
-    with io.open(_p, "w", encoding="utf-8") as _f:
-        sys.stdout = _Tee(_f)
+    with io.open(_p, "w", encoding="utf-8") as _f, io.open(_p[:-4] + ".시간.txt", "w", encoding="utf-8") as _t:
+        sys.stdout = _Tee(_f, _t)
         try:
             rc = main()
         except BaseException:
