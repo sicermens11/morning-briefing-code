@@ -33,7 +33,7 @@ function 아침인가 {
 $깃발 = "data\_labs\_STOP.txt"
 
 # 무리 목록 — (번호, 종류, 값, BIG_LO, BIG_HI, 이름표)
-$시험 = @(,@("B157", "섹터", "원전 기자재", "", "", "시험판_원전", "1"))
+$시험 = @(,@("B157", "섹터", "원전 기자재", "", "", "시험판5_원전_원천시작일", ""))
 $전부 = @(
     @("B158", "규모", "", "10000", "", "대형1조", ""),
     @("B159", "규모", "", "2000", "10000", "중형", "")
@@ -45,7 +45,10 @@ $업종들 = @("IT 서비스", "건설", "금속", "금융", "기계·장비", "
 $n = 161
 foreach ($s in $섹터들) { $전부 += , @("B$n", "섹터", $s, "", "", ("섹터_" + ($s -replace '[/ ]', '')), ""); $n++ }
 foreach ($u in $업종들) { $전부 += , @("B$n", "업종", $u, "", "", ("업종_" + ($u -replace '[/ ·]', '')), ""); $n++ }
-# ⚠️ 소형(300억~2천억 · 2010~)은 사건 약 440만 · 메모리 약 30GB 로 어림 (9/30 독립 검사) — 대형·중형 실측을 보고 따로 정한다
+# ⭐ 소형 — 사용자 9/30 「정리하면 1·2·3·4는 「하자」 … 이대로 가자. 메모리 안 넘치게 조심해.」 (3번: 소형은 두 띠로 나눠 꼭 한다)
+#    한 덩이(300억~2천억)는 사건 약 460만 · 약 30GB 어림 → 300~700억 · 700억~2천억 두 판. 맨 뒤에 둔다(중형 실측을 보고 관문을 고칠 수 있게)
+$전부 += , @("B196", "규모", "", "300", "700", "소형_300_700", "")
+$전부 += , @("B197", "규모", "", "700", "2000", "소형_700_2000", "")
 # ⚠️ `$목록 = if (…) { $시험 }` 은 한 줄짜리 목록을 풀어 「무리 7개」로 만들었다 (9/30 두 번) — if 안에서 대입한다
 if ($Which -eq "시험") { $목록 = $시험 } else { $목록 = $전부 }
 if ($Dry) {
@@ -58,7 +61,10 @@ if ($After) {
     적기 "[0] 앞 판($After) 끝을 기다린다"
     $w = 0
     while ($w -lt 720) {
-        $앞 = @(Get-ChildItem "run-logs\queue_$After`_*.log" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1)
+        # ⚠️ 제 로그(queue_own_…)가 앞 판 로그로 잡히지 않게 뺀다
+        $앞 = @(Get-ChildItem "run-logs\queue_$After`_*.log" -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -ne (Resolve-Path $log -ErrorAction SilentlyContinue).Path } |
+                Sort-Object LastWriteTime | Select-Object -Last 1)
         if ($앞.Count -gt 0 -and (Select-String -Path $앞[0].FullName -Pattern "queue_$After 끝 =====" -Quiet) -and ((큰파이썬) -eq 0)) { break }
         Start-Sleep -Seconds 60; $w++
     }
@@ -69,22 +75,39 @@ foreach ($g in $목록) {
     if (Test-Path $깃발) { 적기 "🛑 멈춤 깃발 — 여기서 멈춘다: $((Get-Content $깃발 -Raw) -replace "`r`n", ' ')"; break }
     $ㅇ = 0
     while ((아침인가) -and ($ㅇ -lt 180)) { if ($ㅇ -eq 0) { 적기 "[$번] 아침 시간대 — 09:10 지나가길 기다린다" }; Start-Sleep 60; $ㅇ++ }
+    # ⚠️ 9/30 독립 검사: 중형은 사건 189만 · 어림 17~21GB — 18GB 관문으로는 모자란다
+    $관문 = if ($번 -in @("B159", "B196", "B197")) { 24 } else { 18 }
     $ㅁ = 0
-    while ((((여유GB) -lt 18) -or ((큰파이썬) -gt 0)) -and ($ㅁ -lt 720)) {
-        if ($ㅁ -eq 0) { 적기 "[$번] 메모리 여유 $(여유GB)GB · 큰 파이썬 $(큰파이썬)개 — 기다린다" }
+    while ((((여유GB) -lt $관문) -or ((큰파이썬) -gt 0)) -and ($ㅁ -lt 720)) {
+        if ($ㅁ -eq 0) { 적기 "[$번] 메모리 여유 $(여유GB)GB (관문 $관문) · 큰 파이썬 $(큰파이썬)개 — 기다린다" }
         Start-Sleep 60; $ㅁ++
     }
-    if ((여유GB) -lt 18) { 적기 "🛑 [$번] 12시간 기다려도 여유 $(여유GB)GB — 멈춘다"; Set-Content $깃발 "queue_own $번 메모리 부족" -Encoding UTF8; break }
-    $밖 = "2026-09-30_$번`_무리전용_$표.txt"
+    if ((여유GB) -lt $관문) { 적기 "🛑 [$번] 12시간 기다려도 여유 $(여유GB)GB — 멈춘다"; Set-Content $깃발 "queue_own $번 메모리 부족" -Encoding UTF8; break }
+    $밖 = "$(Get-Date -f yyyy-MM-dd)_$번`_무리전용_$표.txt"
+    # 판이 뜻한 무리로 돌았나 verify_own 이 본다 (9/30 무리 값 빠진 채 전 종목으로 두 번 돌았다)
+    if ($종 -eq "규모") {
+        $env:OWN_EXPECT = "규모 {0:N0}억~{1}" -f [double]$lo, $(if ($hi) { ("{0:N0}억" -f [double]$hi) } else { "(상한 없음)" })
+    } else { $env:OWN_EXPECT = "$종 = $값" }
     적기 "[$번] 시작 — $종 $값 $lo~$hi · 여유 $(여유GB)GB"
     $env:OWN_KIND = $종; $env:OWN_VALUE = $값; $env:BIG_LO = $lo; $env:BIG_HI = $hi; $env:LAB_OUT = $밖; $env:MAXDD = "-12"
     if ($빠른) { $env:OWN_FAST = "1" } else { Remove-Item env:OWN_FAST -ErrorAction SilentlyContinue }
     $최대 = 0.0
     $p = Start-Process -FilePath $py -ArgumentList "scripts\own_lab.py" -PassThru -WindowStyle Hidden
+    $끔 = $false
     while (-not $p.HasExited) {
         Start-Sleep 30
         try { $ws = (Get-Process -Id $p.Id -ErrorAction Stop).WorkingSet64 / 1GB; if ($ws -gt $최대) { $최대 = $ws } } catch { }
+        # ⚠️ 9/30 13:24 잘못 걸린 판이 여유 5.6GB 까지 먹었고 사장님이 손으로 꺼야 했다 —
+        #    여유 3GB 밑이면 **이 대기열이 띄운 판만** 스스로 끄고 깃발을 세운다 (다른 프로그램은 안 건드린다)
+        if ((여유GB) -lt 3) {
+            적기 "🛑 [$번] 메모리 여유 $(여유GB)GB · 판 메모리 $([math]::Round($ws,1))GB — 이 판을 끈다"
+            try { Stop-Process -Id $p.Id -Force -ErrorAction Stop } catch { }
+            $끔 = $true
+            Set-Content $깃발 "queue_own $번 ($종 $값) 메모리 여유 3GB 밑 — 스스로 껐다 $(Get-Date -f 'MM-dd HH:mm')" -Encoding UTF8
+            break
+        }
     }
+    if ($끔) { 적기 "🛑 [$번] 메모리로 껐다 — 깃발을 세우고 멈춘다"; break }
     foreach ($k in "OWN_KIND", "OWN_VALUE", "BIG_LO", "BIG_HI", "LAB_OUT", "OWN_FAST", "MAXDD") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
     $f = Join-Path "data\_labs" $밖
     $끝 = (Test-Path $f) -and (Select-String -Path $f -Pattern "\[대조\] 무리" -Quiet)
@@ -92,6 +115,13 @@ foreach ($g in $목록) {
     적기 ("[$번] 끝 — 코드 {0} · 최대 메모리 {1:N1}GB · 결과 {2:N0}B · {3}" -f $p.ExitCode, $최대, ((Get-Item $f -ErrorAction SilentlyContinue).Length), ($(if ($끝 -and -not $터) { "끝까지 ✅" } else { "터짐 ❌" })))
     $vo = & $py "scripts\verify_own.py" $f 2>&1
     $vo | Select-Object -Last 14 | ForEach-Object { 적기 "    $_" }
+    Remove-Item env:OWN_EXPECT -ErrorAction SilentlyContinue
+    # ⚠️ 9/30 재검사: verify ❌ 가 로그에만 남았다 — **뜻한 무리와 다르게 돌았으면** 멈춘다 (다른 ❌ 는 로그에 남기고 사람이 본다)
+    if (($vo | Out-String) -match "뜻한 무리") {
+        Set-Content $깃발 "queue_own $번 뜻한 무리와 다른 무리로 돌았다 $(Get-Date -f 'MM-dd HH:mm')" -Encoding UTF8
+        적기 "🛑 [$번] 뜻한 무리와 다르다 — 깃발을 세우고 멈춘다"
+        break
+    }
     if (-not $끝 -or $터) {
         Set-Content $깃발 "queue_own $번 ($종 $값) 이 터졌다 $(Get-Date -f 'MM-dd HH:mm')" -Encoding UTF8
         적기 "🛑 [$번] 터졌다 — 깃발을 세우고 멈춘다"

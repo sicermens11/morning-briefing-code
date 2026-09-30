@@ -54,29 +54,54 @@ def 판검사(p):
         return m.group(1) if m else None
     무 = 찾(r"── 무리 전용 규칙 ── ([^\n]+)")
     사 = 찾(r"\n\s+사건 ([\d,]+건 \(앞 [\d,]+ · 뒤 [\d,]+\))")
-    줄.append(("③ 무리·사건", bool(무 and 사), f"{무} · {사}" if 무 else "못 찾음"))
+    종 = 찾(r"· 종목 ([\d,]+) · 앞")
+    # ⚠️ 9/30: 대기열이 무리 값을 빠뜨려 전 종목으로 돈 일이 두 번 — 큐가 뜻한 무리(OWN_EXPECT)와 같은지 본다
+    뜻 = os.environ.get("OWN_EXPECT")
+    같 = (뜻 is None) or (무 is not None and 무.strip() == 뜻.strip())
+    줄.append(("③ 무리·사건", bool(무 and 사 and 같 and 종 and 종 != "0"),
+              (f"{무} · 종목 {종} · {사}" + ("" if 같 else f" · ❗뜻한 무리 「{뜻}」와 다르다")) if 무 else "못 찾음"))
     재 = 찾(r"쓸 재료 (\d+)가지")
     건 = len(re.findall(r"앞 기간 값이 [\d,]+개뿐", s))
     줄.append(("④ 쓴 재료", bool(재), f"{재}가지 (앞 기간 자료 적어 건너뜀 {건})" if 재 else "못 찾음"))
-    쌍 = 찾(r"② 둘씩 AND — 전수 ([\d,]+)쌍")
-    셋 = 찾(r"③ 셋 — [^\n]*?([\d,]+)개")
-    넷 = 찾(r"④ 넷 — [^\n]*?([\d,]+)개")
-    줄.append(("⑤ AND 조합", bool(쌍), f"둘 {쌍}쌍 전수 · 셋 {셋} · 넷 {넷}"))
+    대 = re.search(r"\[대조\] 무리 [^\n]+", s)
+    대 = 대.group(0) if 대 else ""
+
+    def 대값(pat):
+        m = re.search(pat, 대)
+        return m.group(1).replace(",", "") if m else None
+    # ⚠️ 9/30 독립 검사: 게으른 정규식이 씨앗 수(120·60)를 셋·넷 개수로 찍었다 — [대조] 줄에서 읽는다
+    쌍, 셋, 넷 = 대값(r"둘씩 ([\d,]+)쌍"), 대값(r"셋 ([\d,]+)"), 대값(r"넷 ([\d,]+)")
+    줄.append(("⑤ AND 조합", bool(쌍 and 셋 and 넷), f"둘 {쌍}쌍 전수 · 셋 {셋} · 넷 {넷}"))
     o5 = s.find("  ⑤ 돈 ")
     o6 = s.find("  ⑥ 위 10개")
-    n5 = len(re.findall(r"  (✅|❌)\s*$", s[o5:o6], re.M)) if (o5 >= 0 and o6 > o5) else 0
-    줄.append(("⑥ 돈 시뮬", n5 > 0, f"조건 {n5}줄"))
+    n5 = len(re.findall(r"  (✅|❌)(  ⚠️ 앞 5년 미만)?\s*$", s[o5:o6], re.M)) if (o5 >= 0 and o6 > o5) else 0
+    # ⚠️ 9/30 독립 검사: 빠른판(문턱 2·자리 1)도 「✅ 전부」였다 — 격자와 시뮬 수를 설계와 대조한다
+    문, 자, 팔 = 대값(r"문턱 (\d+)×"), 대값(r"자리 (\d+)×"), 대값(r"팔기 (\d+) ·")
+    시, 후 = 대값(r"⑤ 시뮬 ([\d,]+)번"), 대값(r"돈으로 간 조건 (\d+)")
+    빠 = "빠른판 예" in 대
+    격자ok = (문, 자, 팔) == ("5", "4", "3") and not 빠
+    시ok = bool(시 and 후) and int(시) == int(후) * 5 * 4 * 3
+    # ⚠️ 9/30 재검사: 작은 무리(기타제조·통신 19종목)는 돈으로 넘길 조건이 0개일 수 있다 — 설계대로 끝난 것이다
+    영 = (후 == "0")
+    줄.append(("⑥ 돈 시뮬", (n5 > 0 or 영) and 격자ok and 시ok,
+              f"조건 {n5}줄 · 격자 문턱 {문}×자리 {자}×팔기 {팔} (설계 5×4×3) · 시뮬 {시} (= 조건 {후}×60 이어야)"
+              + (" · ❗빠른판 — 설계대로 돈 판이 아니다" if 빠 else "")))
     o7 = s.find("  ⑦ OR 로 묶기")
-    n6 = len(re.findall(r"→ [\d,]+원 · 낙폭", s[o6:o7])) if (o6 >= 0 and o7 > o6) else 0
-    줄.append(("⑦ 사고·팔기 같이", n6 > 0, f"{n6}줄 (파는 규칙 11 × 문턱 × 순서)"))
+    n6 = len(re.findall(r"→ [\d,]+원", s[o6:o7])) if (o6 >= 0 and o7 > o6) else 0
+    줄.append(("⑦ 사고·팔기 같이", n6 > 0 or 영, f"{n6}줄 (파는 규칙 11 × 문턱 × 순서)" + (" · 넘길 조건 0개" if 영 else "")))
     o8 = s.find("  ⑧ **뒤 기간 확인**")
     n7 = len(re.findall(r"^\s+\+ ", s[o7:o8], re.M)) if (o7 >= 0 and o8 > o7) else 0
-    줄.append(("⑧ OR", o7 >= 0, f"붙인 것 {n7}개" if o7 >= 0 else "절 없음"))
+    # OR 0개는 「앞 기간에 통과한 조건이 없다」는 뜻일 때만 정상 — 그 문구가 있는지 같이 본다
+    _없음글 = "묶을 것이 없다" in s[o7:o8] if (o7 >= 0 and o8 > o7) else False
+    줄.append(("⑧ OR", o7 >= 0 and (n7 > 0 or _없음글),
+              (f"붙인 것 {n7}개" + (" (앞 기간 통과 조건 없음)" if n7 == 0 and _없음글 else "")) if o7 >= 0 else "절 없음"))
     o9 = s.find("  ⑨ **결론")
     구 = s[o8:o9] if (o8 >= 0 and o9 > o8) else ""
-    n8 = len(re.findall(r"(✅ 통과|  ❌)\s*$", 구, re.M))
-    통 = len(re.findall(r"✅ 통과\s*$", 구, re.M))
-    줄.append(("⑨ 뒤 기간 확인", n8 > 0, f"{n8}줄 · 통과 {통}"))
+    # 규칙 줄은 「  [」 로 시작한다 (「└ 같은 설정…」 줄은 안 센다 — 공백 개수에 기대지 않는다)
+    _규 = re.findall(r"^  \[[^\n]*$", 구, re.M)
+    n8 = len(_규)
+    통 = sum(1 for z in _규 if z.rstrip().endswith("✅ 통과"))
+    줄.append(("⑨ 뒤 기간 확인", n8 > 0 or 영, f"{n8}줄 · 통과 {통}" + (" · 넘길 조건 0개" if 영 else "")))
     터 = re.search(r"Traceback|Error:", s)
     끝 = "  [대조] 무리" in s
     줄.append(("⑩ 끝까지", bool(끝 and not 터),
@@ -93,7 +118,8 @@ def main():
     print(f"  ① 무리 규칙 부분의 지금 규칙 값: {'없음 ✅' if not 걸린 else '❌ ' + ', '.join(걸린)} · "
           f"후보 120 을 10**9 로 덮음 {'✅' if 덮 else '❌'}")
     print(f"  ② 미래를 보는 재료: {'없음 ✅' if not 미 else '❌ ' + ', '.join(미)}")
-    파일들 = sys.argv[1:] or sorted(glob.glob(os.path.join(_B, "data", "_labs", "2026-*_B1[5-9][0-9]_무리*.txt")))
+    파일들 = sys.argv[1:] or sorted(p for p in glob.glob(os.path.join(_B, "data", "_labs", "2026-*_B1[5-9][0-9]_무리*.txt"))
+                                if not any(k in os.path.basename(p) for k in ("잘못", "죽음", "중단")))
     모두 = True
     for p in 파일들:
         이름, 줄 = 판검사(p)
