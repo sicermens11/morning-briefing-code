@@ -7285,6 +7285,204 @@ def main():
             return 0
         print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
+    # ══ ⭐⭐⭐ **SLOTWALK — 하루 최대 종목 6 → 8·10 을 앞뒤로** (2026-09-30) ══
+    #    사용자: 「낙폭%별로 기회랑 끝자산 비교해서 보여줘」 (낙폭 한계 12% 를 다시 정하려고)
+    #    지금 실전 규칙(CARDLIVE 와 같은 바탕) 하나를 놓고 사는 문턱 × 하루 자리 × 비중을 흔들어
+    #    낙폭이 다른 설정들을 만든 뒤, 한계마다 「그 안에서 기회 최다 · 돈 최다」를 뽑는다
+    if _ONLY == "SLOTWALK" or "SLOTWALK" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── DDMAP ⭐⭐⭐ **하루 최대 종목을 늘리면 — 앞뒤 기간 모두 버티나** ──")
+        print("=" * 122)
+
+        def _섹M(x):
+            try:
+                return bool(섹터맞나(x))
+            except Exception:  # noqa: BLE001
+                return False
+
+        def _업M(x):
+            try:
+                _m, _ = R.업종규칙맞나(_산업.get(x["code"]), {
+                    "시총억": x.get("시총억"), "대금억": x.get("대금억"),
+                    "_지금문통과": 문통과_크기없이(x), "잉여금비율": x.get("잉여금"),
+                    "부채비율": x.get("부채"), "흑자": x.get("흑자"),
+                    "낙폭60": x.get("낙폭60"), "낙120": x.get("낙120")})
+                return bool(_m)
+            except Exception:  # noqa: BLE001
+                return False
+
+        def _바M(이름):
+            def _f(x, _n=이름):
+                return _사슬섹터.get(x["code"]) == _n
+            return _f
+
+        _바들M = getattr(R, "바구니전용", {})
+        _원표M = {k: dict(v) for k, v in _악재표.items()}
+        _새표M = {}
+        import glob as _gM
+        for _fM in sorted(_gM.glob(os.path.join(O._DATA, "dart-daily", "*.json"))):
+            _dM = os.path.basename(_fM)[:8]
+            try:
+                _jM = json.load(io.open(_fM, encoding="utf-8-sig"))
+            except ValueError:
+                continue
+            _hM = {}
+            for _칸M in ("챙길공시", "그밖의공시"):
+                for _xM in (_jM.get(_칸M) or []):
+                    _cM = str(_xM.get("종목코드") or "")
+                    _제M = str(_xM.get("공시명") or "")
+                    if _cM and ("감자" in _제M or "유상증자" in _제M) and not any(
+                            w in _제M for w in ("해제", "취소", "철회", "종결", "기각")):
+                        _hM[_cM] = _hM.get(_cM, 0) + 1
+            if _hM:
+                _새표M[_dM] = _hM
+
+        def _옵M(갭, 자리, 비중):
+            return {"무리자리": [(_섹M, "섹터", R.섹터전용자리)] + [(_바M(n), n, v["자리"]) for n, v in _바들M.items()],
+                    "무리갭": [(_업M, "업종", R.업종전용상대갭)] + [(_바M(n), n, v["상대갭"]) for n, v in _바들M.items()],
+                    "재평가": "악재", "시총상한": 999999,
+                    "상대갭": 갭, "하루상한": (lambda 골, _n=자리: _n), "비중": 비중}
+        try:
+            _악재표.clear()
+            _악재표.update(_새표M)
+            _실전갭M = _c(_H)["상대갭"]   # 실전 규칙 자체를 잰다 — 실전 바탕 설정의 문턱
+            print("     사용자 (9/30): 「덧붙이는 내용은 그냥 놔두는게 나아? 아니면 뭔가 액션이나 결정이 필요한거야?」")
+            print("     DDMAP: 문턱 그대로 · 자리 6 → 10 이면 1년 40 → 44번 · 돈 303.9 → 301.5백만 · 낙폭 -6.3% 같음 (11년 통째)")
+            for _자 in (8, 10):
+                print(f"\n     [하루 최대 6 → {_자}] (뒤는 앞이 끝낸 자산으로 잇는다)")
+                _줄, _sa, _sb = [], None, None
+                for _라w, _시w, _끝w in (("앞 2010~2020", "2010", "2020"), ("뒤 2021~2026", "2021", "2026")):
+                    _aw = 시뮬(_c(_H, **_옵M(_실전갭M, R.하루최대종목, 0.20)), 시작년=_시w, 끝년=_끝w, 시드=_sa)
+                    _bw = 시뮬(_c(_H, **_옵M(_실전갭M, _자, 0.20)), 시작년=_시w, 끝년=_끝w, 시드=_sb)
+                    if not _aw or not _bw:
+                        continue
+                    _줄.append((_라w, _aw, _bw, (_bw["끝"] / _aw["끝"] - 1) * 100 if _aw["끝"] > 0 else 0))
+                    _sa, _sb = _aw["끝"], _bw["끝"]
+                _걷기찍기(_줄, 들여="          ")
+                # 해마다 — 그 해 500만으로 (한두 해가 끄는 건 아닌가)
+                _승 = _패 = 0
+                _해줄 = []
+                for _y in range(2011, 2027):
+                    _ay = 시뮬(_c(_H, **_옵M(_실전갭M, R.하루최대종목, 0.20)), 시작년=str(_y), 끝년=str(_y))
+                    _by = 시뮬(_c(_H, **_옵M(_실전갭M, _자, 0.20)), 시작년=str(_y), 끝년=str(_y))
+                    if not _ay or not _by:
+                        continue
+                    _d = (_by["끝"] / _ay["끝"] - 1) * 100
+                    _승 += _d > 0.05
+                    _패 += _d < -0.05
+                    _해줄.append(f"{_y} {_d:+.1f}%({_ay['산']}→{_by['산']})")
+                print("          해마다: " + " · ".join(_해줄))
+                print(f"          ⇒ {_승}승 {_패}패 {len(_해줄) - _승 - _패}무")
+        finally:
+            _악재표.clear()
+            _악재표.update(_원표M)
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
+    # ══ ⭐⭐⭐ **DDMAP — 낙폭 한계별 기회·끝 자산** (2026-09-30) ══
+    #    사용자: 「낙폭%별로 기회랑 끝자산 비교해서 보여줘」 (낙폭 한계 12% 를 다시 정하려고)
+    #    지금 실전 규칙(CARDLIVE 와 같은 바탕) 하나를 놓고 사는 문턱 × 하루 자리 × 비중을 흔들어
+    #    낙폭이 다른 설정들을 만든 뒤, 한계마다 「그 안에서 기회 최다 · 돈 최다」를 뽑는다
+    if _ONLY == "DDMAP" or "DDMAP" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── DDMAP ⭐⭐⭐ **낙폭 한계를 몇 %로 두면 — 기회와 끝 자산** ──")
+        print("=" * 122)
+
+        def _섹M(x):
+            try:
+                return bool(섹터맞나(x))
+            except Exception:  # noqa: BLE001
+                return False
+
+        def _업M(x):
+            try:
+                _m, _ = R.업종규칙맞나(_산업.get(x["code"]), {
+                    "시총억": x.get("시총억"), "대금억": x.get("대금억"),
+                    "_지금문통과": 문통과_크기없이(x), "잉여금비율": x.get("잉여금"),
+                    "부채비율": x.get("부채"), "흑자": x.get("흑자"),
+                    "낙폭60": x.get("낙폭60"), "낙120": x.get("낙120")})
+                return bool(_m)
+            except Exception:  # noqa: BLE001
+                return False
+
+        def _바M(이름):
+            def _f(x, _n=이름):
+                return _사슬섹터.get(x["code"]) == _n
+            return _f
+
+        _바들M = getattr(R, "바구니전용", {})
+        _원표M = {k: dict(v) for k, v in _악재표.items()}
+        _새표M = {}
+        import glob as _gM
+        for _fM in sorted(_gM.glob(os.path.join(O._DATA, "dart-daily", "*.json"))):
+            _dM = os.path.basename(_fM)[:8]
+            try:
+                _jM = json.load(io.open(_fM, encoding="utf-8-sig"))
+            except ValueError:
+                continue
+            _hM = {}
+            for _칸M in ("챙길공시", "그밖의공시"):
+                for _xM in (_jM.get(_칸M) or []):
+                    _cM = str(_xM.get("종목코드") or "")
+                    _제M = str(_xM.get("공시명") or "")
+                    if _cM and ("감자" in _제M or "유상증자" in _제M) and not any(
+                            w in _제M for w in ("해제", "취소", "철회", "종결", "기각")):
+                        _hM[_cM] = _hM.get(_cM, 0) + 1
+            if _hM:
+                _새표M[_dM] = _hM
+
+        def _옵M(갭, 자리, 비중):
+            return {"무리자리": [(_섹M, "섹터", R.섹터전용자리)] + [(_바M(n), n, v["자리"]) for n, v in _바들M.items()],
+                    "무리갭": [(_업M, "업종", R.업종전용상대갭)] + [(_바M(n), n, v["상대갭"]) for n, v in _바들M.items()],
+                    "재평가": "악재", "시총상한": 999999,
+                    "상대갭": 갭, "하루상한": (lambda 골, _n=자리: _n), "비중": 비중}
+        try:
+            _악재표.clear()
+            _악재표.update(_새표M)
+            _해M = max(1.0, (len(날) - 시i) / 245)
+            _벌M = []
+            print(f"     {'문턱':>6}{'자리':>5}{'비중':>6}{'끝 자산':>16}{'계좌 낙폭':>10}{'산 것':>7}{'1년 기회':>9}")
+            for _갭 in (-2.0, -2.5, -3.0, -3.5, -4.0, -4.5):
+                for _자 in (4, 6, 8, 10):
+                    for _비 in (0.15, 0.20, 0.30):
+                        _r = 시뮬(_c(_H, **_옵M(_갭, _자, _비)))
+                        if not _r:
+                            continue
+                        _벌M.append((_갭, _자, _비, _r))
+                        print(f"     {_갭:>6.1f}{_자:>5}{int(_비 * 100):>5}%{_r['끝']:>16,.0f}{_r['낙']:>9.1f}%"
+                              f"{_r['산']:>7}{_r['산'] / _해M:>8.0f}번", flush=True)
+            _실전갭M = _c(_H)["상대갭"]   # 이 절은 **실전 규칙 자체**를 잰다 — 실전 바탕 설정의 문턱으로 「지금」 줄을 찾는다
+            _지금M = next((z for z in _벌M if z[0] == _실전갭M and z[1] == R.하루최대종목 and abs(z[2] - 0.20) < 1e-9), None)
+            print("\n     ⭐ **낙폭 한계별 — 그 한계 안에서 고를 수 있는 가장 좋은 설정**")
+            if _지금M:
+                print(f"     (지금 실전 설정 = 문턱 {_실전갭M:g} · 자리 {R.하루최대종목} · 비중 20% → "
+                      f"{_지금M[3]['끝']:,.0f}원 · 낙폭 {_지금M[3]['낙']:.1f}% · 1년 {_지금M[3]['산'] / _해M:.0f}번)")
+            print(f"     {'낙폭 한계':>8} │ {'기회 최다 설정':<18}{'1년 기회':>8}{'끝 자산':>15}{'낙폭':>7} │ "
+                  f"{'돈 최다 설정':<18}{'1년 기회':>8}{'끝 자산':>15}{'낙폭':>7}")
+            for _한 in (5, 6, 7, 8, 10, 12, 15, 20, 30, 999):
+                _안 = [z for z in _벌M if z[3]["낙"] >= -_한]
+                if not _안:
+                    print(f"     {('없음' if _한 == 999 else f'{_한}%'):>8} │ (이 안에 드는 설정이 없다)")
+                    continue
+                _기 = max(_안, key=lambda z: (z[3]["산"], z[3]["끝"]))
+                _돈 = max(_안, key=lambda z: z[3]["끝"])
+
+                def _라(z):
+                    return f"{z[0]:g}·{z[1]}자리·{int(z[2] * 100)}%"
+                print(f"     {('제한 없음' if _한 == 999 else f'{_한}%'):>8} │ {_라(_기):<18}{_기[3]['산'] / _해M:>7.0f}번"
+                      f"{_기[3]['끝']:>15,.0f}{_기[3]['낙']:>6.1f}% │ {_라(_돈):<18}{_돈[3]['산'] / _해M:>7.0f}번"
+                      f"{_돈[3]['끝']:>15,.0f}{_돈[3]['낙']:>6.1f}%")
+            print("\n     ⚠️ 비중(종목당 자산 몇 %)은 시뮬 가정이다 — 화면에 쓰지 않는다. 비중을 빼고 보려면 20% 줄만 본다")
+        finally:
+            _악재표.clear()
+            _악재표.update(_원표M)
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
     # ══ ⭐⭐⭐ **CARDLIVE — 화면 성적표를 실전 규칙 그대로** (2026-09-30) ══
     #    사용자: 「④ 퀀트 화면 6장 「과거에 어땠나」 숫자는 화면이 실제로 쓰는 규칙과 맞도록 바꾸자」
     #    6장은 rule-cases.json(build_rule_cases.py)을 읽는데, 그 코드는 **옛날식 단순 계산**이었다
