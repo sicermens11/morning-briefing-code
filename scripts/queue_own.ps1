@@ -10,10 +10,11 @@
 #  쓰는 법:  powershell -File scripts\queue_own.ps1 -Which 시험     (작은 무리 빠른 판 하나)
 #            powershell -File scripts\queue_own.ps1 -Which 전부
 # ==============================================================
-param([string]$Which = "전부", [string]$After = "")
+param([string]$Which = "전부", [string]$After = "", [switch]$Dry)
 $ErrorActionPreference = "Continue"
 Set-Location "C:\Users\mrblue\Claude\morning breifing_code"
 $env:PYTHONIOENCODING = "utf-8"
+[Console]::OutputEncoding = [Text.Encoding]::UTF8   # verify_own 대조표가 로그에서 깨졌다 (9/30 13:26)
 $py = "C:\Users\mrblue\AppData\Local\Programs\Python\Python313\python.exe"
 $log = "run-logs\queue_own_$Which`_$(Get-Date -f yyyyMMdd_HHmm).log"
 function 적기($s) {
@@ -32,7 +33,7 @@ function 아침인가 {
 $깃발 = "data\_labs\_STOP.txt"
 
 # 무리 목록 — (번호, 종류, 값, BIG_LO, BIG_HI, 이름표)
-$시험 = @(@("B157", "섹터", "원전 기자재", "", "", "시험판_원전", "1"))
+$시험 = @(,@("B157", "섹터", "원전 기자재", "", "", "시험판_원전", "1"))
 $전부 = @(
     @("B158", "규모", "", "10000", "", "대형1조", ""),
     @("B159", "규모", "", "2000", "10000", "중형", "")
@@ -45,7 +46,13 @@ $n = 161
 foreach ($s in $섹터들) { $전부 += , @("B$n", "섹터", $s, "", "", ("섹터_" + ($s -replace '[/ ]', '')), ""); $n++ }
 foreach ($u in $업종들) { $전부 += , @("B$n", "업종", $u, "", "", ("업종_" + ($u -replace '[/ ·]', '')), ""); $n++ }
 # ⚠️ 소형(300억~2천억 · 2010~)은 사건 약 440만 · 메모리 약 30GB 로 어림 (9/30 독립 검사) — 대형·중형 실측을 보고 따로 정한다
-$목록 = if ($Which -eq "시험") { $시험 } else { $전부 }
+# ⚠️ `$목록 = if (…) { $시험 }` 은 한 줄짜리 목록을 풀어 「무리 7개」로 만들었다 (9/30 두 번) — if 안에서 대입한다
+if ($Which -eq "시험") { $목록 = $시험 } else { $목록 = $전부 }
+if ($Dry) {
+    Write-Output "무리 $($목록.Count)개"
+    foreach ($g in $목록) { $번, $종, $값, $lo, $hi, $표, $빠른 = $g; Write-Output "$번 | $종 | $값 | $lo~$hi | $표 | 빠른=$빠른" }
+    exit 0
+}
 
 if ($After) {
     적기 "[0] 앞 판($After) 끝을 기다린다"
