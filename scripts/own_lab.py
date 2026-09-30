@@ -111,10 +111,15 @@ def _무리마다(한무리):
     결과 = 0
     칸들 = [z for z in 목록.split(";") if z.strip()]
     print(f"  ⭐ 한 번 읽기 — 공통 준비 끝 · 무리 {len(칸들)}개를 차례로", flush=True)
+    _깃발 = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "_labs", "_STOP.txt")
     for 칸 in 칸들:
         종, 값, lo, hi, 밖 = (칸.split("|") + [""] * 5)[:5]
-        _출력바꾸기(밖)
+        # ⚠️ 10/1 독립 검사: 묶음은 여러 시간 한 프로세스 — **무리 사이에 멈춤 깃발**을 본다
+        if os.path.exists(_깃발):
+            print(f"  🛑 멈춤 깃발 — {밖} 부터 안 돈다", flush=True)
+            return 1
         try:
+            _출력바꾸기(밖)
             _무리설정(종, 값, lo, hi)
             한무리()
         except BaseException:  # noqa: BLE001 — 한 무리가 터져도 다음 무리로 (결과 파일에 Traceback 이 남는다)

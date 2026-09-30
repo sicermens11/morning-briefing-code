@@ -99,6 +99,12 @@ if ($Batch) {
         if ($ㅁ -eq 0) { 적기 "[묶음] 메모리 여유 $(여유GB)GB · 큰 파이썬 $(큰파이썬)개 — 기다린다" }
         Start-Sleep 60; $ㅁ++
     }
+    # ⚠️ 10/1 독립 검사: 한 무리 모드처럼 12시간 기다려도 모자라면 멈춘다 (그냥 시작하면 겹쳐 죽는다)
+    if (((여유GB) -lt 18) -or ((큰파이썬) -gt 0)) {
+        적기 "🛑 [묶음] 12시간 기다려도 여유 $(여유GB)GB · 큰 파이썬 $(큰파이썬)개 — 멈춘다"
+        Set-Content $깃발 "queue_own 묶음 메모리 부족 $(Get-Date -f 'MM-dd HH:mm')" -Encoding UTF8
+        적기 "===== queue_own_$Which 끝 ====="; exit 1
+    }
     $칸들 = @(); $파일들 = @()
     foreach ($g in $목록) {
         $번, $종, $값, $lo, $hi, $표, $빠른 = $g
@@ -135,6 +141,8 @@ if ($Batch) {
         적기 ("[$번] {0} · {1}" -f $(if ($끝 -and -not $터) { "끝까지 ✅" } else { "터짐 ❌" }), ($요 -replace '^\s+', ''))
         if (($vo | Out-String) -match "❌") { $vo | Select-String "❌" | ForEach-Object { 적기 "    $_" } }
         if (-not $끝 -or $터) { $터진것++ }
+        # ⚠️ 10/1 독립 검사: 뜻한 무리와 다르게 돌았으면 한 무리 모드처럼 깃발 조건에 넣는다
+        if (($vo | Out-String) -match "뜻한 무리") { 적기 "🛑 [$번] 뜻한 무리와 다르다"; $터진것++ }
     }
     if ($터진것 -gt 0 -or $끔) { Set-Content $깃발 "queue_own 묶음 — 터진 무리 $터진것 개 $(Get-Date -f 'MM-dd HH:mm')" -Encoding UTF8; 적기 "🛑 [묶음] 터진 무리 $터진것 개 — 깃발" }
     적기 "===== queue_own_$Which 끝 ====="
