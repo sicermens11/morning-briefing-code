@@ -6586,8 +6586,11 @@ def main():
             if _hL:
                 _새표L[_dL] = _hL
 
-        _실전L = {"무리자리": [(_섹L, "섹터", R.섹터전용자리)],
-                  "무리갭": [(_업L, "업종", R.업종전용상대갭)],
+        # ⭐ 2026-09-30 — 가치사슬 바구니(원전 기자재 -2.0%p · 자리 1)도 실전이다 (rule_def.바구니전용)
+        _실전L = {"무리자리": [(_섹L, "섹터", R.섹터전용자리)]
+                             + [(_바구니L(_n), _n, _v["자리"]) for _n, _v in getattr(R, "바구니전용", {}).items()],
+                  "무리갭": [(_업L, "업종", R.업종전용상대갭)]
+                            + [(_바구니L(_n), _n, _v["상대갭"]) for _n, _v in getattr(R, "바구니전용", {}).items()],
                   "재평가": "악재",
                   "시총상한": 999999}     # ⚠️ RULE_HI 를 줘도 섹터 갈래는 열어 둔다
 
@@ -7277,6 +7280,159 @@ def main():
             print("        (악재표를 본디대로 되돌렸다)")
         except Exception as _eE:  # noqa: BLE001
             print(f"        ⚠️ ③ 터졌다: {type(_eE).__name__} {_eE}")
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
+    # ══ ⭐⭐⭐ **CARDLIVE — 화면 성적표를 실전 규칙 그대로** (2026-09-30) ══
+    #    사용자: 「④ 퀀트 화면 6장 「과거에 어땠나」 숫자는 화면이 실제로 쓰는 규칙과 맞도록 바꾸자」
+    #    6장은 rule-cases.json(build_rule_cases.py)을 읽는데, 그 코드는 **옛날식 단순 계산**이었다
+    #    (하루 4종목 · 후보 40 · 후보 중앙갭 · 업종 문턱·섹터 자리·악재 매도·원전을 모른다).
+    #    ⇒ 실전 바탕(LIVE 와 같은 _실전L) 시뮬의 **실제 거래 기록**으로 두 파일을 만든다
+    if _ONLY == "CARDLIVE" or "CARDLIVE" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── CARDLIVE ⭐⭐⭐ **화면 성적표(5장·6장)를 실전 규칙의 실제 거래로** ──")
+        print("=" * 122)
+
+        def _섹K(x):
+            try:
+                return bool(섹터맞나(x))
+            except Exception:  # noqa: BLE001
+                return False
+
+        def _업K(x):
+            try:
+                _m, _ = R.업종규칙맞나(_산업.get(x["code"]), {
+                    "시총억": x.get("시총억"), "대금억": x.get("대금억"),
+                    "_지금문통과": 문통과_크기없이(x), "잉여금비율": x.get("잉여금"),
+                    "부채비율": x.get("부채"), "흑자": x.get("흑자"),
+                    "낙폭60": x.get("낙폭60"), "낙120": x.get("낙120")})
+                return bool(_m)
+            except Exception:  # noqa: BLE001
+                return False
+
+        def _바K(이름):
+            def _f(x, _n=이름):
+                return _사슬섹터.get(x["code"]) == _n
+            return _f
+
+        _바들 = getattr(R, "바구니전용", {})
+        _실전K = {"무리자리": [(_섹K, "섹터", R.섹터전용자리)] + [(_바K(n), n, v["자리"]) for n, v in _바들.items()],
+                  "무리갭": [(_업K, "업종", R.업종전용상대갭)] + [(_바K(n), n, v["상대갭"]) for n, v in _바들.items()],
+                  "재평가": "악재", "시총상한": 999999}
+        # 악재표 — LIVE 와 같게 「감자·유상증자」 · 반대말 제외 (끝나면 되돌린다)
+        _원표K = {k: dict(v) for k, v in _악재표.items()}
+        _새표K = {}
+        import glob as _gK
+        for _fK in sorted(_gK.glob(os.path.join(O._DATA, "dart-daily", "*.json"))):
+            _dK = os.path.basename(_fK)[:8]
+            try:
+                _jK = json.load(io.open(_fK, encoding="utf-8-sig"))
+            except ValueError:
+                continue
+            _hK = {}
+            for _칸K in ("챙길공시", "그밖의공시"):
+                for _xK in (_jK.get(_칸K) or []):
+                    _cK = str(_xK.get("종목코드") or "")
+                    _제K = str(_xK.get("공시명") or "")
+                    _반K = any(w in _제K for w in ("해제", "취소", "철회", "종결", "기각"))
+                    if _cK and ("감자" in _제K or "유상증자" in _제K) and not _반K:
+                        _hK[_cK] = _hK.get(_cK, 0) + 1
+            if _hK:
+                _새표K[_dK] = _hK
+        _이름K = {}
+        try:
+            _bK = json.load(io.open(os.path.join(O._DATA, "stock-base.json"), encoding="utf-8-sig"))
+            for _cK, _vK in (_bK.get("종목") or _bK).items():
+                if isinstance(_vK, dict):
+                    _이름K[_cK] = (_vK.get("종목명") or _vK.get("이름") or "")
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            _악재표.clear()
+            _악재표.update(_새표K)
+            _거래K = []
+            _본K = 시뮬(_c(_H, **_실전K), 기록=_거래K)
+            print(f"     실전 규칙 11년 — {_본K['끝']:,.0f}원 · 연 {_본K['연']:.2f}% · 낙폭 {_본K['낙']:.1f}% · 산 것 {_본K['산']}")
+            print("     (B141 원전 줄: 303,643,082원 · 낙폭 -6.3% · 산 것 424 — 가까우면 맞게 선 것이다)")
+            # 거래 기록 = 몫마다 한 줄 → 한 번 산 것(날·종목)마다 주수로 가중
+            _날i = {d: k for k, d in enumerate(날)}
+            _묶K = {}
+            for (_d, _cd, _시, _가, _r, _청, _주) in _거래K:
+                _묶K.setdefault((_d, _cd), []).append((_시, _가, _r, _청, _주))
+            _사례 = []
+            _끝i = len(날) - 1
+            for (_d, _cd), 몫 in sorted(_묶K.items()):
+                _주합 = sum(z[4] for z in 몫)
+                _결 = sum(z[2] * z[4] for z in 몫) / _주합 if _주합 else None
+                _청 = max(z[3] for z in 몫)
+                _끝났나 = _청 < _끝i
+                _앞 = 몫[0]
+                _사례.append({
+                    "날짜": f"{_d[:4]}-{_d[4:6]}-{_d[6:8]}", "종목코드": _cd, "이름": _이름K.get(_cd, ""),
+                    "매수가": round(_앞[1]), "시총억": round(_앞[0]),
+                    "결과": round(_결, 2) if _결 is not None else None,
+                    "며칠": (_청 - _날i.get(_d, _청)) if _끝났나 else None,
+                    "끝났나": _끝났나, "도달": bool(_앞[2] >= R.앞몫목표 - 1.0)})
+            _끝K = [z for z in _사례 if z["끝났나"] and z["결과"] is not None]
+            _해K = {z["날짜"][:4] for z in _끝K}
+            import statistics as _stK
+            import datetime as _dtK
+            _cases = {
+                "만든날": _dtK.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "출처": "gate7_lab CARDLIVE — 실전 규칙 그대로의 자본 시뮬 **실제 거래** (제약 있는 판 · 시드 500만)",
+                "규칙": R.한줄(),
+                "기간": f"{_사례[0]['날짜']} ~ {_사례[-1]['날짜']}" if _사례 else "",
+                "전체건수": len(_끝K),
+                "도달": sum(1 for z in _끝K if z["도달"]),
+                "도달률": round(sum(1 for z in _끝K if z["도달"]) / max(1, len(_끝K)) * 100, 1),
+                "흑자": sum(1 for z in _끝K if z["결과"] > 0),
+                "승률": round(sum(1 for z in _끝K if z["결과"] > 0) / max(1, len(_끝K)) * 100, 1),
+                "평균": round(_stK.mean([z["결과"] for z in _끝K]), 2) if _끝K else 0,
+                "평균보유": round(_stK.mean([z["며칠"] for z in _끝K]), 1) if _끝K else 0,
+                "가장나쁨": round(min(z["결과"] for z in _끝K), 2) if _끝K else 0,
+                "해수": len(_해K),
+                "최근": _끝K[-10:][::-1],
+                "최악": sorted(_끝K, key=lambda z: z["결과"])[:5],
+                "최고": sorted(_끝K, key=lambda z: (-z["결과"], z["며칠"] or 999))[:3],
+                "손실건수": sum(1 for z in _끝K if z["결과"] < 0),
+                "손실평균": (round(_stK.mean([z["결과"] for z in _끝K if z["결과"] < 0]), 2)
+                            if any(z["결과"] < 0 for z in _끝K) else None),
+                "아직진행중": [z for z in _사례 if not z["끝났나"]],
+            }
+            # 5장 줄 — 「나눠 팔면 11년 성적이 N배 · 계좌 흔들림 A% → B%」 : 같은 규칙 · 한 번에 +20%/40일 과 견줌
+            _한번K = 시뮬(_c(_H, **dict(_실전K, 나눔=((1.0, 20.0, 40),))))
+            _분할K = []
+            for _y in ("2019", "2020", "2021", "2022"):
+                _rK = 시뮬(_c(_H, **_실전K), 시작년=_y)
+                if _rK:
+                    _분할K.append({"시작": _y, "연": round(_rK["연"], 1), "낙폭": round(_rK["낙"], 1)})
+            _cap = {
+                "만든날": _cases["만든날"],
+                "출처": "gate7_lab CARDLIVE — 실전 규칙 그대로 (섹터 자리 2 · 업종 -1.5%p · 원전 기자재 -2.0%p+자리1 · "
+                        "악재 감자·유상증자) · 제약 있는 판",
+                "규칙한줄": R.한줄(), "시작자산": 5000000.0,
+                "연평균": round(_본K["연"], 2), "계좌낙폭": round(_본K["낙"], 1), "최악낙폭": round(_본K["낙"], 1),
+                "끝자산": round(_본K["끝"]), "산것": _본K["산"], "분할": _분할K,
+                "주의": "제약 있는 판(현금·거래대금 1% 한도) 값. 사용자 2026-09-30: 「화면이 실제로 쓰는 규칙과 맞도록 바꾸자」",
+                "옛값_참고": {"계좌낙폭": round(_한번K["낙"], 1), "끝자산": round(_한번K["끝"]), "산것": _한번K["산"],
+                              "무엇인가": "**안 나눠 팔 때** — 한 번에 +20%/40일 · 같은 실전 규칙 · 같은 제약"},
+                "나눠팔기_배수": round(_본K["끝"] / _한번K["끝"], 2) if _한번K and _한번K["끝"] else None,
+            }
+            print(f"     6장 — {_cases['기간']} · {_cases['전체건수']}번 · 승률 {_cases['승률']}% · 평균 {_cases['평균']:+.2f}% · "
+                  f"평균보유 {_cases['평균보유']}일 · 최악 {_cases['가장나쁨']:+.2f}%")
+            print(f"     5장 — 나눠 팔면 {_cap['나눠팔기_배수']}배 · 계좌 흔들림 {_cap['옛값_참고']['계좌낙폭']}% → {_cap['계좌낙폭']}%")
+            for _이름f, _값 in (("rule-cases.json", _cases), ("rule-capital.json", _cap)):
+                _p = os.path.join(O._DATA, _이름f)
+                if os.path.exists(_p):
+                    import shutil as _shK
+                    _shK.copy(_p, os.path.join(O._DATA, "_labs", _이름f.replace(".json", "_CARDLIVE전.json")))
+                io.open(_p, "w", encoding="utf-8").write(json.dumps(_값, ensure_ascii=False, indent=1))
+                print(f"     ✅ {_이름f} 새로 썼다 (전 것은 _labs/{_이름f.replace('.json', '_CARDLIVE전.json')})")
+        finally:
+            _악재표.clear()
+            _악재표.update(_원표K)
         print("=" * 122)
         if "+" not in _ONLY:
             return 0

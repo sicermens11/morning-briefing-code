@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 r"""
 build_qt_states.py — 퀀트 화면을 **상태별로 강제로** 그린다 (2026-09-29)
 
@@ -70,7 +70,8 @@ def _강제(q, 상태):
         # 08:55 확정 + 앞에서부터 최대 자리만큼 「산다」
         if 동.get("예상시장갭") is None:
             동["예상시장갭"] = 0.0
-        _최 = R.하루최대종목 + getattr(R, "섹터전용자리", 0)
+        _최 = (R.하루최대종목 + getattr(R, "섹터전용자리", 0)
+          + sum(v["자리"] for v in getattr(R, "바구니전용", {}).values()))   # ⭐ 9/30 원전 자리
         for i, x in enumerate(후보):
             산다 = i < _최
             x["규칙매수"] = 산다
