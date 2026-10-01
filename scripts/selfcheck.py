@@ -654,6 +654,27 @@ def main():
         if not 조용:
             print(f"    (못 봤다: {type(e).__name__})")
 
+    # ══ I GitHub 에 안 올린 커밋 ══ (10/1 · 사용자 「오케이 너 권고대로 진행하자」)
+    #    9/18~9/29 11일간 안 올라갔다(자동 올리기 없음). 자동 예약 대신 **작업 끝마다 올리기** +
+    #    **안 올린 커밋 중 가장 오래된 것이 48시간 넘으면** 여기서 알린다. push_token 이 origin/main 표시를 맞춘다
+    if not 조용:
+        print("\n  ══ I GitHub 에 안 올린 커밋 ══")
+    try:
+        _r3 = subprocess.run(["git", "log", "origin/main..HEAD", "--reverse", "--format=%ct"],
+                             cwd=_BASE, capture_output=True, text=True, timeout=60)
+        _ts = [int(z) for z in _r3.stdout.split() if z.strip().isdigit()]
+        if _ts:
+            _시간 = (dt.datetime.now().timestamp() - _ts[0]) / 3600
+            if _시간 > 48:
+                알림(True, f"GitHub 에 안 올린 커밋 {len(_ts)}개 · 가장 오래된 것 {_시간:.0f}시간 전 — "
+                           f"`python scripts\\push_token.py` 로 올려라 (비밀 검사 확인 뒤)")
+            elif not 조용:
+                print(f"    ✅ 안 올린 커밋 {len(_ts)}개 · 가장 오래된 것 {_시간:.0f}시간 전 (48시간 안)")
+        elif not 조용:
+            print("    ✅ 다 올라갔다")
+    except Exception as _e3:  # noqa: BLE001
+        알림(False, f"올림 점검을 못 했다: {type(_e3).__name__}")
+
     # ══ 마무리 ══
     print()
     if 문제:
