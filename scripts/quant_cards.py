@@ -906,6 +906,51 @@ def _장2():
 _5장선 = 1   # 5장 첫 장에 둘 블록 수 (ANSWER-0929-7 답 1)
 
 
+def _억만(원):
+    """2억 4,800만 원 꼴 (100만 원 단위 반올림) — 시뮬 금액이다 (사용자 자산이 아니다)"""
+    억, 나머지 = divmod(int(round(원)), 100_000_000)
+    만 = int(round(나머지 / 1_000_000)) * 100
+    if 만 >= 10000:
+        억, 만 = 억 + 1, 0
+    if 억 and 만:
+        return f"{억}억 {만:,}만 원"
+    return f"{억}억 원" if 억 else f"{만:,}만 원"
+
+
+def _또사기가정():
+    r"""6장 비교 줄 아래 「또 사기」 가정 문구 (QUANT-ASSUME-1001 · 2026-10-01).
+
+    사용자: 「또 사기 허용하고 화면에 그 내용만 적시하면 될 것 같은데?」
+    숫자 셋은 `rule-capital.json` 「또사기금지」에서 읽는다 — 비교 줄(sell-options.json)·5장·7장과 **같은 판**
+    (gate7 CARDLIVE · 지금 실전 규칙 · 제약 있는 판 · 시드 500만). 자료가 없으면 **블록을 뺀다**(지어내지 않는다).
+    ⚠️ 숫자+단위+조사는 한 묶음 nowrap — `_굵` 은 「4,800만」의 「만」을 조사로 읽어 쪼갤 수 있어 여기서 직접 묶는다.
+       낙폭은 하락색을 쓰지 않는다(가정 설명이라 먹색 굵게만)
+    """
+    try:
+        cp = json.load(io.open(os.path.join(_DATA, "rule-capital.json"), encoding="utf-8-sig"))
+        g = cp.get("또사기금지") or {}
+        덜, 끝, 낙 = g.get("덜번비율"), g.get("끝자산"), g.get("계좌낙폭")
+    except Exception:  # noqa: BLE001
+        return ""
+    if 덜 is None or 끝 is None or 낙 is None:
+        return ""
+
+    def 묶(v):
+        return f'<b style="font-weight:800;color:{C["먹"]};white-space:nowrap">{_esc(v)}</b>'
+    낙글 = f"{낙:g}%".replace("-", "−")
+    본 = (_esc("이미 들고 있는 종목이 다시 후보에 뜨면 또 산다고 가정한 성적입니다. "
+               "다시 뜨는 것은 산 뒤 더 빠졌다는 뜻이라, 더 사지 않았다면 이보다 약 ")
+          + 묶(f"{덜:.0f}%") + _esc(" 낮았습니다(같은 기간 ") + 묶(_억만(끝))
+          + _esc(" · 계좌 낙폭 ") + 묶(낙글 + ").")
+          )
+    return (f'<div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid {C["선"]};'
+            f'padding-top:18px">'
+            f'<span style="font-size:26px;font-weight:700;color:{C["금"]}">'
+            f'{_esc("이 성적의 가정 · 이 장과 다음 장 숫자 모두")}</span>'
+            f'<span style="font-size:31px;line-height:1.55;color:{C["본"]}">{본}</span>'
+            f'</div>')
+
+
 # ── 3장 · 어떻게 사고 파나 (라벨 2열형) ──────────────────────────
 def _장3():
     옛낙, 새낙 = _계좌낙폭()
@@ -983,6 +1028,7 @@ def _장3():
           + "".join(행들[:_5장선]))
     몸2 = ("".join(행들[_5장선:])
           + 비교
+          + _또사기가정()
           + f'<span style="font-size:25px;line-height:1.55;color:{C["보"]}">다음 장은 이 규칙이 '
             f'과거에 어땠는지입니다.</span>')
     return [_카드("퀀트3 사고파나", _머리("HOW TO BUY &amp; SELL", _쪽표, "어떻게 사고 파나"), 몸1,
