@@ -1252,6 +1252,14 @@ def main():
             보유 = 남
             현금 *= (1 + _이자 / 245)      # ⭐ 2026-09-29 손잡이 (전엔 0.025 손으로)
             평 = 현금 + sum(q["주수"] * q["원시"] for q in 보유)
+            # ⭐ 10/1 「종가평가」 — 들고 있는 종목을 **전날 종가**로 평가한다(own_lab 과 같다).
+            #    산 값으로 세면 들고 있는 동안의 평가손이 안 잡혀 낙폭이 얕게 나온다(B207 2021~ −12.5% 를 다시 재려고).
+            #    켜지 않으면 위 한 줄 그대로 — 지금까지의 판과 한 원도 안 달라진다
+            if c.get("종가평가") and i >= 1 and 보유:
+                _전가 = 주가[날[i - 1]]
+                평 = 현금 + sum(q["주수"] * q["원시"] * (
+                    ((_전가.get(q["code"]) or (q.get("매수수정"),))[0] or q.get("매수수정")) / q["매수수정"]
+                    if q.get("매수수정") else 1.0) for q in 보유)
             칸 = [x for x in ((묶2 if 묶2 is not None else 묶).get(i) or [])
                   if c["시총하한"] <= x["시총억"] < c["시총상한"]
                   and x["대금억"] >= c["대금하한"]
@@ -1534,7 +1542,9 @@ def main():
                     현금 -= 주수 * (x["원시종가"] if _살때 == "종가" else x["원시"])
                     보유.append({"주수": 주수, "원시": (x["원시종가"] if _살때 == "종가" else x["원시"]),
                                  "결과": r, "청산": 청,
-                                 "code": x["code"]})   # ⭐ 266차
+                                 "code": x["code"],   # ⭐ 266차
+                                 # ⭐ 10/1 「종가평가」 — 수정주가 기준 산 값 (주가[날][code][0] 이 수정종가라 같은 기준으로 나눈다)
+                                 "매수수정": (x.get("매수종가") if _살때 == "종가" else x.get("매수"))})
                     if 기록 is not None:
                         기록.append((날[i], x["code"], x["시총억"], (x["원시종가"] if _살때 == "종가" else x["원시"]), r, 청, 주수))
                     넣음 = True
@@ -7980,6 +7990,90 @@ def main():
             _악재표.clear()
             _악재표.update(_원표C)
         print("  [대조] PEAKCUT 끝")
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
+    # ══ ⭐⭐ **DDMTM — 낙폭을 날마다 전날 종가로 평가하면** (2026-10-01) ══
+    #    B205·B207 의 낙폭은 **산 값 기준**(팔 때만 반영) — 2021~ −12.5% 가 실제로는 더 깊을 수 있다.
+    #    사용자: 「남은 시험도 차례로 테스트하고 … 굳이 밤까지 기다릴 이유 없으면!」
+    if _ONLY == "DDMTM" or "DDMTM" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── DDMTM ⭐⭐ **계좌 낙폭 — 산 값 기준 vs 날마다 전날 종가 기준** · 지금 실전 규칙 ──")
+        print("=" * 122)
+
+        def _섹D(x):
+            try:
+                return bool(섹터맞나(x))
+            except Exception:  # noqa: BLE001
+                return False
+        _원표D = {k: dict(v) for k, v in _악재표.items()}
+        _새표D = {}
+        import glob as _gD
+        for _fD in sorted(_gD.glob(os.path.join(O._DATA, "dart-daily", "*.json"))):
+            _dD = os.path.basename(_fD)[:8]
+            try:
+                _jD = json.load(io.open(_fD, encoding="utf-8-sig"))
+            except ValueError:
+                continue
+            _hD = {}
+            for _칸D in ("챙길공시", "그밖의공시"):
+                for _xD in (_jD.get(_칸D) or []):
+                    _cD = str(_xD.get("종목코드") or "")
+                    _제D = str(_xD.get("공시명") or "")
+                    if _cD and ("감자" in _제D or "유상증자" in _제D) and not any(
+                            w in _제D for w in ("해제", "취소", "철회", "종결", "기각")):
+                        _hD[_cD] = _hD.get(_cD, 0) + 1
+            if _hD:
+                _새표D[_dD] = _hD
+
+        def _옵D(겹금지, 종가):
+            return {"무리자리": [(_섹D, "섹터", R.섹터전용자리)], "무리갭": [(업종갈래맞나, "업종", R.업종전용상대갭)],
+                    "재평가": "악재", "시총상한": 999999, "하루상한": (lambda 골: R.하루최대종목),
+                    "비중": 0.20, "중복금지": 겹금지, "종가평가": 종가, "곡돌려줘": True}
+        try:
+            _악재표.clear()
+            _악재표.update(_새표D)
+            print(f"     실전 규칙: {R.한줄()}")
+            print("     ⚠️ 종가 기준은 **사는 금액도** 그날 평가액 × 비중으로 정한다(own_lab 과 같다) — 두 열은 평가 차이와 사는 금액 차이가 섞인 값이다")
+            print("     ⚠️ 거래정지·자료 없음은 산 값으로 둔다 · 끝 자산은 남은 보유를 산 값으로 센다")
+            print(f"     {'설정':<30}{'구간':<12}{'산 값 끝 자산':>15}{'종가 끝 자산':>15}{'산 값 낙폭':>11}{'종가 낙폭':>11}{'산':>6}")
+            for _라D, _겹D in (("또 사기 허용 (화면 성적표)", False), ("또 사기 금지", True)):
+                for _구D, _sD, _eD in (("통째", None, None), ("앞 ~2020", None, "2020"), ("뒤 2021~", "2021", None)):
+                    _r0 = 시뮬(_c(_H, **_옵D(_겹D, False)), 시작년=_sD, 끝년=_eD)
+                    _r1 = 시뮬(_c(_H, **_옵D(_겹D, True)), 시작년=_sD, 끝년=_eD)
+                    if not (_r0 and _r1):
+                        continue
+                    _표시 = "  ⚠️ 한계 −12% 밖" if _r1["낙"] < -12 else ""
+                    print(f"     {_라D:<30}{_구D:<12}{_r0['끝']:>15,.0f}{_r1['끝']:>15,.0f}{_r0['낙']:>10.1f}%{_r1['낙']:>10.1f}%"
+                          f"{_r1['산']:>6}{_표시}", flush=True)
+            # 뒤 2021~ · 또 사기 금지 · 종가 기준 — 가장 깊은 구간 셋
+            _rM = 시뮬(_c(_H, **_옵D(True, True)), 시작년="2021")
+            _곡M = (_rM or {}).get("곡") or []
+            _a0M = max(next((j for j in range(len(날)) if 날[j][:4] >= "2021"), 시i), 시i)
+            _구간M = []
+            _꼭k, _꼭v, _바k, _바v = 0, (_곡M[0] if _곡M else 0), 0, 0.0
+            for _kM, _vM in enumerate(_곡M):
+                if _vM >= _꼭v:
+                    if _바v < -0.001:
+                        _구간M.append((_바v, _꼭k, _바k, _kM))
+                    _꼭k, _꼭v, _바k, _바v = _kM, _vM, _kM, 0.0
+                elif _vM / _꼭v - 1 < _바v:
+                    _바k, _바v = _kM, _vM / _꼭v - 1
+            if _바v < -0.001:
+                _구간M.append((_바v, _꼭k, _바k, None))
+            _구간M.sort()
+
+            def _날M(kk):
+                return 날[_a0M + kk] if kk is not None and 0 <= _a0M + kk < len(날) else "(아직 회복 안 함)"
+            print("\n     뒤 2021~ · 또 사기 금지 · **종가 기준** 가장 깊었던 구간 셋")
+            for _ddM, _pkM, _tkM, _rkM in _구간M[:3]:
+                print(f"     {_ddM * 100:>6.1f}%  꼭대기 {_날M(_pkM)} → 바닥 {_날M(_tkM)} ({_tkM - _pkM}일) → 회복 {_날M(_rkM)}")
+        finally:
+            _악재표.clear()
+            _악재표.update(_원표D)
+        print("  [대조] DDMTM 끝")
         print("=" * 122)
         if "+" not in _ONLY:
             return 0
