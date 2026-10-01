@@ -1171,7 +1171,10 @@ def main():
         return 날[x["인"] - 1][4:6] in _계절달들[계절]
 
     def 시뮬(c, 끝년=None, 시드=None, 시작년=None, 오차=0.0, 씨=None,
-             묶2=None, 기록=None):
+             묶2=None, 기록=None, 후보기록=None):
+        # ⭐ 10/1 MULTI — 후보기록=list 를 주면 날마다 **산 것과 상관없이** 그날 고른 후보(골[:_상한])와
+        #    몫마다 (비율, 결과%, 청산 자리) 를 담는다 — multi_lab.py 가 여러 규칙을 한 계좌로 합칠 때 쓴다.
+        #    안 주면 지금과 한 글자도 안 달라진다
         # ⭐ 기록=list 를 주면 거래마다 (산 날, code, 시총억, 산 값, 결과%, 청산 자리) 를 담는다 (2026-09-15)
         # ⭐ `묶2` 를 주면 **그 사건 묶음**을 쓴다 (2026-09-15 · 분할 매수).
         #    매수 루프를 안 뜯으려고 낸 길이다 — 기존 호출은 하나도 안 바뀐다
@@ -1455,6 +1458,20 @@ def main():
                 골 = _뽑 + _남
                 _상한 = len(골)
 
+            if 후보기록 is not None and 골[:_상한]:
+                if c.get("규모별매도") or c.get("무리몫") or c.get("달력매도") or c.get("나눔") or callable(c["비중"]):
+                    raise SystemExit("후보기록은 실전 몫(R.몫들·BASE_SELL)·숫자 비중일 때만 — 규모별매도·무리몫·달력매도·나눔 없이")
+                _몫D = _밑몫 or R.몫들
+                _줄D = []
+                for x in 골[:_상한]:
+                    _몫r = []
+                    for 몫 in _몫D:
+                        rD, 청D = 결과(x, 몫[1], 몫[2], 몫[3] if len(몫) > 3 else None, c.get("손절"), c.get("재평가"))
+                        _몫r.append((몫[0], rD, 청D))
+                    _줄D.append({"code": x["code"], "원시": (x["원시종가"] if _살때 == "종가" else x["원시"]),
+                                 "매수": (x.get("매수종가") if _살때 == "종가" else x.get("매수")),
+                                 "대금억": x["대금"] / 1e8, "시총억": x["시총억"], "몫": _몫r})
+                후보기록.append((i, _줄D))
             for x in 골[:_상한]:
                 # ⭐⭐ 266차 — **이미 들고 있는 종목을 또 사나** (2026-09-11)
                 #    지금(중복금지 없음)은 **또 산다**. 그러면 한 종목에
@@ -8079,12 +8096,95 @@ def main():
             return 0
         print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
+    # ══ ⭐⭐ **DDCTRL — 종가 기준 낙폭을 무엇이 줄이나** (2026-10-01 · B211 뒤) ══
+    #    B211: 실전 규칙(또 사기 허용)의 계좌 낙폭이 산 값 기준 −6.3% · **종가 기준 −38.9%**(2020-03) · 2021~ −28.3%(2022).
+    #    지수와 맞춰 보니 자료 탓이 아니다(코스닥 소형주 −43.1% · −31.5%) — 손절 없이 꽉 차게 들고 시장째 빠졌다.
+    #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
+    #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
+    #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
+    if _ONLY == "DDCTRL" or "DDCTRL" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
+        print("=" * 122)
+
+        def _섹C(x):
+            try:
+                return bool(섹터맞나(x))
+            except Exception:  # noqa: BLE001
+                return False
+        _원표C = {k: dict(v) for k, v in _악재표.items()}
+        _새표C = {}
+        import glob as _gC
+        for _fC in sorted(_gC.glob(os.path.join(O._DATA, "dart-daily", "*.json"))):
+            _dC = os.path.basename(_fC)[:8]
+            try:
+                _jC = json.load(io.open(_fC, encoding="utf-8-sig"))
+            except ValueError:
+                continue
+            _hC = {}
+            for _칸C in ("챙길공시", "그밖의공시"):
+                for _xC in (_jC.get(_칸C) or []):
+                    _cC = str(_xC.get("종목코드") or "")
+                    _제C = str(_xC.get("공시명") or "")
+                    if _cC and ("감자" in _제C or "유상증자" in _제C) and not any(
+                            w in _제C for w in ("해제", "취소", "철회", "종결", "기각")):
+                        _hC[_cC] = _hC.get(_cC, 0) + 1
+            if _hC:
+                _새표C[_dC] = _hC
+
+        def _옵C(**더):
+            o = {"무리자리": [(_섹C, "섹터", R.섹터전용자리)], "무리갭": [(업종갈래맞나, "업종", R.업종전용상대갭)],
+                 "재평가": "악재", "시총상한": 999999, "하루상한": (lambda 골: R.하루최대종목),
+                 "비중": 0.20, "종가평가": True}
+            o.update(더)
+            return o
+
+        def _시장거름(문):
+            # ⚠️ `_c(거름, …)` 의 첫 인자가 실전 거름(_H)이다 — 「거름」 을 그냥 넘기면 실전 규칙이 통째로 바뀐다. _H 와 AND 로
+            return lambda x: bool(_H(x)) and (x.get("시장낙폭") is None or x["시장낙폭"] > 문)
+        _안들C = (("지금 그대로 (또 사기 허용)", {}),
+                 ("또 사기 금지", {"중복금지": True}),
+                 ("손절 종가 −15%", {"손절": -15.0}),
+                 ("손절 종가 −20%", {"손절": -20.0}),
+                 ("손절 종가 −25%", {"손절": -25.0}),
+                 ("하루 최대 4종목", {"하루상한": 4}),
+                 ("하루 최대 3종목", {"하루상한": 3}),
+                 ("시장 20일 −10% 넘게 빠진 날 안 삼", {"거름": _시장거름(-10.0)}),
+                 ("(가정) 비중 10%", {"비중": 0.10}))
+        try:
+            _악재표.clear()
+            _악재표.update(_새표C)
+            print(f"     실전 규칙: {R.한줄()}")
+            print("     잣대: 종가 기준(들고 있는 종목을 전날 종가로 평가) · 낙폭 한계 −12% (사용자) · 「비중 10%」는 시뮬 가정 줄이라 규칙 후보가 아니다")
+            print(f"     {'손잡이':<34}{'앞 ~2020 끝':>14}{'앞 낙폭':>8}{'앞 산':>6}{'뒤 2021~ 끝':>14}{'뒤 낙폭':>8}{'뒤 산':>6}  뒤 지금의 %")
+            _밑C = None
+            for _라C, _더C in _안들C:
+                _앞C = 시뮬(_c(_H, **_옵C(**_더C)), 끝년="2020")
+                _뒤C = 시뮬(_c(_H, **_옵C(**_더C)), 시작년="2021")
+                if not (_앞C and _뒤C):
+                    print(f"     {_라C:<34} (못 잼)")
+                    continue
+                if _밑C is None:
+                    _밑C = _뒤C
+                _표C = "" if (_앞C["낙"] >= -12 and _뒤C["낙"] >= -12) else "  ⚠️ 한계 −12% 밖"
+                print(f"     {_라C:<34}{_앞C['끝']:>14,.0f}{_앞C['낙']:>7.1f}%{_앞C['산']:>6}{_뒤C['끝']:>14,.0f}{_뒤C['낙']:>7.1f}%"
+                      f"{_뒤C['산']:>6}  {_뒤C['끝'] / _밑C['끝'] * 100:>5.0f}%{_표C}", flush=True)
+            print("     ⚠️ 끝 자산은 남은 보유를 산 값으로 센다(gate7 시뮬) · 앞·뒤는 따로 500만에서 시작")
+        finally:
+            _악재표.clear()
+            _악재표.update(_원표C)
+        print("  [대조] DDCTRL 끝")
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
     # ══ ⭐⭐⭐ **CARDLIVE — 화면 성적표를 실전 규칙 그대로** (2026-09-30) ══
     #    사용자: 「④ 퀀트 화면 6장 「과거에 어땠나」 숫자는 화면이 실제로 쓰는 규칙과 맞도록 바꾸자」
     #    6장은 rule-cases.json(build_rule_cases.py)을 읽는데, 그 코드는 **옛날식 단순 계산**이었다
     #    (하루 4종목 · 후보 40 · 후보 중앙갭 · 업종 문턱·섹터 자리·악재 매도·원전을 모른다).
     #    ⇒ 실전 바탕(LIVE 와 같은 _실전L) 시뮬의 **실제 거래 기록**으로 두 파일을 만든다
-    if _ONLY == "CARDLIVE" or "CARDLIVE" in _ONLY.split("+"):
+    if _ONLY in ("CARDLIVE", "MULTIDUMP") or "CARDLIVE" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── CARDLIVE ⭐⭐⭐ **화면 성적표(5장·6장)를 실전 규칙의 실제 거래로** ──")
         print("=" * 122)
@@ -8146,6 +8246,26 @@ def main():
         try:
             _악재표.clear()
             _악재표.update(_새표K)
+            # ⭐ 10/1 MULTI — ONLY=MULTIDUMP 면 실전 규칙의 그날 후보만 내보내고 끝 (화면 파일은 안 건드린다)
+            if _ONLY == "MULTIDUMP":
+                _후K = []
+                _본M = 시뮬(_c(_H, **_실전K), 후보기록=_후K)
+                _밖M = os.path.join(O._DATA, "_labs", "multi_cand_live.jsonl")
+                # ⚠️ 10/1 독립 검사: 대조할 같은 판 숫자 — 2019~ · 전날 종가 평가 (multi_lab 은 산 수·낙폭으로 견준다)
+                _대M = 시뮬(_c(_H, **_실전K, 종가평가=True), 시작년="2019")
+                print(f"     대조(2019~ · 종가평가) — {_대M['끝']:,.0f}원 · 낙폭 {_대M['낙']:.1f}% · 산 것 {_대M['산']}")
+                with io.open(_밖M, "w", encoding="utf-8") as _foM:
+                    _foM.write(json.dumps({"규칙": "_머리", "무리": "실전", "끝날": 날[-1]}, ensure_ascii=False) + "\n")
+                    _foM.write(json.dumps({"규칙": "L00", "대조끝": _대M["끝"], "대조산": _대M["산"], "대조낙": _대M["낙"]},
+                                          ensure_ascii=False) + "\n")
+                    for _iM, _줄M in _후K:
+                        _foM.write(json.dumps({"규칙": "L00", "날": 날[_iM], "후보": [
+                            dict(z, 몫=[[a, (None if b is None else round(b, 6)), (None if cc is None else 날[cc])]
+                                       for a, b, cc in z["몫"]]) for z in _줄M]}, ensure_ascii=False) + "\n")
+                print(f"     실전 규칙(대조) — {_본M['끝']:,.0f}원 · 낙폭 {_본M['낙']:.1f}% · 산 것 {_본M['산']}"
+                      f" · 후보 있는 날 {len(_후K):,} · 후보 {sum(len(z[1]) for z in _후K):,}건 → {_밖M}")
+                print("  [대조] MULTIDUMP 끝", flush=True)
+                return 0
             _거래K = []
             _본K = 시뮬(_c(_H, **_실전K), 기록=_거래K)
             print(f"     실전 규칙 11년 — {_본K['끝']:,.0f}원 · 연 {_본K['연']:.2f}% · 낙폭 {_본K['낙']:.1f}% · 산 것 {_본K['산']}")
