@@ -7483,6 +7483,145 @@ def main():
             return 0
         print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
+    # ══ ⭐⭐⭐ **REVERIFY — 지금 실전 규칙을 고친 잣대로 다시 잰다** (2026-10-01) ══
+    #    사용자: 「혹시 기존 규칙도 재검증할 필요 있을까?」 → 「오케이 너 말대로 진행해」
+    #    9/30 독립 검사가 own_lab 시뮬에서 찾은 결함이 이 시뮬에도 있다 — 실전 규칙 판은 **들고 있는 종목을 또 산다**
+    #    (중복금지 기본 꺼짐) · 「돈↑」을 시드와 견줬다(쉬는 현금 이자 2.5% 착시).
+    #    ① 또 사기 금지 ② 현금만과 견줌 ③ 같은 설정 아무 날과 견줌 ④ 비용·비중·나누는 해 흔들기 ⑤ 원전 켬/끔
+    if _ONLY == "REVERIFY" or "REVERIFY" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── REVERIFY ⭐⭐⭐ **지금 실전 규칙 다시 재기** — 또 사기 금지 · 현금만 · 아무 날 · 흔들기 · 원전 ──")
+        print("=" * 122)
+
+        def _섹V(x):
+            try:
+                return bool(섹터맞나(x))
+            except Exception:  # noqa: BLE001
+                return False
+
+        def _업V(x):
+            try:
+                _m, _ = R.업종규칙맞나(_산업.get(x["code"]), {
+                    "시총억": x.get("시총억"), "대금억": x.get("대금억"),
+                    "_지금문통과": 문통과_크기없이(x), "잉여금비율": x.get("잉여금"),
+                    "부채비율": x.get("부채"), "흑자": x.get("흑자"),
+                    "낙폭60": x.get("낙폭60"), "낙120": x.get("낙120")})
+                return bool(_m)
+            except Exception:  # noqa: BLE001
+                return False
+
+        def _바V(이름):
+            def _f(x, _n=이름):
+                return _사슬섹터.get(x["code"]) == _n
+            return _f
+
+        _원표V = {k: dict(v) for k, v in _악재표.items()}
+        _새표V = {}
+        import glob as _gV
+        for _fV in sorted(_gV.glob(os.path.join(O._DATA, "dart-daily", "*.json"))):
+            _dV = os.path.basename(_fV)[:8]
+            try:
+                _jV = json.load(io.open(_fV, encoding="utf-8-sig"))
+            except ValueError:
+                continue
+            _hV = {}
+            for _칸V in ("챙길공시", "그밖의공시"):
+                for _xV in (_jV.get(_칸V) or []):
+                    _cV = str(_xV.get("종목코드") or "")
+                    _제V = str(_xV.get("공시명") or "")
+                    if _cV and ("감자" in _제V or "유상증자" in _제V) and not any(
+                            w in _제V for w in ("해제", "취소", "철회", "종결", "기각")):
+                        _hV[_cV] = _hV.get(_cV, 0) + 1
+            if _hV:
+                _새표V[_dV] = _hV
+
+        def _옵V(원전=True, 겹금지=False, 비중=0.20):
+            _바 = getattr(R, "바구니전용", {}) if 원전 else {}
+            return {"무리자리": [(_섹V, "섹터", R.섹터전용자리)] + [(_바V(n), n, v["자리"]) for n, v in _바.items()],
+                    "무리갭": [(_업V, "업종", R.업종전용상대갭)] + [(_바V(n), n, v["상대갭"]) for n, v in _바.items()],
+                    "재평가": "악재", "시총상한": 999999, "하루상한": (lambda 골: R.하루최대종목),
+                    "비중": 비중, "중복금지": 겹금지}
+
+        _시드V = 5_000_000.0
+        _낙한V = -12.0
+
+        def _날수(시작년, 끝년):
+            return sum(1 for j in range(시i, len(날))
+                       if (not 시작년 or 날[j][:4] >= 시작년) and (not 끝년 or 날[j][:4] <= 끝년))
+
+        def _현금만(시작년, 끝년):
+            return _시드V * (1 + _이자 / 245) ** _날수(시작년, 끝년)
+
+        def _판정(r, 시작년, 끝년, 아무=None):
+            if not r:
+                return "❌ (결과 없음)", 0.0
+            해 = max(0.5, _날수(시작년, 끝년) / 245)
+            현 = _현금만(시작년, 끝년)
+            ok = r["끝"] > 현 and r["낙"] >= _낙한V and r["산"] >= max(10, 2 * 해)
+            if ok and 아무 and 아무["낙"] >= _낙한V and r["끝"] <= 아무["끝"]:
+                ok = False
+            return ("✅ 통과" if ok else "❌"), 해
+
+        def _줄V(라, 설, 시작년=None, 끝년=None, 아무설=None):
+            r = 시뮬(설, 시작년=시작년, 끝년=끝년)
+            아 = 시뮬(아무설, 시작년=시작년, 끝년=끝년) if 아무설 else None
+            판, 해 = _판정(r, 시작년, 끝년, 아)
+            현 = _현금만(시작년, 끝년)
+            if not r:
+                print(f"     {라:<40} 결과 없음")
+                return r
+            print(f"     {라:<40}{r['끝']:>15,.0f}{현:>13,.0f}{r['낙']:>8.1f}%{r['산']:>7}{r['산'] / 해:>8.0f}번  {판}", flush=True)
+            if 아:
+                _견 = ("아무 날이 낙폭 한계 밖 — 견줄 수 없다" if 아["낙"] < _낙한V
+                      else ("아무 날보다 많다 ✅" if r["끝"] > 아["끝"] else "아무 날보다 적다 ❌"))
+                print(f"        └ 같은 설정·신호 거름 없이 아무 날: {아['끝']:,.0f}원 · 낙폭 {아['낙']:.1f}% · 산 {아['산']} → {_견}")
+            return r
+
+        _머V = f"     {'설정':<40}{'끝 자산':>15}{'현금만':>13}{'낙폭':>9}{'산 것':>7}{'1년 기회':>9}  판정"
+        _비원V = _비용
+        try:
+            _악재표.clear()
+            _악재표.update(_새표V)
+            print(f"     실전 규칙: {R.한줄()}")
+            print(f"     통과 = 현금만(연 {_이자 * 100:.1f}%)보다 많다 · 낙폭 {_낙한V:g}% 안 · 산 ≥ max(10, 2×해) · "
+                  f"같은 설정 아무 날(낙폭 한계 안일 때)보다 많다 — own_lab 무리 판과 같은 잣대")
+
+            print("\n     ① 또 사기 — 지금 판(허용) vs 금지 · 11년 통째 · 앞 2010~2018 · 뒤 2019~ (새 500만)")
+            print(_머V)
+            for _라k, _겹 in (("또 사기 허용 (지금까지의 판)", False), ("또 사기 금지", True)):
+                for _구, _s, _e in (("통째", None, None), ("앞 ~2018", None, "2018"), ("뒤 2019~", "2019", None)):
+                    _줄V(f"{_라k} · {_구}", _c(_H, **_옵V(겹금지=_겹)), _s, _e,
+                         아무설=_c(None, **_옵V(겹금지=_겹)))
+
+            print("\n     ④ 흔들기 — 또 사기 금지 바탕 · 뒤 2019~ (새 500만)")
+            print(_머V)
+            _줄V("바탕 (비용 0.26% · 비중 20%)", _c(_H, **_옵V(겹금지=True)), "2019", None)
+            for _비용값 in (0.40, 0.60):
+                globals()["_비용"] = _비용값
+                _줄V(f"비용 {_비용값:.2f}%", _c(_H, **_옵V(겹금지=True)), "2019", None)
+            globals()["_비용"] = _비원V
+            _줄V("비중 10%", _c(_H, **_옵V(겹금지=True, 비중=0.10)), "2019", None)
+            for _나눔해 in ("2017", "2021"):
+                _앞끝 = str(int(_나눔해) - 1)
+                _줄V(f"나누는 해 {_나눔해} · 앞 ~{_앞끝}", _c(_H, **_옵V(겹금지=True)), None, _앞끝)
+                _줄V(f"나누는 해 {_나눔해} · 뒤 {_나눔해}~", _c(_H, **_옵V(겹금지=True)), _나눔해, None)
+
+            print("\n     ⑤ 원전 기자재 -2.0%p·자리1 — 켬 vs 끔 (또 사기 금지 · 앞 ~2018 · 뒤 2019~)")
+            print(_머V)
+            for _라w, _원 in (("원전 켬 (지금 실전)", True), ("원전 끔", False)):
+                for _구, _s, _e in (("앞 ~2018", None, "2018"), ("뒤 2019~", "2019", None)):
+                    _줄V(f"{_라w} · {_구}", _c(_H, **_옵V(원전=_원, 겹금지=True)), _s, _e)
+            print("\n     ⚠️ 비중(종목당 자산 몇 %)은 시뮬 가정이다 — 화면에 쓰지 않는다")
+        finally:
+            globals()["_비용"] = _비원V
+            _악재표.clear()
+            _악재표.update(_원표V)
+        print("  [대조] REVERIFY 끝")
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
     # ══ ⭐⭐⭐ **CARDLIVE — 화면 성적표를 실전 규칙 그대로** (2026-09-30) ══
     #    사용자: 「④ 퀀트 화면 6장 「과거에 어땠나」 숫자는 화면이 실제로 쓰는 규칙과 맞도록 바꾸자」
     #    6장은 rule-cases.json(build_rule_cases.py)을 읽는데, 그 코드는 **옛날식 단순 계산**이었다
