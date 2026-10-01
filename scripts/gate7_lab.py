@@ -7760,6 +7760,115 @@ def main():
             return 0
         print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
 
+    # ══ ⭐⭐ **PEAKDIST — 고점에서 막 떨어진 것 vs 오래 빠진 것** (2026-10-01) ══
+    #    사용자: 「고점을 찍었다가 이제 하락하는 종목도 규칙에 걸릴 것 같아서. 하락이라는 기준에는 맞지만
+    #    그게 다시 오를 종목인지, 반등할 수 있는 건지 판단할수는 없는 거잖아?」
+    #    실전 규칙(화면 성적표와 같은 설정 · 또 사기 허용)의 실제 거래마다 **신호일 기준 250거래일 고점에서
+    #    얼마나 내려왔나 · 고점이 며칠 전이었나**를 붙여 결과를 나눠 본다 (새 규칙이 아니라 지금 거래를 들여다보기)
+    if _ONLY == "PEAKDIST" or "PEAKDIST" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── PEAKDIST ⭐⭐ **고점에서 막 떨어진 것 vs 오래 빠진 것 — 지금 실전 규칙의 거래를 나눠 본다** ──")
+        print("=" * 122)
+
+        def _섹P(x):
+            try:
+                return bool(섹터맞나(x))
+            except Exception:  # noqa: BLE001
+                return False
+
+        def _업P(x):
+            try:
+                _m, _ = R.업종규칙맞나(_산업.get(x["code"]), {
+                    "시총억": x.get("시총억"), "대금억": x.get("대금억"),
+                    "_지금문통과": 문통과_크기없이(x), "잉여금비율": x.get("잉여금"),
+                    "부채비율": x.get("부채"), "흑자": x.get("흑자"),
+                    "낙폭60": x.get("낙폭60"), "낙120": x.get("낙120")})
+                return bool(_m)
+            except Exception:  # noqa: BLE001
+                return False
+
+        _원표P = {k: dict(v) for k, v in _악재표.items()}
+        _새표P = {}
+        import glob as _gP
+        for _fP in sorted(_gP.glob(os.path.join(O._DATA, "dart-daily", "*.json"))):
+            _dP = os.path.basename(_fP)[:8]
+            try:
+                _jP = json.load(io.open(_fP, encoding="utf-8-sig"))
+            except ValueError:
+                continue
+            _hP = {}
+            for _칸P in ("챙길공시", "그밖의공시"):
+                for _xP in (_jP.get(_칸P) or []):
+                    _cP = str(_xP.get("종목코드") or "")
+                    _제P = str(_xP.get("공시명") or "")
+                    if _cP and ("감자" in _제P or "유상증자" in _제P) and not any(
+                            w in _제P for w in ("해제", "취소", "철회", "종결", "기각")):
+                        _hP[_cP] = _hP.get(_cP, 0) + 1
+            if _hP:
+                _새표P[_dP] = _hP
+        _옵P = {"무리자리": [(_섹P, "섹터", R.섹터전용자리)], "무리갭": [(_업P, "업종", R.업종전용상대갭)],
+                "재평가": "악재", "시총상한": 999999, "하루상한": (lambda 골: R.하루최대종목), "비중": 0.20}
+        try:
+            _악재표.clear()
+            _악재표.update(_새표P)
+            _기P = []
+            _rP = 시뮬(_c(_H, **_옵P), 기록=_기P)
+            print(f"     실전 규칙(원전 뺌 · 또 사기 허용 = 화면 성적표와 같음): {_rP['끝']:,.0f}원 · 낙폭 {_rP['낙']:.1f}% · 산 {_rP['산']} · 거래 몫 {len(_기P)}")
+            _줄P = []
+            for _tP in _기P:
+                _산날, _코드P, _결P = _tP[0], _tP[1], _tP[4]
+                _ib = 날.index(_산날) if _산날 in 날 else None
+                if _ib is None or _ib < 1:
+                    continue
+                _신호 = 날[_ib - 1]
+                _sqP = 종계.get(_코드P)
+                _kP = (자리.get(_코드P) or {}).get(_신호)
+                if not _sqP or _kP is None or _kP < 60:
+                    continue
+                _창 = _sqP[max(0, _kP - 249):_kP + 1]
+                _고 = max(_창)
+                if _고 <= 0:
+                    continue
+                _고자리 = max(range(len(_창)), key=lambda j: _창[j])
+                _줄P.append((_sqP[_kP] / _고 - 1, len(_창) - 1 - _고자리, _결P))
+            print(f"     고점을 붙인 거래 몫 {len(_줄P)} (상장 60일 안 된 것·자리 없는 것 뺌)")
+
+            def _칸찍(라, 묶음):
+                if not 묶음:
+                    print(f"     {라:<26}{0:>6}")
+                    return
+                _이 = sum(1 for z in 묶음 if z[2] > 0) / len(묶음) * 100
+                _평 = sum(z[2] for z in 묶음) / len(묶음)
+                _최 = min(z[2] for z in 묶음)
+                print(f"     {라:<26}{len(묶음):>6}{_이:>9.1f}%{_평:>+9.2f}%{_최:>+9.1f}%")
+            _머P = f"     {'구간':<26}{'거래':>6}{'수익 난 비율':>11}{'평균':>9}{'최악':>9}"
+            print("\n     ① 신호일 기준 **250거래일 고점에서 얼마나 내려왔나**")
+            print(_머P)
+            for _라, _lo, _hi in (("고점 −20% 안쪽", -0.20, 1.0), ("−20 ~ −30%", -0.30, -0.20),
+                                  ("−30 ~ −40%", -0.40, -0.30), ("−40 ~ −50%", -0.50, -0.40),
+                                  ("−50% 넘게", -9.0, -0.50)):
+                _칸찍(_라, [z for z in _줄P if _lo < z[0] <= _hi])
+            print("\n     ② **고점이 며칠 전이었나** (거래일)")
+            print(_머P)
+            for _라, _lo, _hi in (("20일 안 (막 고점에서 떨어짐)", -1, 20), ("21~60일", 20, 60),
+                                  ("61~120일", 60, 120), ("121~250일 (오래 빠짐)", 120, 999)):
+                _칸찍(_라, [z for z in _줄P if _lo < z[1] <= _hi])
+            print("\n     ③ 둘을 같이 — 고점 60일 안 / 넘음 × 고점에서 −30% 안 / 넘음")
+            print(_머P)
+            for _라1, _f1 in (("고점 60일 안", lambda z: z[1] <= 60), ("고점 60일 넘음", lambda z: z[1] > 60)):
+                for _라2, _f2 in (("−30% 안", lambda z: z[0] > -0.30), ("−30% 넘게", lambda z: z[0] <= -0.30)):
+                    _칸찍(f"{_라1} · {_라2}", [z for z in _줄P if _f1(z) and _f2(z)])
+            _칸찍("(전체)", _줄P)
+            print("\n     ⚠️ 결과는 거래 몫 하나의 수익(%) — 나눠 팔기 앞·뒤 몫이 따로 센다. 승률·평균만 보고 규칙을 바꾸지 않는다([[avg-return-is-not-money]])")
+        finally:
+            _악재표.clear()
+            _악재표.update(_원표P)
+        print("  [대조] PEAKDIST 끝")
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
     # ══ ⭐⭐⭐ **CARDLIVE — 화면 성적표를 실전 규칙 그대로** (2026-09-30) ══
     #    사용자: 「④ 퀀트 화면 6장 「과거에 어땠나」 숫자는 화면이 실제로 쓰는 규칙과 맞도록 바꾸자」
     #    6장은 rule-cases.json(build_rule_cases.py)을 읽는데, 그 코드는 **옛날식 단순 계산**이었다
