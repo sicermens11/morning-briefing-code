@@ -1553,7 +1553,11 @@ def main():
         for v in 곡:
             최고 = max(최고, v)
             낙 = min(낙, v / 최고 - 1)
-        return {"끝": 끝, "연": 연, "낙": 낙 * 100, "산": 산, "큰산": 큰산}
+        _r = {"끝": 끝, "연": 연, "낙": 낙 * 100, "산": 산, "큰산": 큰산}
+        # ⭐ 10/1 DDWHEN — 「곡돌려줘」면 계좌 곡선도 준다 (곡[k] = 시작 자리 + k 번째 거래일의 평가액 · 산 값 기준)
+        if c.get("곡돌려줘"):
+            _r["곡"] = 곡
+        return _r
 
     머 = f"    {'':<28}{'끝 자산':>16}{'연평균':>9}{'낙폭':>8}{'산 것':>7}{'돈÷낙폭':>9}"
 
@@ -7623,6 +7627,134 @@ def main():
             _악재표.clear()
             _악재표.update(_원표V)
         print("  [대조] REVERIFY 끝")
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
+    # ══ ⭐⭐ **DDWHEN — 2021~ 낙폭이 언제·왜 깊어졌나** (2026-10-01) ══
+    #    B205: 나누는 해 2021 · 뒤 2021~ 낙폭 −12.5% (한계 −12%). 사용자: 「정해야할 것 두가지 모두 너가 권고한대로 하자」
+    #    (권고: 낙폭이 깊어진 시기와 이유를 먼저 파 본다). 지금 실전 규칙(원전 뺌) · 또 사기 금지 · 2021~ 새 500만
+    if _ONLY == "DDWHEN" or "DDWHEN" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── DDWHEN ⭐⭐ **2021~ 낙폭이 언제·왜 깊어졌나** — 실전 규칙 · 또 사기 금지 · 2021~ 새 500만 ──")
+        print("=" * 122)
+
+        def _섹W(x):
+            try:
+                return bool(섹터맞나(x))
+            except Exception:  # noqa: BLE001
+                return False
+
+        def _업W(x):
+            try:
+                _m, _ = R.업종규칙맞나(_산업.get(x["code"]), {
+                    "시총억": x.get("시총억"), "대금억": x.get("대금억"),
+                    "_지금문통과": 문통과_크기없이(x), "잉여금비율": x.get("잉여금"),
+                    "부채비율": x.get("부채"), "흑자": x.get("흑자"),
+                    "낙폭60": x.get("낙폭60"), "낙120": x.get("낙120")})
+                return bool(_m)
+            except Exception:  # noqa: BLE001
+                return False
+
+        def _바W(이름):
+            def _f(x, _n=이름):
+                return _사슬섹터.get(x["code"]) == _n
+            return _f
+
+        _원표W = {k: dict(v) for k, v in _악재표.items()}
+        _새표W = {}
+        import glob as _gW
+        for _fW in sorted(_gW.glob(os.path.join(O._DATA, "dart-daily", "*.json"))):
+            _dW = os.path.basename(_fW)[:8]
+            try:
+                _jW = json.load(io.open(_fW, encoding="utf-8-sig"))
+            except ValueError:
+                continue
+            _hW = {}
+            for _칸W in ("챙길공시", "그밖의공시"):
+                for _xW in (_jW.get(_칸W) or []):
+                    _cW = str(_xW.get("종목코드") or "")
+                    _제W = str(_xW.get("공시명") or "")
+                    if _cW and ("감자" in _제W or "유상증자" in _제W) and not any(
+                            w in _제W for w in ("해제", "취소", "철회", "종결", "기각")):
+                        _hW[_cW] = _hW.get(_cW, 0) + 1
+            if _hW:
+                _새표W[_dW] = _hW
+        _바들W = getattr(R, "바구니전용", {})
+        _옵W = {"무리자리": [(_섹W, "섹터", R.섹터전용자리)] + [(_바W(n), n, v["자리"]) for n, v in _바들W.items()],
+                "무리갭": [(_업W, "업종", R.업종전용상대갭)] + [(_바W(n), n, v["상대갭"]) for n, v in _바들W.items()],
+                "재평가": "악재", "시총상한": 999999, "하루상한": (lambda 골: R.하루최대종목),
+                "비중": 0.20, "중복금지": True, "곡돌려줘": True}
+        try:
+            _악재표.clear()
+            _악재표.update(_새표W)
+            _기W = []
+            _rW = 시뮬(_c(_H, **_옵W), 시작년="2021", 기록=_기W)
+            _곡W = (_rW or {}).get("곡") or []
+            _a0 = next((j for j in range(len(날)) if 날[j][:4] >= "2021"), 시i)
+            _a0 = max(_a0, 시i)
+            print(f"     실전 규칙: {R.한줄()}")
+            print(f"     2021~ : {_rW['끝']:,.0f}원 · 낙폭 {_rW['낙']:.1f}% · 산 {_rW['산']} · 곡선 {len(_곡W)}일")
+            print("     ⚠️ 낙폭은 **산 값 기준**(들고 있는 동안의 평가손이 안 잡힌다) — 팔 때 손실이 한꺼번에 곡선에 반영된다")
+            # 낙폭 구간 — 새 꼭대기마다 한 구간 · 구간마다 가장 깊은 바닥
+            _구간 = []
+            _꼭k, _꼭v, _바k, _바v = 0, (_곡W[0] if _곡W else 0), 0, 0.0
+            for _kW, _vW in enumerate(_곡W):
+                if _vW >= _꼭v:
+                    if _바v < -0.001:
+                        _구간.append((_바v, _꼭k, _바k, _kW))
+                    _꼭k, _꼭v, _바k, _바v = _kW, _vW, _kW, 0.0
+                else:
+                    _ddW = _vW / _꼭v - 1
+                    if _ddW < _바v:
+                        _바k, _바v = _kW, _ddW
+            if _바v < -0.001:
+                _구간.append((_바v, _꼭k, _바k, None))
+            _구간.sort()
+
+            def _날W(kk):
+                return 날[_a0 + kk] if kk is not None and 0 <= _a0 + kk < len(날) else "(아직 회복 안 함)"
+            print("\n     ① 가장 깊었던 낙폭 구간 셋")
+            print(f"     {'낙폭':>7}  {'꼭대기':>10}  {'바닥':>10}  {'회복':>16}  {'꼭대기→바닥':>10}  {'바닥→회복':>9}")
+            for _ddW, _pkW, _tkW, _rkW in _구간[:3]:
+                print(f"     {_ddW * 100:>6.1f}%  {_날W(_pkW):>10}  {_날W(_tkW):>10}  {_날W(_rkW):>16}  {_tkW - _pkW:>8}일  "
+                      f"{(str(_rkW - _tkW) + '일') if _rkW is not None else '—':>9}")
+            # 가장 깊은 구간에서 **팔린** 거래 — 그 손실이 곡선을 끌어내렸다 (산 값 기준이라 파는 날 반영)
+            if _구간:
+                _ddW, _pkW, _tkW, _rkW = _구간[0]
+                _i꼭, _i바 = _a0 + _pkW, _a0 + _tkW
+                _판것 = [q for q in _기W if _i꼭 < q[5] <= _i바]
+                _판것.sort(key=lambda q: q[4])
+                print(f"\n     ② 가장 깊은 구간({_날W(_pkW)} → {_날W(_tkW)}) 동안 **팔린** 거래 {len(_판것)}건 — 손실 큰 순")
+                print(f"     {'산 날':>10} {'판 날':>10} {'종목':>8} {'시총억':>7} {'수익':>8}  섹터 / 업종")
+                for _zW in _판것[:20]:
+                    _섹 = _사슬섹터.get(_zW[1]) or "—"
+                    try:
+                        _업 = R.업종이름(_산업.get(_zW[1])) or "—"
+                    except Exception:  # noqa: BLE001
+                        _업 = "—"
+                    print(f"     {_zW[0]:>10} {날[min(_zW[5], len(날) - 1)]:>10} {_zW[1]:>8} {_zW[2]:>7,.0f} {_zW[4]:>+7.1f}%  {_섹} / {_업}")
+                _손 = [q for q in _판것 if q[4] < 0]
+                print(f"     → 손실 {len(_손)}건 / 이익 {len(_판것) - len(_손)}건 · 평균 {sum(q[4] for q in _판것) / max(1, len(_판것)):+.1f}%")
+                _섹손 = _co.Counter(_사슬섹터.get(q[1]) or "가치사슬 밖" for q in _손)
+                print("     → 손실 거래의 섹터: " + " · ".join(f"{a} {b}" for a, b in _섹손.most_common(6)))
+                _달 = _co.Counter(날[min(q[5], len(날) - 1)][:6] for q in _손)
+                print("     → 손실이 팔린 달: " + " · ".join(f"{a[:4]}-{a[4:]} {b}" for a, b in sorted(_달.items())))
+            # 해마다 (곡선에서)
+            print("\n     ③ 해마다 (2021~ 한 계좌 곡선에서 · 산 값 기준)")
+            _해v = {}
+            for _kW, _vW in enumerate(_곡W):
+                _해v.setdefault(_날W(_kW)[:4], [_vW, _vW])[1] = _vW
+            _앞v = _시드
+            for _yW in sorted(_해v):
+                _끝vW = _해v[_yW][1]
+                print(f"     {_yW}: {(_끝vW / _앞v - 1) * 100:+6.1f}%  ({_앞v:,.0f} → {_끝vW:,.0f})")
+                _앞v = _끝vW
+        finally:
+            _악재표.clear()
+            _악재표.update(_원표W)
+        print("  [대조] DDWHEN 끝")
         print("=" * 122)
         if "+" not in _ONLY:
             return 0
