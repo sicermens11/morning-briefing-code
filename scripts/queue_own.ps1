@@ -10,14 +10,16 @@
 #  쓰는 법:  powershell -File scripts\queue_own.ps1 -Which 시험     (작은 무리 빠른 판 하나)
 #            powershell -File scripts\queue_own.ps1 -Which 전부
 # ==============================================================
-param([string]$Which = "전부", [string]$After = "", [switch]$Dry, [string]$Skip = "", [string]$Kinds = "", [switch]$Batch)
+param([string]$Which = "전부", [string]$After = "", [switch]$Dry, [string]$Skip = "", [string]$Kinds = "", [switch]$Batch, [ValidateSet("", "10", "20", "30")][string]$Cut = "")
+# ⭐ 10/2 ⑬ -Cut 10|30 — 재료를 위·아래 몇 %로 자르나 (own_lab OWN_CUT) · 결과 파일 이름 끝에 「_자름N」 · 안 주면 20% = 지금과 같다
+$꼬 = $(if ($Cut) { "_자름$Cut" } else { "" })
 $ErrorActionPreference = "Continue"
 Set-Location "C:\Users\mrblue\Claude\morning breifing_code"
 $env:PYTHONIOENCODING = "utf-8"
 [Console]::OutputEncoding = [Text.Encoding]::UTF8   # verify_own 대조표가 로그에서 깨졌다 (9/30 13:26)
 $py = "C:\Users\mrblue\AppData\Local\Programs\Python\Python313\python.exe"
 # ⚠️ 9/30 16:01 대기열 둘을 같은 분에 띄워 로그 이름이 겹쳤다 — 초와 종류를 넣는다
-$log = "run-logs\queue_own_$Which`_$(Get-Date -f yyyyMMdd_HHmmss)$(if ($Kinds) { '_' + ($Kinds -replace ',', '') }).log"
+$log = "run-logs\queue_own_$Which`_$(Get-Date -f yyyyMMdd_HHmmss)$(if ($Kinds) { '_' + ($Kinds -replace ',', '') })$꼬.log"
 function 적기($s) {
     $줄 = "$(Get-Date -f 'MM-dd HH:mm')  $s"
     Write-Output $줄
@@ -35,8 +37,9 @@ $깃발 = "data\_labs\_STOP.txt"
 
 # 무리 목록 — (번호, 종류, 값, BIG_LO, BIG_HI, 이름표)
 $시험 = @(,@("B157", "섹터", "원전 기자재", "", "", "시험판5_원전_원천시작일", ""))
+# ⚠️ 10/2 — 한 칸짜리 @( @(…) ) 는 PowerShell 이 풀어 B158 이 글자 7개(무리 7개)가 됐다 → 앞에 쉼표
 $전부 = @(
-    @("B158", "규모", "", "10000", "", "대형1조", "")
+    ,@("B158", "규모", "", "10000", "", "대형1조", "")
 )
 # ⚠️ 9/30 18:56 — 중형(2천억~1조 · 사건 약 190만)을 관문 24GB 로 걸었는데, 브라우저를 꺼도 여유가 18.7GB 라
 #    **영영 시작 못 했다**(윈도우·상주 프로그램이 약 15GB). 띠마다 사건을 어림(krx-daily 분기 표본 · 대형 어림 83만 ↔ 실측 80만)해
@@ -70,10 +73,13 @@ if ($Dry) {
     exit 0
 }
 
+# ⚠️ 10/2 독립 검사: 한 무리 경로는 -Cut 을 모른다(20% 로 돌고 이름만 바뀐다) — 묶음에서만
+if ($Cut -and -not $Batch) { 적기 "🛑 -Cut 은 -Batch 와 같이만 쓴다"; exit 1 }
 if ($After) {
     적기 "[0] 앞 판($After) 끝을 기다린다"
     $w = 0
-    while ($w -lt 720) {
+    # 10/2: 전부 묶음은 13~16시간 걸릴 수 있다 — 12시간이면 조용히 지나갔다 ⇒ 36시간 · 넘으면 적는다
+    while ($w -lt 2160) {
         # ⚠️ 제 로그(queue_own_…)가 앞 판 로그로 잡히지 않게 뺀다
         $앞 = @(Get-ChildItem "run-logs\queue_$After`_*.log" -ErrorAction SilentlyContinue |
                 Where-Object { $_.FullName -ne (Resolve-Path $log -ErrorAction SilentlyContinue).Path } |
@@ -81,6 +87,7 @@ if ($After) {
         if ($앞.Count -gt 0 -and (Select-String -Path $앞[0].FullName -Pattern "queue_$After 끝 =====" -Quiet) -and ((큰파이썬) -eq 0)) { break }
         Start-Sleep -Seconds 60; $w++
     }
+    if ($w -ge 2160) { 적기 "⚠️ [0] 앞 판($After) 끝을 36시간 기다려도 못 봤다 — 메모리 관문에 맡기고 간다" }
 }
 적기 "===== queue_own ($Which) 시작 · 무리 $($목록.Count)개 ====="
 
@@ -108,10 +115,11 @@ if ($Batch) {
     $칸들 = @(); $파일들 = @()
     foreach ($g in $목록) {
         $번, $종, $값, $lo, $hi, $표, $빠른 = $g
-        $밖 = "$(Get-Date -f yyyy-MM-dd)_$번`_무리전용_$표.txt"
+        $밖 = "$(Get-Date -f yyyy-MM-dd)_$번`_무리전용_$표$꼬.txt"
         $칸들 += "$종|$값|$lo|$hi|$밖"; $파일들 += , @($번, $밖, (뜻한무리 $종 $값 $lo $hi))
     }
-    $env:OWN_GROUPS = ($칸들 -join ';'); $env:LAB_OUT = "$(Get-Date -f yyyy-MM-dd)_묶음_$($목록[0][0])-$($목록[-1][0]).txt"; $env:MAXDD = "-12"
+    $env:OWN_GROUPS = ($칸들 -join ';'); $env:LAB_OUT = "$(Get-Date -f yyyy-MM-dd)_묶음_$($목록[0][0])-$($목록[-1][0])$꼬.txt"; $env:MAXDD = "-12"
+    if ($Cut) { $env:OWN_CUT = $Cut } else { Remove-Item env:OWN_CUT -ErrorAction SilentlyContinue }
     적기 "[묶음] 시작 — 무리 $($목록.Count)개 한 프로세스 · 여유 $(여유GB)GB"
     $최대 = 0.0; $끔 = $false
     $p = Start-Process -FilePath $py -ArgumentList "scripts\own_lab.py" -PassThru -WindowStyle Hidden
@@ -126,7 +134,7 @@ if ($Batch) {
             break
         }
     }
-    foreach ($k in "OWN_GROUPS", "LAB_OUT", "MAXDD") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
+    foreach ($k in "OWN_GROUPS", "LAB_OUT", "MAXDD", "OWN_CUT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
     적기 ("[묶음] 끝 — 코드 {0} · 최대 메모리 {1:N1}GB" -f $p.ExitCode, $최대)
     $터진것 = 0
     foreach ($x in $파일들) {
