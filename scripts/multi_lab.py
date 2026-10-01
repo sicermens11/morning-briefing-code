@@ -56,6 +56,8 @@ def 읽기():
                 if z["규칙"] == "_머리":
                     끝날[z["무리"]] = z["끝날"]
                     continue
+                if "못만듦" in z:
+                    continue
                 if "대조끝" in z:
                     대조[z["규칙"]] = z
                     continue
