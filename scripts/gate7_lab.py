@@ -1754,6 +1754,19 @@ def main():
     def 있(x, k):
         return x.get(k) is not None
 
+    def 업종갈래맞나(x):
+        r"""실전 규칙의 업종 갈래(R.업종규칙맞나)에 걸렸나 — 실전 규칙을 재는 절들이 같이 쓴다 (10/1 PEAKCUT).
+        ⚠️ 띠를 나눠 재는 함수가 아니다 — 시총은 업종 규칙의 크기 문을 보려고 넘길 뿐이다"""
+        try:
+            _m, _ = R.업종규칙맞나(_산업.get(x["code"]), {
+                "시총억": x.get("시총억"), "대금억": x.get("대금억"),
+                "_지금문통과": 문통과_크기없이(x), "잉여금비율": x.get("잉여금"),
+                "부채비율": x.get("부채"), "흑자": x.get("흑자"),
+                "낙폭60": x.get("낙폭60"), "낙120": x.get("낙120")})
+            return bool(_m)
+        except Exception:  # noqa: BLE001
+            return False
+
     # ⭐⭐ **193차 도전자** — 192차에서 나온 해외 신호 (2026-09-09)
     #    사용자: 「한국은 **수출 위주 국가**라 해외 수주나 해외 소식에 영향을 받을 것 같아」
     #    ⚠️ 192차는 재무 조건이 빠진 잣대였다. 여기서는 재무까지 넣고 다시 잰다
@@ -7864,6 +7877,109 @@ def main():
             _악재표.clear()
             _악재표.update(_원표P)
         print("  [대조] PEAKDIST 끝")
+        print("=" * 122)
+        if "+" not in _ONLY:
+            return 0
+        print("  ⭐ 묶음 ONLY — 다음 절로 이어 간다", flush=True)
+
+    # ══ ⭐⭐ **PEAKCUT — 「1년 고점에서 N% 넘게 빠진 것만」을 붙이면 돈이 느나** (2026-10-01) ══
+    #    B208: 고점에서 덜 빠진 채 산 거래가 나빴다(−20% 안쪽 50% · +2.1% / −50% 넘게 85% · +17.2%).
+    #    거래 평균이라 **자본 시뮬로 다시 잰다** — 빼면 자리가 나서 다른 후보를 사니 돈은 다를 수 있다
+    if _ONLY == "PEAKCUT" or "PEAKCUT" in _ONLY.split("+"):
+        print("\n" + "=" * 122)
+        print("  ── PEAKCUT ⭐⭐ **실전 규칙 + 「250거래일 고점에서 N% 넘게 빠진 것만」 — 한 계좌로** ──")
+        print("=" * 122)
+
+        def _섹C(x):
+            try:
+                return bool(섹터맞나(x))
+            except Exception:  # noqa: BLE001
+                return False
+
+        _업C = 업종갈래맞나     # 공용 도우미 (이 절은 띠를 나누지 않는다 — 실전 규칙 하나를 재는 절)
+
+        _원표C = {k: dict(v) for k, v in _악재표.items()}
+        _새표C = {}
+        import glob as _gC
+        for _fC in sorted(_gC.glob(os.path.join(O._DATA, "dart-daily", "*.json"))):
+            _dC = os.path.basename(_fC)[:8]
+            try:
+                _jC = json.load(io.open(_fC, encoding="utf-8-sig"))
+            except ValueError:
+                continue
+            _hC = {}
+            for _칸C in ("챙길공시", "그밖의공시"):
+                for _xC in (_jC.get(_칸C) or []):
+                    _cC = str(_xC.get("종목코드") or "")
+                    _제C = str(_xC.get("공시명") or "")
+                    if _cC and ("감자" in _제C or "유상증자" in _제C) and not any(
+                            w in _제C for w in ("해제", "취소", "철회", "종결", "기각")):
+                        _hC[_cC] = _hC.get(_cC, 0) + 1
+            if _hC:
+                _새표C[_dC] = _hC
+        _고점캐시 = {}
+
+        def _고점대비(x):
+            r"""신호일(인−1) 기준 250거래일 고점 대비 (−0.35 = 고점에서 35% 빠짐) · 모르면 None"""
+            _키 = (x["code"], x["인"])
+            if _키 in _고점캐시:
+                return _고점캐시[_키]
+            v = None
+            _sq = 종계.get(x["code"])
+            _ii = x["인"] - 1
+            if _sq and 0 <= _ii < len(날):
+                _k = (자리.get(x["code"]) or {}).get(날[_ii])
+                if _k is not None and _k >= 60:
+                    _고 = max(_sq[max(0, _k - 249):_k + 1])
+                    if _고 > 0:
+                        v = _sq[_k] / _고 - 1
+            _고점캐시[_키] = v
+            return v
+
+        def _거C(문턱):
+            if 문턱 is None:
+                return _H
+            return lambda x, _t=문턱: bool(_H(x)) and (_고점대비(x) is not None and _고점대비(x) <= _t)
+
+        def _옵C(겹금지):
+            return {"무리자리": [(_섹C, "섹터", R.섹터전용자리)], "무리갭": [(_업C, "업종", R.업종전용상대갭)],
+                    "재평가": "악재", "시총상한": 999999, "하루상한": (lambda 골: R.하루최대종목),
+                    "비중": 0.20, "중복금지": 겹금지}
+        try:
+            _악재표.clear()
+            _악재표.update(_새표C)
+            print(f"     실전 규칙: {R.한줄()}")
+            print("     문턱 = 신호일 기준 250거래일 고점 대비 (−30% = 고점에서 30% 넘게 빠진 것만 산다) · 바탕 = 문턱 없음(지금 실전)")
+            print("     ⚠️ 낙폭은 산 값 기준(이 판의 시뮬) · 앞 2016-04~2020 / 뒤 2021~ 새 500만 · 판정: 앞뒤 둘 다 바탕보다 돈↑ 이고 낙폭 −12% 안")
+            for _라겹, _겹 in (("또 사기 허용 (화면 성적표와 같음)", False), ("또 사기 금지", True)):
+                print(f"\n     [{_라겹}]")
+                print(f"     {'문턱':<10}{'통째 끝 자산':>16}{'낙폭':>8}{'산':>6} │{'앞 ~2020':>14}{'낙폭':>8} │{'뒤 2021~':>14}{'낙폭':>8}{'산':>6} │ 판정")
+                _바 = {}
+                for _문 in (None, -0.20, -0.25, -0.30, -0.35):
+                    _a = 시뮬(_c(_거C(_문), **_옵C(_겹)))
+                    _b = 시뮬(_c(_거C(_문), **_옵C(_겹)), 끝년="2020")
+                    _d = 시뮬(_c(_거C(_문), **_옵C(_겹)), 시작년="2021")
+                    if not (_a and _b and _d):
+                        print(f"     {str(_문):<10} 결과 없음")
+                        continue
+                    if _문 is None:
+                        _바 = {"a": _a, "b": _b, "d": _d}
+                        판 = "(바탕)"
+                    else:
+                        _앞됨 = _b["끝"] > _바["b"]["끝"]
+                        _뒤됨 = _d["끝"] > _바["d"]["끝"]
+                        _낙됨 = _b["낙"] >= -12 and _d["낙"] >= -12
+                        판 = ("✅ 앞뒤 둘 다 돈↑" if (_앞됨 and _뒤됨 and _낙됨)
+                              else f"❌ 앞 {'↑' if _앞됨 else '↓'} · 뒤 {'↑' if _뒤됨 else '↓'}{'' if _낙됨 else ' · 낙폭 한계 밖'}")
+                        판 += f" · 통째 바탕의 {_a['끝'] / _바['a']['끝'] * 100:.0f}%"
+                    _라문 = "없음 (지금)" if _문 is None else f"{_문 * 100:.0f}%"
+                    print(f"     {_라문:<10}{_a['끝']:>16,.0f}{_a['낙']:>7.1f}%{_a['산']:>6} │{_b['끝']:>14,.0f}{_b['낙']:>7.1f}% │"
+                          f"{_d['끝']:>14,.0f}{_d['낙']:>7.1f}%{_d['산']:>6} │ {판}", flush=True)
+            print("\n     ⚠️ 통과해도 **실전 코드를 바꾸는 일**이다 — 사용자가 정한다")
+        finally:
+            _악재표.clear()
+            _악재표.update(_원표C)
+        print("  [대조] PEAKCUT 끝")
         print("=" * 122)
         if "+" not in _ONLY:
             return 0
