@@ -29,11 +29,15 @@ def 껍질(명령):
 # ⚠️ 검사기 자신은 이름에 secrets 가 들어 있다 — 제가 제발을 물면 아무것도 못 올린다 (2026-09-23)
 봐줄길 = {"scripts/check_secrets_staged.py", "scripts/install_hooks.py",
           "scripts/check_secrets.py", ".gitignore"}
+# ⭐ 10/1 사용자 「오케이 너 권고대로 진행하자」 — 이름 규칙만 봐주고 **내용 검사는 계속** 하는 파일.
+#    push_token.py 는 열쇠를 config 에서 읽기만 한다(코드에 열쇠 없음). 이름의 「_token.」 때문에 막혔다.
+#    통째로 건너뛰는 「봐줄길」과 다르다 — 누가 이 파일에 열쇠를 적으면 여전히 막힌다
+이름만봐줌 = {"scripts/push_token.py"}
 막음 = []
 for f in 파일들:
     if f in 봐줄길:
         continue
-    if 위험한이름.search(f):
+    if 위험한이름.search(f) and f not in 이름만봐줌:
         막음.append((f, 0, "파일 이름이 비밀처럼 생겼다"))
         continue
     글 = 껍질(["git", "show", f":{f}"])

@@ -45,3 +45,9 @@ def 지움(b):
 print(지움(r.stdout))
 print(지움(r.stderr))
 print("끝났나:", "예" if r.returncode == 0 else f"아니 (코드 {r.returncode})")
+# ⚠️ 2026-09-30 전수조사 #6: 주소로 직접 올려서 **origin/main 표시가 갱신되지 않았다** —
+#    9/29 에 올렸는데도 `git status` 가 「217 앞섬」이라 「11일 안 올라감」으로 잘못 읽혔다.
+#    ⇒ 올리기에 성공하면 표시도 지금 커밋으로 맞춘다
+if r.returncode == 0:
+    subprocess.run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=뿌리)
+    print("origin/main 표시를 지금 커밋으로 맞췄다")
