@@ -121,6 +121,20 @@ $밖5 = "${날}_B218_여러규칙_한계좌_새목록.txt"; $env:LAB_OUT = $밖5
 foreach ($k in "LAB_OUT", "MULTI_NODD", "MULTI_HORIZON", "MULTI_FAST") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
 if (-not (끝났나 (Join-Path "data\_labs" $밖5) "\[대조\] MULTI 끝")) { 적기 "❌ [B218] ⑤ 합치기가 끝까지 안 갔다 — 자름 10·30 은 그대로 간다" } else { 적기 "[B218] ⑤ 표 ✅ — data\_labs\$밖5" }
 
+# ── ⑤-2 반도체 넓힌 무리 (낙폭 체 없이) ── 사용자 「네 앞당기세요」 (10/2 · 자름 10·30 보다 먼저)
+#    data/semis-universe.json (업종코드 261·2927 ∪ 가치사슬 반도체 26 = 190종목) · own_lab 「종목」 무리
+if (Test-Path $깃발) { 적기 "🛑 멈춤 깃발 — ⑤-2 반도체 안 함"; 적기 "===== queue_b218 끝 ====="; exit 1 }
+밤샘기다리기
+if (기다리기 "⑤-2 반도체" 20) {
+    $코드 = ((Get-Content "data\semis-universe.json" -Raw -Encoding UTF8 | ConvertFrom-Json).종목) -join ','
+    $밖52 = "${날}_B218_반도체넓힌무리_낙폭체없음.txt"
+    적기 "[B218] ⑤-2 반도체 넓힌 무리 시작 ($(($코드 -split ',').Count)종목) · 여유 $(여유GB)GB"
+    $env:OWN_GROUPS = "종목|$코드|||$밖52"; $env:MAXDD = "-999"; $env:OWN_CUT = "20"; $env:LAB_OUT = "${날}_B218_반도체_묶음.txt"
+    돌리기 "⑤-2 반도체" "scripts\own_lab.py"
+    foreach ($k in "OWN_GROUPS", "MAXDD", "OWN_CUT", "LAB_OUT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
+    if (끝났나 (Join-Path "data\_labs" $밖52) "\[대조\] 무리") { 적기 "[B218] ⑤-2 반도체 ✅ — data\_labs\$밖52" } else { 적기 "❌ [B218] ⑤-2 반도체가 끝까지 안 갔다 — 자름 10·30 은 그대로 간다" }
+} else { 적기 "🛑 [B218] ⑤-2 12시간 기다려도 모자라다 — 건너뛴다" }
+
 # ── ⑥ ⑦ 자름 10 · 30 (낙폭 체 없이) ──
 foreach ($자름 in "10", "30") {
     if (Test-Path $깃발) { 적기 "🛑 멈춤 깃발 — 자름 $자름 부터 안 함"; 적기 "===== queue_b218 끝 ====="; exit 1 }
