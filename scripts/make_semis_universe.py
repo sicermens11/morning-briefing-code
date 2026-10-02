@@ -28,10 +28,16 @@ def main():
     코드 = {c for c, v in ind.items() if isinstance(v, dict)
             and (str(v.get("업종코드") or "").startswith("261") or str(v.get("업종코드") or "").startswith("2927"))}
     사슬 = {c for s, 들 in 읽기().items() if "반도체" in s for _, c in 들 if c}
-    모 = sorted(코드 | 사슬)
+    # 사용자 10/2 「삼성전자 SK하이닉스도 들어갔으면 좋겠어.」 — 삼성전자는 업종코드 264(통신장비)라 코드로는 안 잡힌다
+    더 = {"005930": "삼성전자", "000660": "SK하이닉스"}
+    # 사용자 10/2 「반도체가 아닌 종목은 조금 더 웹검색이나 조사한 다음, 연관 없으면 빼도 될 것 같아.」
+    #   → data/semis-exclude.json {코드: {"이름", "까닭", "근거"}} (조사 결과) 에 있는 종목은 뺀다
+    _빼p = os.path.join(_D, "semis-exclude.json")
+    뺄 = json.load(io.open(_빼p, encoding="utf-8")).get("뺌", {}) if os.path.exists(_빼p) else {}
+    모 = sorted((코드 | 사슬 | set(더)) - set(뺄))
     out = {"만든날": f"{datetime.datetime.now():%Y-%m-%d %H:%M}",
-           "근거": "industry.json 업종코드 261*(반도체 제조) · 2927*(반도체 제조용 기계) ∪ 가치사슬 「반도체/HBM 소부장」",
-           "수": {"업종코드": len(코드), "가치사슬": len(사슬), "겹침": len(코드 & 사슬), "합": len(모)},
+           "근거": "industry.json 업종코드 261*(반도체 제조) · 2927*(반도체 제조용 기계) ∪ 가치사슬 「반도체/HBM 소부장」 ∪ 삼성전자·SK하이닉스(사용자) − semis-exclude.json(조사로 뺀 것)",
+           "수": {"업종코드": len(코드), "가치사슬": len(사슬), "겹침": len(코드 & 사슬), "더함": len(더), "뺌": len(뺄), "합": len(모)},
            "종목": 모}
     io.open(os.path.join(_D, "semis-universe.json"), "w", encoding="utf-8").write(json.dumps(out, ensure_ascii=False, indent=1))
     print(f"반도체 넓힌 무리 {len(모)}종목 (업종코드 {len(코드)} · 가치사슬 {len(사슬)} · 겹침 {len(코드 & 사슬)}) → data/semis-universe.json")
