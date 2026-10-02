@@ -10,9 +10,11 @@
 #  쓰는 법:  powershell -File scripts\queue_own.ps1 -Which 시험     (작은 무리 빠른 판 하나)
 #            powershell -File scripts\queue_own.ps1 -Which 전부
 # ==============================================================
-param([string]$Which = "전부", [string]$After = "", [switch]$Dry, [string]$Skip = "", [string]$Kinds = "", [switch]$Batch, [ValidateSet("", "10", "20", "30")][string]$Cut = "")
+param([string]$Which = "전부", [string]$After = "", [switch]$Dry, [string]$Skip = "", [string]$Kinds = "", [switch]$Batch, [ValidateSet("", "10", "20", "30")][string]$Cut = "", [switch]$NoDD)
 # ⭐ 10/2 ⑬ -Cut 10|30 — 재료를 위·아래 몇 %로 자르나 (own_lab OWN_CUT) · 결과 파일 이름 끝에 「_자름N」 · 안 주면 20% = 지금과 같다
-$꼬 = $(if ($Cut) { "_자름$Cut" } else { "" })
+$꼬 = $(if ($Cut) { "_자름$Cut" } else { "" }) + $(if ($NoDD) { "_낙폭체없음" } else { "" })
+# ⭐ 10/2 -NoDD — 사용자 「그렇다」(② 계좌 낙폭은 체가 아니라 정보) ⇒ own_lab MAXDD=-999 (통과·설정 고르기에서 낙폭을 안 본다 · 표에는 찍힌다)
+$낙체 = $(if ($NoDD) { "-999" } else { "-12" })
 $ErrorActionPreference = "Continue"
 Set-Location "C:\Users\mrblue\Claude\morning breifing_code"
 $env:PYTHONIOENCODING = "utf-8"
@@ -118,7 +120,7 @@ if ($Batch) {
         $밖 = "$(Get-Date -f yyyy-MM-dd)_$번`_무리전용_$표$꼬.txt"
         $칸들 += "$종|$값|$lo|$hi|$밖"; $파일들 += , @($번, $밖, (뜻한무리 $종 $값 $lo $hi))
     }
-    $env:OWN_GROUPS = ($칸들 -join ';'); $env:LAB_OUT = "$(Get-Date -f yyyy-MM-dd)_묶음_$($목록[0][0])-$($목록[-1][0])$꼬.txt"; $env:MAXDD = "-12"
+    $env:OWN_GROUPS = ($칸들 -join ';'); $env:LAB_OUT = "$(Get-Date -f yyyy-MM-dd)_묶음_$($목록[0][0])-$($목록[-1][0])$꼬.txt"; $env:MAXDD = $낙체
     if ($Cut) { $env:OWN_CUT = $Cut } else { Remove-Item env:OWN_CUT -ErrorAction SilentlyContinue }
     적기 "[묶음] 시작 — 무리 $($목록.Count)개 한 프로세스 · 여유 $(여유GB)GB"
     $최대 = 0.0; $끔 = $false
@@ -175,7 +177,7 @@ foreach ($g in $목록) {
         $env:OWN_EXPECT = "규모 {0:N0}억~{1}" -f [double]$lo, $(if ($hi) { ("{0:N0}억" -f [double]$hi) } else { "(상한 없음)" })
     } else { $env:OWN_EXPECT = "$종 = $값" }
     적기 "[$번] 시작 — $종 $값 $lo~$hi · 여유 $(여유GB)GB"
-    $env:OWN_KIND = $종; $env:OWN_VALUE = $값; $env:BIG_LO = $lo; $env:BIG_HI = $hi; $env:LAB_OUT = $밖; $env:MAXDD = "-12"
+    $env:OWN_KIND = $종; $env:OWN_VALUE = $값; $env:BIG_LO = $lo; $env:BIG_HI = $hi; $env:LAB_OUT = $밖; $env:MAXDD = $낙체
     if ($빠른) { $env:OWN_FAST = "1" } else { Remove-Item env:OWN_FAST -ErrorAction SilentlyContinue }
     $최대 = 0.0
     $p = Start-Process -FilePath $py -ArgumentList "scripts\own_lab.py" -PassThru -WindowStyle Hidden

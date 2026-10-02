@@ -29,7 +29,9 @@ _L = os.path.join(O._DATA, "_labs")
 _시드 = 5_000_000.0
 _비중 = 0.20
 _이자 = 0.025
-_낙한 = -12.0
+_낙한 = float(os.environ.get("MAXDD") or -12.0)
+# ⭐ 10/2 사용자 「그렇다」 — ② 계좌 낙폭은 체가 아니라 정보. MULTI_NODD=1 이면 쌓기 관문이 **돈만** 본다 (낙폭은 찍기만)
+_무체 = bool(os.environ.get("MULTI_NODD"))
 _분할 = "2019"
 _밖 = io.open(os.path.join(_L, os.environ.get("LAB_OUT") or "multi_lab.txt"), "w", encoding="utf-8")
 
@@ -72,8 +74,13 @@ def main():
     주가 = O.수정주가(())
     날 = sorted(주가)
     # ⚠️ 10/1 독립 검사: 단계 사이에 저녁 자료가 붙으면 후보 파일끼리·여기 주가와 끝 날이 다르다 — 섞으면 안 된다
-    if len(set(끝날.values())) != 1 or 날[-1] not in 끝날.values():
+    if len(set(끝날.values())) != 1 or max(끝날.values()) > 날[-1]:
         raise SystemExit(f"🛑 자료 끝 날이 다르다 — 후보 파일 {sorted(set(끝날.values()))} · 지금 주가 {날[-1]} · 처음부터 다시")
+    # 10/2: 그 뒤 하루치가 붙었으면 주가를 후보 파일 끝 날까지만 쓴다 (후보 결과가 그 날까지 자료로 계산됐다 — 같은 자료끼리)
+    _끝 = max(끝날.values())
+    if 날[-1] > _끝:
+        print(f"  ⓘ 주가를 후보 파일 끝 날 {_끝} 까지만 쓴다 (지금 주가 끝 {날[-1]})", flush=True)
+        날 = [d for d in 날 if d <= _끝]
     자리i = {d: k for k, d in enumerate(날)}
     규칙 = {r["id"]: r for r in 스펙}
     규칙["L00"] = {"id": "L00", "무리": "실전 규칙(지금 화면)", "조건": "rule_def 그대로", "자리": 99, "짧음": False,
@@ -273,7 +280,7 @@ def main():
             잰.sort(key=lambda z: (-z[0], -z[1]))
             넣 = None
             for 새, 끝, k, rr in 잰:
-                if 끝 > 앞밑["끝"] and rr["낙"] >= _낙한:
+                if 끝 > 앞밑["끝"] and (_무체 or rr["낙"] >= _낙한):
                     넣 = (k, rr)
                     break
             if not 넣:
@@ -315,7 +322,7 @@ def main():
             넣 = None
             for 새, 끝, k, rr in 잰:
                 # 빈 계좌에서 시작하면 첫 규칙은 낙폭 한계(−12%) 안이어야 한다 · 그 뒤로는 「나빠지지 않음」
-                _낙문 = _낙한 if not 쌓 else 앞밑["낙"]
+                _낙문 = -999.0 if _무체 else (_낙한 if not 쌓 else 앞밑["낙"])
                 if 끝 > 앞밑["끝"] and rr["낙"] >= _낙문:
                     넣 = (k, rr)
                     break
