@@ -32,6 +32,8 @@ _이자 = 0.025
 _낙한 = float(os.environ.get("MAXDD") or -12.0)
 # ⭐ 10/2 사용자 「그렇다」 — ② 계좌 낙폭은 체가 아니라 정보. MULTI_NODD=1 이면 쌓기 관문이 **돈만** 본다 (낙폭은 찍기만)
 _무체 = bool(os.environ.get("MULTI_NODD"))
+# ⭐ 10/3 MULTI_ORDER=돈 — 쌓기를 「새 날 많은 것」 대신 「앞 끝 자산을 가장 많이 늘리는 것」 부터 (새 날 순은 1년 208일 사는 규칙이 먼저 들어와 돈을 다 차지했다)
+_돈순 = os.environ.get("MULTI_ORDER") == "돈"
 _분할 = "2019"
 _밖 = io.open(os.path.join(_L, os.environ.get("LAB_OUT") or "multi_lab.txt"), "w", encoding="utf-8")
 
@@ -156,8 +158,8 @@ def main():
                 # 「뜬」 = 이 규칙이 **실제로 하나라도 골랐다** (후보는 떴는데 전부 들고 있거나 겹친 날은 안 센다 · 10/1 독립 검사)
                 if n:
                     뜬.append(k)
-                # 내보낸 후보가 「제 자리 + 여분 30」 에서 잘렸는데 자리를 다 못 채웠다 = own_lab 혼자 판과 달라질 수 있는 날
-                if not 또 and n < 규칙[k]["자리"] and len(ps) >= 규칙[k]["자리"] + 30:
+                # 내보낸 후보가 「제 자리 + 여분 60」 에서 잘렸는데 자리를 다 못 채웠다 = own_lab 혼자 판과 달라질 수 있는 날
+                if not 또 and n < 규칙[k]["자리"] and len(ps) >= 규칙[k]["자리"] + 60:
                     여분모자람 += 1
             if 뜬:
                 뜬날 += 1
@@ -279,7 +281,7 @@ def main():
             for k in 남:
                 rr = 시뮬(쌓 + [k], K=K, 끝년=str(int(_분할) - 1))
                 잰.append((rr["새날"].get(k, 0), rr["끝"], k, rr))
-            잰.sort(key=lambda z: (-z[0], -z[1]))
+            잰.sort(key=(lambda z: (-z[1], -z[0])) if _돈순 else (lambda z: (-z[0], -z[1])))
             넣 = None
             for 새, 끝, k, rr in 잰:
                 if 끝 > 앞밑["끝"] and (_무체 or rr["낙"] >= _낙한):
@@ -320,7 +322,7 @@ def main():
             for k in 남:
                 rr = 시뮬(쌓 + [k], K=K, 끝년=str(int(_분할) - 1))
                 잰.append((rr["새날"].get(k, 0), rr["끝"], k, rr))
-            잰.sort(key=lambda z: (-z[0], -z[1]))
+            잰.sort(key=(lambda z: (-z[1], -z[0])) if _돈순 else (lambda z: (-z[0], -z[1])))
             넣 = None
             for 새, 끝, k, rr in 잰:
                 # 빈 계좌에서 시작하면 첫 규칙은 낙폭 한계(−12%) 안이어야 한다 · 그 뒤로는 「나빠지지 않음」

@@ -8274,7 +8274,7 @@ def main():
                                           ensure_ascii=False) + "\n")
                     for _iM, _줄M in _후K:
                         _foM.write(json.dumps({"규칙": "L00", "날": 날[_iM], "후보": [
-                            dict(z, 몫=[[a, (None if b is None else round(b, 6)), (None if cc is None else 날[cc])]
+                            dict(z, 몫=[[a, (None if b is None else b), (None if cc is None else 날[cc])]
                                        for a, b, cc in z["몫"]]) for z in _줄M]}, ensure_ascii=False) + "\n")
                 print(f"     실전 규칙(대조) — {_본M['끝']:,.0f}원 · 낙폭 {_본M['낙']:.1f}% · 산 것 {_본M['산']}"
                       f" · 후보 있는 날 {len(_후K):,} · 후보 {sum(len(z[1]) for z in _후K):,}건 → {_밖M}")

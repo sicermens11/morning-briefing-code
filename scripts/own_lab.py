@@ -1810,11 +1810,12 @@ def main():
                         else:
                             골 = [z[1] for z in sorted(잰, key=lambda z: z[0])]
                         줄 = []
-                        for x in 골[:r["자리"] + 30]:     # 들고 있는 종목·다른 규칙과 겹친 종목을 건너뛸 여분 30
+                        for x in 골[:r["자리"] + 60]:     # 여분 60 (10/3: 하루 10종목 규칙은 30 이 모자란 날이 179일 — 대조 24개 틀림)
                             몫r = []
                             for 몫 in 팔:
                                 rr, 청 = 결과(x, 몫[1], 몫[2], 몫[3] if len(몫) > 3 else None)
-                                몫r.append([몫[0], None if rr is None else round(rr, 6), None if 청 is None else 날[청]])
+                                몫r.append([몫[0], None if rr is None else rr, None if 청 is None else 날[청]])
+                                # ⚠️ 10/3: 결과를 소수 6자리로 자르면 거래가 수천 번인 규칙은 주수가 한 주씩 갈려 끝 자산이 벌어졌다 — 그대로 둔다
                             줄.append({"code": x["code"], "원시": x["원시"], "매수": x["매수"],
                                       "대금억": x.get("대금억"), "시총억": round(x["시총억"], 1), "몫": 몫r})
                         _fo.write(json.dumps({"규칙": r["id"], "날": 날[i], "후보": 줄}, ensure_ascii=False) + "\n")
