@@ -55,8 +55,8 @@ function 돌리기($이름, $스크립트) {
 }
 function 끝났나($f, $무늬) { return ((Test-Path $f) -and (Select-String -Path $f -Pattern $무늬 -Quiet) -and -not (Select-String -Path $f -Pattern "Traceback" -Quiet)) }
 
-적기 "[B221] B220 이 끝나길 기다린다"
-while (@(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'queue_b218|queue_b219|queue_b220|queue_own' }).Count -gt 0) { Start-Sleep 60 }
+적기 "[B221] B220 · B222 가 끝나길 기다린다"
+while (@(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'queue_b218|queue_b219|queue_b220|queue_b222|queue_own' }).Count -gt 0) { Start-Sleep 60 }   # 10/4: 깃발에 걸려 멈춘 뒤 B222 다음으로 다시
 Start-Sleep 60
 if (Test-Path $깃발) { 적기 "🛑 멈춤 깃발: $(Get-Content $깃발 -Raw -Encoding UTF8) — 안 돈다"; 적기 "===== queue_b221 끝 ====="; exit 1 }
 $날 = Get-Date -f "yyyy-MM-dd"
