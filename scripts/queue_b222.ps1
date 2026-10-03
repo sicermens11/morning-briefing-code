@@ -28,7 +28,7 @@ function 밤샘기다리기 {
     $오늘 = Get-Date -f "yyyy-MM-dd"
     적기 "[B222] 밤 시간 — 밤샘 옛 시험이 끝나길 기다린다"
     while ($true) {
-        $끝 = Select-String -Path "data\_overnight.log" -Pattern "^$오늘 .*===== 시험 끝 =====" -Quiet -Encoding UTF8
+        $끝 = Select-String -Path "data\_overnight.log" -Pattern "^$오늘 .*(===== 시험 끝 =====|시험을 건너뛴다)" -Quiet -Encoding UTF8   # 10/4: 새 자료가 없으면 시험을 건너뛰고 「시험 끝」 을 안 찍는다
         $n = Get-Date
         if ($끝 -or ($n.Hour -ge 8) -or ($n.Hour -eq 7 -and $n.Minute -ge 5)) { break }
         Start-Sleep 60
