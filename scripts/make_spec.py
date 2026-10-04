@@ -91,9 +91,11 @@ def main():
     for r in 규칙들:
         print(f"  {r['id']} {r['무리']:<26} [{r['조건']}] 앞 {r['앞시작']}~{' ⚠️' if r['짧음'] else ''} · 문턱 {r['문턱']:g} · 자리 {r['자리']}"
               f" · {r['순서']} · {r['팔기']} · 뒤 연 {r.get('뒤연')}% · 낙폭 {r.get('뒤낙폭')}%")
-    밖 = os.path.join(_L, "multi_rules_spec.json")
+    # 10/4: SPEC_OUT 을 주면 그 이름으로 쓴다 (177개 목록 multi_rules_spec.json 을 안 덮는다 · 무리 줄은 <이름>_groups.txt)
+    _이름 = os.environ.get("SPEC_OUT") or "multi_rules_spec.json"
+    밖 = os.path.join(_L, _이름)
     if os.path.exists(밖):
-        shutil.copy(밖, os.path.join(_L, f"multi_rules_spec_{datetime.datetime.now():%Y%m%d_%H%M%S}.json"))
+        shutil.copy(밖, os.path.join(_L, f"{_이름[:-5]}_{datetime.datetime.now():%Y%m%d_%H%M%S}.json"))
     io.open(밖, "w", encoding="utf-8").write(json.dumps(
         {"만든날": f"{datetime.datetime.now():%Y-%m-%d %H:%M}", "출처": pat, "규칙": 규칙들}, ensure_ascii=False, indent=1))
     앞머리 = os.environ.get("SPEC_OUTPRE") or f"{datetime.date.today():%Y-%m-%d}_내보내기_"
@@ -104,7 +106,8 @@ def main():
     칸들 = []
     for k, 무리 in enumerate(무리들, 1):
         칸들.append(f"{무리칸(무리)}|{앞머리}{k:02d}.txt")
-    io.open(os.path.join(_L, "multi_groups.txt"), "w", encoding="utf-8").write(";".join(칸들))
+    io.open(os.path.join(_L, "multi_groups.txt" if _이름 == "multi_rules_spec.json" else f"{_이름[:-5]}_groups.txt"),
+            "w", encoding="utf-8").write(";".join(칸들))
     print(f"썼다 {밖} · multi_groups.txt 무리 {len(칸들)}개")
     if 터짐:
         print("  🛑 끝까지 안 간 결과 파일이 있다 — 그 무리 규칙은 빠졌다")
