@@ -131,7 +131,14 @@ def close(code, basDd):
 
 
 def _prev_bizday():
-    """직전 평일. ⚠️ 휴장일은 못 가린다 — 그날은 API가 빈 배열을 준다."""
+    """직전 **거래일** (krx_calendar · 휴장일을 건너뛴다 · 10/6 대체휴일 다음 날 사고 뒤). 달력을 못 읽으면 직전 평일."""
+    try:
+        import krx_calendar as _K
+        _d = _K.직전거래일()
+        if _d:
+            return _d.strftime("%Y%m%d")
+    except Exception:  # noqa: BLE001
+        pass
     d = datetime.now() - timedelta(days=1)
     while d.weekday() >= 5:
         d -= timedelta(days=1)

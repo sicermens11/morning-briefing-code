@@ -135,6 +135,12 @@ def main():
         _d = dt.date.today() - dt.timedelta(days=1)
         while _d.weekday() >= 5:
             _d -= dt.timedelta(days=1)
+        try:   # 10/6: 휴일 다음 날엔 직전 평일이 휴일이다 — 달력으로
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            import krx_calendar as _K
+            _d = _K.직전거래일() or _d
+        except Exception:  # noqa: BLE001
+            pass
         _전 = _d.strftime("%Y%m%d")
         if _최신 == _전:
             찍기(f"  ✅ 종가 자료 최신 {_최신} = 전 거래일")
