@@ -39,7 +39,18 @@ import fetch_krx  # noqa: E402
 
 
 def 전거래일():
-    """달력상 직전 평일. ⚠️ 휴장일은 못 가린다 — 그날은 API가 빈 배열을 준다."""
+    """직전 **거래일** (krx_calendar · 휴장일을 건너뛴다).
+
+    ⚠️ 2026-10-06: 「달력상 직전 평일」이라 대체휴일(10/5) 다음 날 10/5 를 25분 기다리다 실패했다 —
+       10/2(금) 종가를 아무도 안 받아 퀀트 후보가 10/1 그대로 게시됐다. 달력을 못 읽으면 옛 방식으로.
+    """
+    try:
+        import krx_calendar as _K
+        _d = _K.직전거래일()
+        if _d:
+            return _d.strftime("%Y%m%d")
+    except Exception:  # noqa: BLE001
+        pass
     d = dt.date.today() - dt.timedelta(days=1)
     while d.weekday() >= 5:
         d -= dt.timedelta(days=1)
