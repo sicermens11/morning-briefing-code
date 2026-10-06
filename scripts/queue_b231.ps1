@@ -15,8 +15,8 @@ $env:PYTHONIOENCODING = "utf-8"
 $log = "run-logs\queue_b231_$(Get-Date -f yyyyMMdd_HHmmss).log"
 function 적기($s) { $줄 = "$(Get-Date -f 'MM-dd HH:mm')  $s"; Write-Output $줄; try { Add-Content -Path $log -Value $줄 -Encoding UTF8 -ErrorAction Stop } catch { } }
 $깃발 = "data\_labs\_STOP.txt"
-적기 "[B231] B229 · B230 이 끝나길 기다린다"
-while (@(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'queue_b229|queue_b230|queue_own' }).Count -gt 0) { Start-Sleep 60 }
+적기 "[B231] B229 · B230 · B232 가 끝나길 기다린다"
+while (@(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'queue_b229|queue_b230|queue_b232|queue_own' }).Count -gt 0) { Start-Sleep 60 }
 Start-Sleep 60
 if (Test-Path $깃발) { 적기 "🛑 멈춤 깃발: $(Get-Content $깃발 -Raw -Encoding UTF8) — 안 돈다"; 적기 "===== queue_b231 끝 ====="; exit 1 }
 적기 "[B231] ① 예측 기록 (끼워 넣기) 시작"
