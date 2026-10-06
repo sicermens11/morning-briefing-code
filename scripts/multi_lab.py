@@ -46,11 +46,13 @@ def 찍기(*a):
 
 
 def 읽기():
-    스펙 = json.load(io.open(os.path.join(_L, "multi_rules_spec.json"), encoding="utf-8"))["규칙"]
+    # 10/6: 얼린 8개(예측 기록) 같은 다른 목록도 합쳐 볼 수 있게 — MULTI_SPEC · MULTI_CAND (기본은 그대로)
+    #   상대 경로는 data/_labs 기준 · 「..\forward-groups-spec.json」 처럼 data/ 의 파일도 된다
+    스펙 = json.load(io.open(os.path.join(_L, os.environ.get("MULTI_SPEC") or "multi_rules_spec.json"), encoding="utf-8"))["규칙"]
     후보 = {}          # 규칙 → {날짜: [pick…]}
     대조 = {}          # 규칙 → 같은 자료로 원래 시뮬이 낸 {대조끝, 대조산, 대조낙}
     끝날 = {}          # 무리 → 그 내보내기가 본 마지막 날
-    for 이름 in ("multi_cand_own.jsonl", "multi_cand_live.jsonl"):
+    for 이름 in (os.environ.get("MULTI_CAND") or "multi_cand_own.jsonl", "multi_cand_live.jsonl"):
         p = os.path.join(_L, 이름)
         if not os.path.exists(p):
             raise SystemExit(f"🛑 {이름} 이 없다 — own_lab OWN_EXPORT · gate7 ONLY=MULTIDUMP 를 먼저")
