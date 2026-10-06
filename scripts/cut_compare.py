@@ -18,7 +18,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 _L = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "_labs")
 _판 = {"10": "2026-10-03_B*_무리전용_*_자름10_낙폭체없음.txt",
        "20": "2026-10-02_B*_무리전용_*_자름20_낙폭체없음.txt",
-       "30": "2026-10-04_B*_무리전용_*_자름30_낙폭체없음.txt"}
+       "30": "2026-10-04_B*_무리전용_*_자름30_낙폭체없음.txt",
+       "20·후보40": "2026-10-05_B*_무리전용_*_자름20_낙폭체없음_후보40.txt"}   # 10/6 B224 — 후보를 20 → 40 으로
 _밖 = io.open(os.path.join(_L, f"{datetime.date.today():%Y-%m-%d}_자름견주기.txt"), "w", encoding="utf-8")
 
 
