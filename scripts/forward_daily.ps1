@@ -70,4 +70,12 @@ $env:FG_SPEC = "forward-sectors-spec.json"; $env:FG_CAND = "forward_sectors_cand
 $o2 = & $py "scripts\forward_groups.py" 2>&1
 foreach ($k2 in "FG_SPEC", "FG_CAND", "FG_LOG") { Remove-Item "env:$k2" -ErrorAction SilentlyContinue }
 $o2 | Select-Object -Last 3 | ForEach-Object { 적기 "    [반도체·2차전지] $_" }
+# ③ 변화 감지 보고서 — 매주 한 번 (월요일, 또는 마지막 보고서가 6일 넘었으면) · 가볍다(지수·후보 파일만)
+#    사용자 10/6 「너 권고대로 하자.」(기준 확정) · 10/2 「만들어두자.」
+$마지막 = Get-ChildItem "data\watch\watch-*.md" -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -Last 1
+$묵음 = if ($마지막) { ((Get-Date) - $마지막.LastWriteTime).TotalDays } else { 99 }
+if (([int](Get-Date).DayOfWeek -eq 1) -or ($묵음 -gt 6)) {
+    $w = & $py "scripts\regime_watch.py" 2>&1
+    $w | Select-Object -Last 1 | ForEach-Object { 적기 "    [변화 감지] $_" }
+}
 적기 "===== 예측 기록 끝 ====="
