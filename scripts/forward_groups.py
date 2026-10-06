@@ -20,13 +20,14 @@ _D = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "
 
 
 def main():
-    spec = json.load(io.open(os.path.join(_D, "forward-groups-spec.json"), encoding="utf-8"))
+    # 10/6: 반도체·2차전지(forward-sectors-spec.json) 도 같은 길로 — FG_SPEC · FG_CAND · FG_LOG (기본은 얼린 8개)
+    spec = json.load(io.open(os.path.join(_D, os.environ.get("FG_SPEC") or "forward-groups-spec.json"), encoding="utf-8"))
     얼린 = spec["얼린날"][:10].replace("-", "")
     규칙 = {r["id"]: r for r in spec["규칙"]}
-    후보p = os.path.join(_D, "forward_groups_cand.jsonl")
+    후보p = os.path.join(_D, os.environ.get("FG_CAND") or "forward_groups_cand.jsonl")
     if not os.path.exists(후보p):
-        raise SystemExit("🛑 forward_groups_cand.jsonl 이 없다 — own_lab OWN_EXPORT 를 먼저")
-    로그p = os.path.join(_D, "forward-groups-log.jsonl")
+        raise SystemExit(f"🛑 {후보p} 이 없다 — own_lab OWN_EXPORT 를 먼저")
+    로그p = os.path.join(_D, os.environ.get("FG_LOG") or "forward-groups-log.jsonl")
     있 = set()
     if os.path.exists(로그p):
         for 줄 in io.open(로그p, encoding="utf-8"):
