@@ -29,7 +29,7 @@ function 브리핑시간인가 {
 }
 
 적기 "[B234] B233 이 끝나길 기다린다 (실전 후보가 10/2 까지 새로 나와야 끝 날이 맞는다)"
-while (@(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'queue_b232|queue_b233|queue_own' }).Count -gt 0) { Start-Sleep 60 }
+while (@(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'queue_own' }).Count -gt 0) { Start-Sleep 60 }
 Start-Sleep 60
 if (Test-Path $깃발) { 적기 "🛑 멈춤 깃발: $(Get-Content $깃발 -Raw -Encoding UTF8) — 안 돈다"; 적기 "===== queue_b234 끝 ====="; exit 1 }
 밤샘기다리기
@@ -38,8 +38,8 @@ while ((((여유GB) -lt 15) -or ((큰파이썬) -gt 0)) -and ($ㅁ -lt 720)) { i
 $날 = Get-Date -f "yyyy-MM-dd"
 적기 "[B234] multi_lab 실전 + 시장 전체 4 시작 · 여유 $(여유GB)GB"
 $env:MULTI_SPEC = "spec_b221_2019all_4.json"; $env:MULTI_CAND = "b221all_split2023.jsonl"
-$env:MULTI_NODD = "1"; $env:MULTI_HORIZON = "1"
-$밖 = "${날}_B234_실전더하기_시장전체4.txt"; $env:LAB_OUT = $밖
+$env:MULTI_NODD = "1"; $env:MULTI_HORIZON = "1"; $env:MULTI_SPLIT = "2023"
+$밖 = "${날}_B234_실전더하기_시장전체4_나눔2023.txt"; $env:LAB_OUT = $밖
 $최대 = 0.0
 $p = Start-Process -FilePath $py -ArgumentList "scripts\multi_lab.py" -PassThru -WindowStyle Hidden
 $null = $p.Handle
@@ -48,7 +48,7 @@ while (-not $p.HasExited) {
     try { $ws = (Get-Process -Id $p.Id -ErrorAction Stop).WorkingSet64 / 1GB; if ($ws -gt $최대) { $최대 = $ws } } catch { }
     if ((여유GB) -lt 3) { 적기 "🛑 [B234] 여유 $(여유GB)GB — 끈다"; try { Stop-Process -Id $p.Id -Force } catch { }; Set-Content $깃발 "queue_b234 메모리 3GB 밑 $(Get-Date -f 'MM-dd HH:mm')" -Encoding UTF8; break }
 }
-foreach ($k in "MULTI_SPEC", "MULTI_CAND", "MULTI_NODD", "MULTI_HORIZON", "LAB_OUT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
+foreach ($k in "MULTI_SPEC", "MULTI_CAND", "MULTI_NODD", "MULTI_HORIZON", "MULTI_SPLIT", "LAB_OUT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
 적기 ("[B234] multi_lab 끝 — 코드 {0} · 최대 메모리 {1:N1}GB" -f $p.ExitCode, $최대)
 $f = Join-Path "data\_labs" $밖
 $터 = (-not (Test-Path $f)) -or (Select-String -Path $f -Pattern "Traceback|🛑" -Quiet)

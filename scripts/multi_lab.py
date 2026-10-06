@@ -34,7 +34,7 @@ _낙한 = float(os.environ.get("MAXDD") or -12.0)
 _무체 = bool(os.environ.get("MULTI_NODD"))
 # ⭐ 10/3 MULTI_ORDER=돈 — 쌓기를 「새 날 많은 것」 대신 「앞 끝 자산을 가장 많이 늘리는 것」 부터 (새 날 순은 1년 208일 사는 규칙이 먼저 들어와 돈을 다 차지했다)
 _돈순 = os.environ.get("MULTI_ORDER") == "돈"
-_분할 = "2019"
+_분할 = os.environ.get("MULTI_SPLIT") or "2019"   # 10/7: 시장 전체 규칙처럼 나누는 해가 다른 후보(예: 나눔 2023)와 합칠 때 — 대조·앞뒤가 그 해로 맞는다
 _밖 = io.open(os.path.join(_L, os.environ.get("LAB_OUT") or "multi_lab.txt"), "w", encoding="utf-8")
 
 
@@ -222,6 +222,9 @@ def main():
         r = 규칙[k]
         rr = 시뮬([k], 시작년=_분할)
         원 = 대조.get(k)
+        # 10/7: 실전 후보(MULTIDUMP)의 대조 값은 늘 「2019~」 로 잰 것이다 — 나누는 해를 바꾸면 2019~ 로 따로 맞춰 본다
+        if k == "L00" and 원 is not None and _분할 != "2019":
+            rr = 시뮬([k], 시작년="2019")
         if 원 is None:
             같 = "❌ 대조 값 없음"
         elif k == "L00":
@@ -242,7 +245,7 @@ def main():
 
     무리 = [k for k in 순서 if k != "L00"]
     긴 = [k for k in 무리 if not 규칙[k].get("짧음")]
-    창 = (("앞 ~2018", None, str(int(_분할) - 1)), ("뒤 2019~", _분할, None))
+    창 = ((f"앞 ~{int(_분할) - 1}", None, str(int(_분할) - 1)), (f"뒤 {_분할}~", _분할, None))
 
     # ── ② 실전 + 무리 규칙 하나씩 (OR) — 제한 없음 · K=6 ──
     찍기("\n  ② 실전 규칙 + 무리 규칙 하나씩 (OR) — 실전만과 견줌 · 「새 날」= 그 규칙만 종목을 고른 날(1년)")
