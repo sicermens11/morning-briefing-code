@@ -10,9 +10,9 @@
 #  쓰는 법:  powershell -File scripts\queue_own.ps1 -Which 시험     (작은 무리 빠른 판 하나)
 #            powershell -File scripts\queue_own.ps1 -Which 전부
 # ==============================================================
-param([string]$Which = "전부", [string]$After = "", [switch]$Dry, [string]$Skip = "", [string]$Kinds = "", [switch]$Batch, [ValidateSet("", "10", "20", "30")][string]$Cut = "", [switch]$NoDD, [string]$K = "")
+param([string]$Which = "전부", [string]$After = "", [switch]$Dry, [string]$Skip = "", [string]$Kinds = "", [switch]$Batch, [ValidateSet("", "10", "20", "30")][string]$Cut = "", [switch]$NoDD, [string]$K = "", [switch]$Trend)
 # ⭐ 10/2 ⑬ -Cut 10|30 — 재료를 위·아래 몇 %로 자르나 (own_lab OWN_CUT) · 결과 파일 이름 끝에 「_자름N」 · 안 주면 20% = 지금과 같다
-$꼬 = $(if ($Cut) { "_자름$Cut" } else { "" }) + $(if ($NoDD) { "_낙폭체없음" } else { "" }) + $(if ($K) { "_후보$K" } else { "" })
+$꼬 = $(if ($Cut) { "_자름$Cut" } else { "" }) + $(if ($NoDD) { "_낙폭체없음" } else { "" }) + $(if ($K) { "_후보$K" } else { "" }) + $(if ($Trend) { "_추세" } else { "" })
 # ⭐ 10/2 -K 40 — ⑭ 돈 시뮬로 넘기는 조건을 약 70 → 200 (own_lab OWN_K · 안 주면 14 = 지금과 같다)
 # ⭐ 10/2 -NoDD — 사용자 「그렇다」(② 계좌 낙폭은 체가 아니라 정보) ⇒ own_lab MAXDD=-999 (통과·설정 고르기에서 낙폭을 안 본다 · 표에는 찍힌다)
 $낙체 = $(if ($NoDD) { "-999" } else { "-12" })
@@ -124,6 +124,7 @@ if ($Batch) {
     $env:OWN_GROUPS = ($칸들 -join ';'); $env:LAB_OUT = "$(Get-Date -f yyyy-MM-dd)_묶음_$($목록[0][0])-$($목록[-1][0])$꼬.txt"; $env:MAXDD = $낙체
     if ($Cut) { $env:OWN_CUT = $Cut } else { Remove-Item env:OWN_CUT -ErrorAction SilentlyContinue }
     if ($K) { $env:OWN_K = $K } else { Remove-Item env:OWN_K -ErrorAction SilentlyContinue }
+    if ($Trend) { $env:OWN_TREND = "1" } else { Remove-Item env:OWN_TREND -ErrorAction SilentlyContinue }   # 10/6 -Trend — 오르는 걸 산 규칙 · 추세가 꺾이면 판다
     적기 "[묶음] 시작 — 무리 $($목록.Count)개 한 프로세스 · 여유 $(여유GB)GB"
     $최대 = 0.0; $끔 = $false
     $p = Start-Process -FilePath $py -ArgumentList "scripts\own_lab.py" -PassThru -WindowStyle Hidden
@@ -138,7 +139,7 @@ if ($Batch) {
             break
         }
     }
-    foreach ($k in "OWN_GROUPS", "LAB_OUT", "MAXDD", "OWN_CUT", "OWN_K") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
+    foreach ($k in "OWN_GROUPS", "LAB_OUT", "MAXDD", "OWN_CUT", "OWN_K", "OWN_TREND") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
     적기 ("[묶음] 끝 — 코드 {0} · 최대 메모리 {1:N1}GB" -f $p.ExitCode, $최대)
     $터진것 = 0
     foreach ($x in $파일들) {

@@ -18,7 +18,8 @@ function 적기($s) { $줄 = "$(Get-Date -f 'MM-dd HH:mm')  $s"; Write-Output $�
 function 큰파이썬 { @(Get-Process python -ErrorAction SilentlyContinue | Where-Object { $_.WorkingSet64 -gt 1GB }).Count }
 function 여유GB { [math]::Round((Get-CimInstance Win32_OperatingSystem).FreeVirtualMemory / 1MB, 1) }
 # ⚠️ 판 대기열(queue_*)이 살아 있으면 판 사이 틈에 끼어들어 겹친다(panels-must-not-overlap) — 대기열이 다 끝나길 기다린다
-function 대기열 { @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'queue_' }).Count }
+#    FD_INLINE=1 이면 대기열이 저를 부른 것(판 사이에 끼운 것)이라 대기열은 안 센다
+function 대기열 { if ($env:FD_INLINE) { return 0 }; @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'queue_' }).Count }
 function 아침인가 { $n = Get-Date; $m = $n.Hour * 60 + $n.Minute; return (([int]$n.DayOfWeek -ge 1) -and ([int]$n.DayOfWeek -le 5) -and ($m -ge 440) -and ($m -lt 550)) }
 
 $cal = & $py "scripts\krx_calendar.py" 2>&1 | Out-String
