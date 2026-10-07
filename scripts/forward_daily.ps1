@@ -55,7 +55,10 @@ $무리8 = @(
     "업종|비금속|||${날}_예측_비금속.txt", "업종|섬유·의류|||${날}_예측_섬유의류.txt",
     "업종|종이·목재|||${날}_예측_종이목재.txt"
 )
+# 10/7 B 사이트 반영 — 같은 실행에서 무리마다 재료 기준선을 남긴다(아침 빠른 모드가 쓴다)
+$env:OWN_THRESH_SAVE = "data\b-thresholds.json"
 내보내기 "얼린8" "forward-groups-spec.json" "forward_groups_cand.jsonl" $무리8 "-12"
+Remove-Item env:OWN_THRESH_SAVE -ErrorAction SilentlyContinue
 $o1 = & $py "scripts\forward_groups.py" 2>&1
 $o1 | Select-Object -Last 3 | ForEach-Object { 적기 "    [얼린8] $_" }
 
