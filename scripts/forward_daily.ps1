@@ -3,7 +3,7 @@
 #  ① 얼린 무리 규칙 8개(forward-groups-spec.json · 10/2)   → data/forward-groups-log.jsonl
 #  ② 반도체·2차전지 3개(forward-sectors-spec.json · 10/6)  → data/forward-sectors-log.jsonl
 #  사용자 10/2 「「예측 기록 올리기」 … 진행해.」 · 10/6 「반도체·2차전지 규칙을 예측 기록 장부에 더하고, 화면에는 안 넣는다」
-#  · 장 서는 날만 (krx_calendar) · 큰 파이썬(1GB↑)이 돌면 끝날 때까지 기다린다(판은 하나씩) · 평일 07:20~09:10 엔 시작 안 함
+#  · 장 서는 날만 (krx_calendar) · 큰 파이썬(1GB↑)이 돌면 끝날 때까지 기다린다(판은 하나씩) · 평일 06:50~09:10 엔 시작 안 함
 #  · 하루 빠져도 괜찮다 — 다음 날 「아직 안 적은 매수일」 을 몰아 적는다 (규칙이 얼어 있어 늦게 적어도 미래를 못 본다)
 #  · 결과 한 줄을 run-logs\forward_daily_YYYYMMDD.log 에
 # ==============================================================
@@ -20,7 +20,8 @@ function 여유GB { [math]::Round((Get-CimInstance Win32_OperatingSystem).FreeVi
 # ⚠️ 판 대기열(queue_*)이 살아 있으면 판 사이 틈에 끼어들어 겹친다(panels-must-not-overlap) — 대기열이 다 끝나길 기다린다
 #    FD_INLINE=1 이면 대기열이 저를 부른 것(판 사이에 끼운 것)이라 대기열은 안 센다
 function 대기열 { if ($env:FD_INLINE) { return 0 }; @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'queue_' }).Count }
-function 아침인가 { $n = Get-Date; $m = $n.Hour * 60 + $n.Minute; return (([int]$n.DayOfWeek -ge 1) -and ([int]$n.DayOfWeek -le 5) -and ($m -ge 440) -and ($m -lt 550)) }
+# 10/7 독립 검사: 내보내기가 1시간쯤 걸린다 — 06:50 뒤에 시작하면 08:02 브리핑과 겹친다 ⇒ 06:50~09:10 엔 시작 안 함
+function 아침인가 { $n = Get-Date; $m = $n.Hour * 60 + $n.Minute; return (([int]$n.DayOfWeek -ge 1) -and ([int]$n.DayOfWeek -le 5) -and ($m -ge 410) -and ($m -lt 550)) }
 
 $cal = & $py "scripts\krx_calendar.py" 2>&1 | Out-String
 if ($cal -match "휴장") { 적기 "휴장 — 예측 기록 안 함 ($($cal.Trim()))"; exit 0 }

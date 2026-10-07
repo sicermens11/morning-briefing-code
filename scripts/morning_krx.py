@@ -84,6 +84,13 @@ def main():
     찍기(f"  지수  {돌리기('collect_index.py', [])}")
 
     # 받아졌나 확인 — 브리핑이 쓸 수 있는 상태인지
+    # ⚠️ 10/7 독립 검사: 「오늘 − 마지막 ≤ 1일」 은 월요일·휴일 다음 날마다 거짓 경보였고, 묵은 종가는 못 막았다(10/6 · 10/1 종가로 게시)
+    #    ⇒ **직전 거래일**과 견준다. 마지막 줄 「종가 기준일 맞음/묵음」 을 run-briefing 이 읽고 묵음이면 더 기다린다
+    sys.path.insert(0, _S)
+    from krx_calendar import 직전거래일
+    _직전 = 직전거래일()
+    _직전글 = f"{_직전:%Y%m%d}" if _직전 else ""
+    _종가신선 = None
     for 폴더 in ("krx-daily", "index-daily"):
         d = os.path.join(_BASE, "data", 폴더)
         if not os.path.isdir(d):
@@ -94,7 +101,9 @@ def main():
         마지막 = 파일[-1][:8]
         늦 = (dt.date.today()
               - dt.date(int(마지막[:4]), int(마지막[4:6]), int(마지막[6:]))).days
-        표 = "✅" if 늦 <= 1 else "⚠️"
+        표 = "✅" if (_직전글 and 마지막 >= _직전글) else "⚠️"
+        if 폴더 == "krx-daily":
+            _종가신선 = bool(_직전글 and 마지막 >= _직전글)
         try:
             j = json.load(io.open(os.path.join(d, 파일[-1]),
                                   encoding="utf-8-sig"))
@@ -102,6 +111,7 @@ def main():
         except Exception:  # noqa: BLE001
             n = 0
         찍기(f"  {표} {폴더:<12}{마지막} · {n:,}개 · {늦}일 전")
+    찍기(f"  종가 기준일 {'맞음' if _종가신선 else '묵음'} (직전 거래일 {_직전글})")
     찍기("===== 끝 =====")
     return 0
 

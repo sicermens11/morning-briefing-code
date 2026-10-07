@@ -162,6 +162,14 @@ if ($Mode -eq 'auto') {
 if ($Mode -eq 'auto') {
     $wait = & (Join-Path $PSScriptRoot 'scripts\run-py.ps1') -Script 'morning_krx.py' -Args @('--최대','10')
     Write-Log "종가 기다리기: $wait"
+    # ⚠️ 10/7 독립 검사: 10분 안에 종가가 안 오면 **묵은 종가로 후보를 뽑아 게시**했다(10/6 08:14~08:55 · 10/1 종가).
+    #    ⇒ 직전 거래일 종가가 올 때까지 08:45 까지 더 기다린다 (09:00 매수 · 08:50 동시호가 전에 화면에 있게)
+    $끝시각 = (Get-Date).Date.AddHours(8).AddMinutes(45)
+    while (("$wait" -match '종가 기준일 묵음') -and ((Get-Date) -lt $끝시각)) {
+        $wait = & (Join-Path $PSScriptRoot 'scripts\run-py.ps1') -Script 'morning_krx.py' -Args @('--최대','3')
+        Write-Log "종가 다시 기다리기: $(if ("$wait" -match '종가 기준일 맞음') { '맞음' } else { '아직 묵음' })"
+    }
+    if ("$wait" -match '종가 기준일 묵음') { Write-Log "⚠️⚠️ 08:45 까지 직전 거래일 종가가 안 왔다 — 묵은 종가로 후보를 뽑는다 (화면 후보는 전 거래일 것이 아니다)" }
 }
 
 # ⭐ 2026-09-22 (사용자 「넣어!」) — **종가 바로 뒤에 코스피200선물·국고채(krx-extra)를 받는다.**

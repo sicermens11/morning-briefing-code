@@ -675,6 +675,30 @@ def main():
     except Exception as _e3:  # noqa: BLE001
         알림(False, f"올림 점검을 못 했다: {type(_e3).__name__}")
 
+    # ══ J 예측 기록 매일 (forward_daily) ══ (10/7 독립 검사)
+    #    10/6 로그는 「기다린다」 에서 끝 줄 없이 멈췄고, 10/7 은 판 대기열 뒤에서 오후 내내 기다렸다 — 아무도 몰랐다.
+    #    지난 두 거래일 로그에 「예측 기록 끝」 이 있나 본다 (하루 빠져도 다음 날 몰아 적으니 경고만)
+    if not 조용:
+        print("\n  ══ J 예측 기록 매일 ══")
+    try:
+        from krx_calendar import 직전거래일 as _직전J
+        _d = dt.date.today()
+        _빠짐 = []
+        for _ in range(2):
+            _d = _직전J(_d)
+            if not _d:
+                break
+            _f = os.path.join(_BASE, "run-logs", f"forward_daily_{_d:%Y%m%d}.log")
+            _글 = io.open(_f, encoding="utf-8-sig", errors="replace").read() if os.path.exists(_f) else ""
+            if "예측 기록 끝" not in _글:
+                _빠짐.append(f"{_d:%m/%d}" + ("(로그 없음)" if not _글 else "(끝 줄 없음)"))
+        if _빠짐:
+            알림(False, f"예측 기록이 끝까지 안 간 거래일: {', '.join(_빠짐)} — run-logs\\forward_daily_*.log 확인 (다음 날 몰아 적는다)")
+        elif not 조용:
+            print("    ✅ 지난 두 거래일 예측 기록 끝")
+    except Exception as _e4:  # noqa: BLE001
+        알림(False, f"예측 기록 점검을 못 했다: {type(_e4).__name__}")
+
     # ══ 마무리 ══
     print()
     if 문제:
