@@ -146,7 +146,45 @@ def main():
             return c < sum(_닥[_닥날[j]] for j in range(k - 59, k + 1)) / 60
         return False
 
-    def 시뮬(켜, K=None, 시작년=None, 끝년=None, 곡돌려=False, 시장=None):
+    # ⭐ 10/7 사는 순서 — 사용자 「같은 날 후보가 여러 개일 때 어느 것을 먼저 살지 순서를 정하는 테스트 해보자.」
+    #    하루 자리(K)보다 후보가 많은 날, 어느 종목을 먼저 살지 반등 신호로 정한다 · 전날 종가까지만 본다(미래 안 봄)
+    #    둔화 = 5일 수익 − 20일 수익 큰 순(하락 속도가 줄어든 것 먼저) · 끊김 = 어제 > 그저께 인 것 먼저 · 볼회복 = 볼린저 위치가 어제보다 오른 폭 큰 순
+    #    깊은 = 20일 동안 많이 빠진 것 먼저 · 얕은 = 덜 빠진 것 먼저
+    def _순서값(code, i, 방식):
+        if i < 22:
+            return 0.0
+        try:
+            c = [(주가[날[j]].get(code) or (None,))[0] for j in range(i - 22, i)]
+        except Exception:  # noqa: BLE001
+            return 0.0
+        if any(v is None or v <= 0 for v in c):
+            return -1e9
+        r5 = c[-1] / c[-6] - 1
+        r20 = c[-1] / c[-21] - 1
+        if 방식 == "둔화":
+            return r5 - r20
+        if 방식 == "끊김":
+            return 1.0 if c[-1] > c[-2] else 0.0
+        if 방식 == "볼회복":
+            def 볼(arr):
+                m = sum(arr) / len(arr)
+                sd = (sum((x - m) ** 2 for x in arr) / len(arr)) ** 0.5 or 1e-9
+                return (arr[-1] - m) / (2 * sd)
+            return 볼(c[-20:]) - 볼(c[-21:-1])
+        if 방식 == "깊은":
+            return -r20
+        if 방식 == "얕은":
+            return r20
+        return 0.0
+
+    # ⭐ 10/7 한 업종 쏠림 제한 · 여러 규칙이 함께 고른 종목에 더 넣기 — 사용자 「아직 안 해 본 방법을 찾는 테스트 할 게 더 있는지 조사해봐.」
+    try:
+        _업표 = {c: ((v.get("업종명") if isinstance(v, dict) else None) or "?")
+                for c, v in json.load(io.open(os.path.join(O._DATA, "industry.json"), encoding="utf-8-sig")).items()}
+    except Exception:  # noqa: BLE001
+        _업표 = {}
+
+    def 시뮬(켜, K=None, 시작년=None, 끝년=None, 곡돌려=False, 시장=None, 순=None, 업한=None, 겹배=None):
         """켜 = 규칙 id 들 · K = 하루 최대(None 이면 제한 없음) · 시장 = 나쁜 날 거름(「20일-5」 · 「60선」 · 「반60선」=절반만)"""
         켜 = [k for k in 순서 if k in 켜]
         # ⚠️ 10/1 독립 검사: 날[0] 은 2010 보다 1년 넘게 앞이다(사건은 260일 뒤부터) — 빈 해가 「해」를 늘린다 ⇒ own·gate7 처럼 2010 부터
@@ -173,6 +211,11 @@ def main():
                           for q in 보유)
             든 = {q["code"] for q in 보유}
             골, 오늘, 뜬 = [], set(), []
+            _겹 = {}
+            if 겹배:
+                for k in 켜:
+                    for p in (후보[k].get(d) or [])[:규칙[k]["자리"]]:
+                        _겹[p["code"]] = _겹.get(p["code"], 0) + 1
             for k in 켜:
                 ps = 후보[k].get(d)
                 if not ps or d[:4] < 규칙[k]["앞시작"]:
@@ -197,6 +240,8 @@ def main():
                 뜬날 += 1
                 if len(뜬) == 1:
                     새날[뜬[0]] += 1
+            if 순 and K is not None and len(골) > K:
+                골 = sorted(골, key=lambda p: -_순서값(p["code"], i, 순))
             if K is not None:
                 골 = 골[:K]
             _몫비 = _비중
@@ -205,9 +250,23 @@ def main():
                     _몫비 = _비중 / 2
                 else:
                     골 = []
+            if 업한:
+                _든업 = {}
+                for _c in {q["code"] for q in 보유}:   # 한 종목이 몫 둘로 나뉘어 들어 있다 — 종목 수로 센다
+                    _u = _업표.get(_c, "?")
+                    _든업[_u] = _든업.get(_u, 0) + 1
+                _남 = []
+                for p in 골:
+                    _u = _업표.get(p["code"], "?")
+                    if _든업.get(_u, 0) >= 업한:
+                        continue
+                    _든업[_u] = _든업.get(_u, 0) + 1
+                    _남.append(p)
+                골 = _남
             샀다 = False
             for p in 골:
-                쓸 = min(평 * _몫비, 현금, (p.get("대금억") or 0) * 1e8 * 0.01)
+                _배 = 겹배 if (겹배 and _겹.get(p["code"], 0) >= 2) else 1.0
+                쓸 = min(평 * _몫비 * _배, 현금, (p.get("대금억") or 0) * 1e8 * 0.01)
                 총 = int(쓸 // p["원시"])
                 if 총 < len(p["몫"]) or 총 * p["원시"] > 현금:
                     continue
@@ -397,6 +456,41 @@ def main():
                     칸.append(f"{rr['끝']:>14,.0f}원 {rr['낙']:>6.1f}% {rr['산']:>6}산")
                 찍기(f"  {이름T:<14}{(방식 or '없음'):<10}" + "".join(f"{c:>34}" for c in 칸))
         찍기("  [대조] 시장 타이밍 끝")
+
+    # ── ⑫ 한 업종 쏠림 제한 · ⑬ 겹친 종목에 더 (10/7) ──
+    if os.environ.get("MULTI_CAPTEST"):
+        찍기("\n  ⑫ 한 업종 쏠림 제한 — 들고 있는 것 포함 한 업종 최대 N종목 · 하루 최대 6 · 매일 종가")
+        for 이름T, 켜T in (("실전만", ["L00"]), ("실전 또는 전부", ["L00"] + 무리)):
+            for 한 in (None, 1, 2, 3):
+                칸 = []
+                for _, a0, b0 in 창 + (("", "2016", None),):
+                    rr = 시뮬(켜T, K=6, 시작년=a0, 끝년=b0, 업한=한)
+                    칸.append(f"{rr['끝']:>14,.0f}원 {rr['낙']:>6.1f}% {rr['산']:>5}산")
+                찍기(f"  {이름T:<14}{('제한 없음' if 한 is None else f'업종당 {한}'):<10}" + "".join(f"{c:>32}" for c in 칸))
+        찍기("\n  ⑬ 여러 규칙이 함께 고른 종목(2개 이상)에 돈을 더 — 비중 20% × 배 · ⚠️ 화면엔 안 쓴다(자동매매 참고)")
+        for 이름T, 켜T in (("실전 또는 전부", ["L00"] + 무리),):
+            for 배 in (None, 1.5, 2.0):
+                칸 = []
+                for _, a0, b0 in 창 + (("", "2016", None),):
+                    rr = 시뮬(켜T, K=6, 시작년=a0, 끝년=b0, 겹배=배)
+                    칸.append(f"{rr['끝']:>14,.0f}원 {rr['낙']:>6.1f}% {rr['산']:>5}산")
+                찍기(f"  {이름T:<14}{('그대로' if 배 is None else f'×{배:g}'):<10}" + "".join(f"{c:>32}" for c in 칸))
+        찍기("  [대조] 업종 제한·겹침 끝")
+
+    # ── ⑪ 사는 순서 (10/7) ──
+    if os.environ.get("MULTI_ORDERTEST"):
+        찍기("\n  ⑪ 사는 순서 — 하루 자리보다 후보가 많은 날 어느 것을 먼저 사나 (전날 종가까지만) · 하루 최대 K")
+        찍기("     기본 = 규칙 세기 순(지금) · 둔화 = 하락 속도 줄어든 것 · 끊김 = 어제 오른 것 · 볼회복 = 볼린저 올라온 것 · 깊은/얕은 = 20일 많이/덜 빠진 것")
+        for KT in (2, 4, 6):
+            찍기(f"  [하루 최대 {KT}]")
+            for 이름T, 켜T in (("실전만", ["L00"]), ("실전 또는 전부", ["L00"] + 무리)):
+                for 방식 in (None, "둔화", "끊김", "볼회복", "깊은", "얕은"):
+                    칸 = []
+                    for _, a0, b0 in 창 + (("", "2016", None),):
+                        rr = 시뮬(켜T, K=KT, 시작년=a0, 끝년=b0, 순=방식)
+                        칸.append(f"{rr['끝']:>14,.0f}원 {rr['낙']:>6.1f}%")
+                    찍기(f"  {이름T:<14}{(방식 or '기본'):<8}" + "".join(f"{c:>26}" for c in 칸))
+        찍기("  [대조] 사는 순서 끝")
 
     # ── ⑦ 해마다 · 가장 깊은 구간 — 실전만 / 실전+전부 / 무리만 (하루 최대 6 · 2016~ 한 번에) ──
     찍기("\n  ⑦ 해마다 수익 · 가장 깊은 구간 셋 (하루 최대 6 · 2016-06~ 한 번에 · 종가 평가)")
