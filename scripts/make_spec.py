@@ -41,6 +41,7 @@ def main():
     if not 파일들:
         raise SystemExit(f"🛑 파일이 없다: {pat}")
     규칙들, 빈, 터짐 = [], [], []
+    뺀것 = []   # 10/7 독립 검사: 빠진 규칙이 있으면 끝 코드로 알린다 (로그 줄은 묻힌다)
     for p in 파일들:
         s = io.open(p, encoding="utf-8", errors="replace").read()
         if "[대조] 무리" not in s:
@@ -64,14 +65,19 @@ def main():
                 print(f"  🛑 뺌(OR 묶음): {os.path.basename(p)} [{라}]")
                 continue
             # ⚠️ 10/2 독립 검사: 10/2 전 own_lab 은 ⑨ 조건을 [:40] 로 잘랐다 — 「돈으로 넘길 조건」 목록([:60])에서 전체를 되찾는다
-            if len(라) >= 40:
+            #    10/7 독립 검사: 10/2 뒤 own_lab 은 전체를 찍는다 — 정확히 40자일 때만 잘린 것일 수 있다(그보다 길면 전체다)
+            #    · 되찾은 후보 중 자기 자신(딱 40자 조건)이 있으면 그것이 답이다
+            if len(라) == 40:
                 되 = sorted({m2.group(1).rstrip() for m2 in re.finditer(r"^  (\S[^\n]{39,59}?)\s+[\d,]+\s+[\d.]+%", s, re.M)
                             if m2.group(1).rstrip().startswith(라)})
+                if 라 in 되:
+                    되 = [라]
                 if len(되) == 1 and len(되[0]) < 60:
                     print(f"  ⓘ 잘린 조건을 되찾음: [{라}] → [{되[0]}]")
                     라 = 되[0]
                 else:
                     print(f"  🛑 뺌(조건 글이 잘려 되찾지 못함 · 후보 {len(되)}개): {os.path.basename(p)} [{라}]")
+                    뺀것.append(f"잘림 {os.path.basename(p)} [{라}]")
                     continue
             r = {"파일": os.path.basename(p), "무리": 무리, "조건": 라, "앞시작": 년, "앞해": float(해), "짧음": bool(경),
                  "문턱": (99.0 if 문.strip() == "안 봄" else float(문.replace("%p", ""))), "자리": int(자), "순서": 순, "팔기": 팔.strip()}
@@ -109,6 +115,9 @@ def main():
     io.open(os.path.join(_L, "multi_groups.txt" if _이름 == "multi_rules_spec.json" else f"{_이름[:-5]}_groups.txt"),
             "w", encoding="utf-8").write(";".join(칸들))
     print(f"썼다 {밖} · multi_groups.txt 무리 {len(칸들)}개")
+    if 뺀것:
+        print(f"🛑 통과했는데 목록에서 빠진 규칙 {len(뺀것)}개 — {뺀것}")
+        return 3
     if 터짐:
         print("  🛑 끝까지 안 간 결과 파일이 있다 — 그 무리 규칙은 빠졌다")
         return 2
