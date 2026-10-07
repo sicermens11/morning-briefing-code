@@ -1360,6 +1360,8 @@ def main():
 
         # ══ 오분위 자르기 ══
         print("\n  재료를 오분위로 자르는 중...", flush=True)
+        _기준선 = {}   # 10/7 B 사이트 반영 — 재료마다 낮·높·몰렸나 (OWN_THRESH_SAVE)
+        _만든시각 = __import__("time").strftime("%Y-%m-%d %H:%M")
         조건 = {}          # 이름 -> 그 조건을 만족하는 사건 자리들(set)
         쓸재료 = []
         # ⭐ dict 에 안 넣은 재료 30개 — 여기서 함수로 만든다 (2026-09-16 · MemoryError 고침)
@@ -1624,6 +1626,9 @@ def main():
                 조건[f"{재}↓"] = 아래
             if 500 < _위수 <= _절반:
                 조건[f"{재}↑"] = 위
+            # ⭐ 10/7 B 사이트 반영 — 기준선을 남긴다(아침 빠른 모드가 이 값을 그대로 쓴다 · OWN_THRESH_SAVE)
+            _기준선[재] = {"낮": 낮, "높": 높, "몰렸나": _몰렸나,
+                           "아래": f"{재}↓" in 조건, "위": f"{재}↑" in 조건}
             if _몰렸나:
                 print(f"    {재:<12} 값이 한 곳에 몰렸다 — "
                       f"「{낮:g} 보다 큰가」로 가른다 (위 {_위수:,}건)")
@@ -1632,6 +1637,16 @@ def main():
                 쓸재료.append(재)
             else:
                 print(f"    {재:<12} 조건을 못 만들었다 (아래 {_아래수:,} · 위 {_위수:,}건 — 500건 초과·60% 이하여야 한다) — 안 쓴 재료", flush=True)
+        if os.environ.get("OWN_THRESH_SAVE"):
+            _tp = os.environ["OWN_THRESH_SAVE"]
+            try:
+                _기존 = json.load(io.open(_tp, encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                _기존 = {}
+            _기존[_무리글] = {"만든날": _만든시각, "자료끝": 날[-1], "자름": _자름,
+                             "분할": _분할, "기준선": _기준선}
+            io.open(_tp, "w", encoding="utf-8").write(json.dumps(_기존, ensure_ascii=False, indent=0))
+            print(f"    ⭐ 기준선 저장 — {_무리글} · 재료 {len(_기준선)}개 → {_tp}", flush=True)
         if _BIG_LO:
             _큰것 = sorted({x["code"] for x in 사건})
             print(f"    ⭐ **규모 전용** — 시총 {_BIG_LO:,.0f}억~{(format(_BIG_HI, ',.0f') + '억') if _BIG_HI else '(상한 없음)'}"
