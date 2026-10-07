@@ -184,7 +184,44 @@ def main():
     except Exception:  # noqa: BLE001
         _업표 = {}
 
-    def 시뮬(켜, K=None, 시작년=None, 끝년=None, 곡돌려=False, 시장=None, 순=None, 업한=None, 겹배=None):
+    # ⭐ 10/7 시장 상황에 따라 규칙 켜고 끄기 — 코스닥 60일 수익 ±8%(변화 감지 장치와 같은 기준)로 상승·하락·횡보를 나누고
+    #    앞 기간(~분할 전)에 그 상황에서 이 규칙의 이김%가 그 규칙 평균보다 5%p 넘게 낮았던 상황에선 그 규칙을 끈다 (뒤 기간은 안 봄)
+    def _국면(i):
+        if i < 1 or 날[i - 1] not in _닥i:
+            return "?"
+        k = _닥i[날[i - 1]]
+        if k < 60:
+            return "?"
+        r = (_닥[_닥날[k]] / _닥[_닥날[k - 60]] - 1) * 100
+        return "상승" if r >= 8 else ("하락" if r <= -8 else "횡보")
+
+    _끔 = {}
+
+    def _국면표():
+        """규칙마다 앞 기간 국면별 이김% → 끌 국면"""
+        if _끔:
+            return _끔
+        끝앞 = str(int(_분할) - 1)
+        for k in 순서:
+            합 = {}
+            for d, ps in 후보[k].items():
+                if d[:4] > 끝앞 or d not in 자리i:
+                    continue
+                g = _국면(자리i[d])
+                for p in ps[:규칙[k]["자리"]]:
+                    rs = [r for _, r, _ in p["몫"] if r is not None]
+                    if not rs:
+                        continue
+                    a0 = 합.setdefault(g, [0, 0])
+                    a0[0] += 1
+                    a0[1] += 1 if sum(rs) / len(rs) > 0 else 0
+            tot = sum(v[0] for v in 합.values())
+            win = sum(v[1] for v in 합.values())
+            평균 = win / tot if tot else 0
+            _끔[k] = {g for g, v in 합.items() if v[0] >= 10 and v[1] / v[0] < 평균 - 0.05}
+        return _끔
+
+    def 시뮬(켜, K=None, 시작년=None, 끝년=None, 곡돌려=False, 시장=None, 순=None, 업한=None, 겹배=None, 국면끔=False):
         """켜 = 규칙 id 들 · K = 하루 최대(None 이면 제한 없음) · 시장 = 나쁜 날 거름(「20일-5」 · 「60선」 · 「반60선」=절반만)"""
         켜 = [k for k in 순서 if k in 켜]
         # ⚠️ 10/1 독립 검사: 날[0] 은 2010 보다 1년 넘게 앞이다(사건은 260일 뒤부터) — 빈 해가 「해」를 늘린다 ⇒ own·gate7 처럼 2010 부터
@@ -216,9 +253,12 @@ def main():
                 for k in 켜:
                     for p in (후보[k].get(d) or [])[:규칙[k]["자리"]]:
                         _겹[p["code"]] = _겹.get(p["code"], 0) + 1
+            _지금국면 = _국면(i) if 국면끔 else None
             for k in 켜:
                 ps = 후보[k].get(d)
                 if not ps or d[:4] < 규칙[k]["앞시작"]:
+                    continue
+                if 국면끔 and _지금국면 in _국면표().get(k, set()):
                     continue
                 n = 0
                 또 = 규칙[k].get("또사기")
@@ -456,6 +496,20 @@ def main():
                     칸.append(f"{rr['끝']:>14,.0f}원 {rr['낙']:>6.1f}% {rr['산']:>6}산")
                 찍기(f"  {이름T:<14}{(방식 or '없음'):<10}" + "".join(f"{c:>34}" for c in 칸))
         찍기("  [대조] 시장 타이밍 끝")
+
+    # ── ⑭ 시장 상황에 따라 규칙 켜고 끄기 (10/7) ──
+    if os.environ.get("MULTI_REGIME"):
+        표 = _국면표()
+        찍기("\n  ⑭ 시장 상황에 따라 규칙 켜고 끄기 — 코스닥 60일 ±8% 로 상승·하락·횡보 · 앞 기간에 그 상황에서 약했던 규칙은 그 상황에서 끈다")
+        찍기("     끄는 상황: " + " · ".join(f"{k}:{'/'.join(sorted(v)) or '-'}" for k, v in 표.items()))
+        for 이름T, 켜T in (("실전만", ["L00"]), ("실전 또는 전부", ["L00"] + 무리)):
+            for 끔 in (False, True):
+                칸 = []
+                for _, a0, b0 in 창 + (("", "2016", None),):
+                    rr = 시뮬(켜T, K=6, 시작년=a0, 끝년=b0, 국면끔=끔)
+                    칸.append(f"{rr['끝']:>14,.0f}원 {rr['낙']:>6.1f}% {rr['산']:>5}산")
+                찍기(f"  {이름T:<14}{('상황별 끔' if 끔 else '늘 켬'):<10}" + "".join(f"{c:>32}" for c in 칸))
+        찍기("  [대조] 상황별 끝")
 
     # ── ⑫ 한 업종 쏠림 제한 · ⑬ 겹친 종목에 더 (10/7) ──
     if os.environ.get("MULTI_CAPTEST"):
