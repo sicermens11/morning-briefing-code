@@ -39,7 +39,8 @@ def 휴장일들():
             if m:
                 난것[dt.date.fromisoformat(m.group(1))] = m.group(2)
     except OSError:
-        pass
+        # 10/7 독립 검사: 파일이 없으면 휴일을 장 서는 날로 본다 — 조용히 넘기지 않고 크게 알린다 (멈추진 않는다: 브리핑을 막지 않게)
+        print(f"⚠️ krx_calendar: 쉬는 날 표 {_표} 가 없다 — 주말만 쉬는 날로 본다", file=sys.stderr)
     return 난것
 
 
@@ -50,7 +51,11 @@ def 장서는날(날짜=None):
         d = dt.date.fromisoformat(d[:10]) if "-" in d else dt.date(int(d[:4]), int(d[4:6]), int(d[6:8]))
     if d.weekday() >= 5:
         return False, f"{d.isoformat()}({_요일[d.weekday()]}) 휴장 — 주말"
-    왜 = 휴장일들().get(d)
+    _표들 = 휴장일들()
+    if _표들 and d.year not in {k.year for k in _표들}:
+        # 10/7 독립 검사: 2027 표가 아직 없다 — 그 해 공휴일을 장 서는 날로 본다
+        print(f"⚠️ krx_calendar: {d.year}년 쉬는 날 표가 없다 — 주말만 쉬는 날로 본다 (data/krx-holidays-{d.year}.md 를 만들어라)", file=sys.stderr)
+    왜 = _표들.get(d)
     if 왜:
         return False, f"{d.isoformat()}({_요일[d.weekday()]}) 휴장 — {왜}"
     return True, ""
