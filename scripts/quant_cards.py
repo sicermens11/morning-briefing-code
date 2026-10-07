@@ -935,7 +935,7 @@ def _장2():
     return 장들
 
 
-_5장선 = 1   # 5장 첫 장에 둘 블록 수 (ANSWER-0929-7 답 1)
+_5장선 = 2   # 5장 첫 장에 둘 블록 수 (ANSWER-0929-7 답 1 · 10/7: 가정 금액 설명 한 줄을 넣자 둘째 장이 10px 넘쳐 한 블록 앞으로 — 실측)
 
 
 def _억만(원):
@@ -947,6 +947,26 @@ def _억만(원):
     if 억 and 만:
         return f"{억}억 {만:,}만 원"
     return f"{억}억 원" if 억 else f"{만:,}만 원"
+
+
+def _가정금액말():
+    r"""화면의 금액(「2.92억」 등)이 무엇인지 한 문장 (2026-10-07).
+
+    사용자 10/7: 「실제 금액이 아닌 이해를 위해 가정 계산 금액은 써도 되고, 그거에 대해 설명만 잘 되어있으면 돼!」
+    — 그때 화면 어디에도 「500만 원으로 시작했다면」 이 없었다(게시본 전체 확인).
+    시작 금액 = rule-capital.json 시작자산 · 시작 달 = rule-cases.json 기간 첫 날. 둘 중 하나라도 없으면 빈 글(지어내지 않는다).
+    """
+    try:
+        cp = json.load(io.open(os.path.join(_DATA, "rule-capital.json"), encoding="utf-8-sig"))
+        시작 = float(cp.get("시작자산") or 0)
+        rc = json.load(io.open(os.path.join(_DATA, "rule-cases.json"), encoding="utf-8-sig"))
+        첫 = str(rc.get("기간") or "")[:10]
+        if not 시작 or len(첫) != 10:
+            return ""
+        return (f"금액은 실제 돈이 아니라, {int(첫[:4])}년 {int(첫[5:7])}월에 {_억만(시작)}으로 시작해 "
+                f"이 규칙대로 사고팔았다고 가정한 계산입니다. ")
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def _또사기가정():
@@ -965,14 +985,22 @@ def _또사기가정():
         # ⭐ 10/2 사실 바로잡기 — 종가 기준 칸이 있으면 그 낙폭 (산 값 기준 −7.4% ↔ 종가 −40% 대)
         낙 = (cp.get("종가") or {}).get("또사기금지_계좌낙폭", 낙)
     except Exception:  # noqa: BLE001
-        return ""
+        덜 = 끝 = 낙 = None
+    _설명 = _가정금액말()
     if 덜 is None or 끝 is None or 낙 is None:
-        return ""
+        if not _설명:
+            return ""
+        return (f'<div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid {C["선"]};'
+                f'padding-top:18px">'
+                f'<span style="font-size:26px;font-weight:700;color:{C["금"]}">'
+                f'{_esc("이 성적의 가정 · 이 장과 다음 장 숫자 모두")}</span>'
+                f'<span style="font-size:31px;line-height:1.55;color:{C["본"]}">{_esc(_설명.strip())}</span>'
+                f'</div>')
 
     def 묶(v):
         return f'<b style="font-weight:800;color:{C["먹"]};white-space:nowrap">{_esc(v)}</b>'
     낙글 = f"{낙:g}%".replace("-", "−")
-    본 = (_esc("이미 들고 있는 종목이 다시 후보에 뜨면 또 산다고 가정한 성적입니다. "
+    본 = (_esc(_설명 + "이미 들고 있는 종목이 다시 후보에 뜨면 또 산다고 가정한 성적입니다. "
                "다시 뜨는 것은 산 뒤 더 빠졌다는 뜻이라, 더 사지 않았다면 이보다 약 ")
           + 묶(f"{덜:.0f}%") + _esc(" 낮았습니다(같은 기간 ") + 묶(_억만(끝))
           + _esc(" · 계좌 낙폭" + ("(매일 종가)" if _종가기준() else "") + " ") + 묶(낙글 + ").")
@@ -1176,6 +1204,35 @@ def _쪽번호매기기(장들):
 
 
 # ── 화면 ────────────────────────────────────────────────────────
+def _묵은종가(q):
+    r"""후보가 **직전 거래일 종가가 아닌** 자료로 골라졌으면 경고 한 줄 (2026-10-07).
+
+    사용자 10/7: 「묵은 종가인지 모르니까 여태까지 조용히 넘어간거 아니야?」 — 맞다. 견주는 곳이 없었다
+    (10/6 08:14~08:55 · 10/1 종가로 고른 후보가 경고 없이 떠 있었다).
+    기준 = forward-log 줄의 **기록시각 날짜의 직전 거래일**(krx_calendar). 페이지를 언제 다시 만들든 같은 답.
+    신호기준일이 그보다 **앞**일 때만 띄운다. 평소엔 아무것도 안 그린다.
+    """
+    try:
+        from krx_calendar import 직전거래일
+        import datetime as _dt
+        기록 = str(q.get("기록시각") or "")[:10]
+        신호 = str(q.get("신호기준일") or "")
+        if len(기록) != 10 or len(신호) != 8:
+            return ""
+        기대 = 직전거래일(_dt.date.fromisoformat(기록))
+        if not 기대 or 신호 >= f"{기대:%Y%m%d}":
+            return ""
+        신호글 = f"{int(신호[4:6])}/{int(신호[6:8])}"
+        기대글 = f"{기대.month}/{기대.day}"
+    except Exception:  # noqa: BLE001
+        return ""
+    return (f'<div role="alert" style="max-width:min(760px,calc(100vw - 32px));margin:12px auto 0;padding:10px 16px;box-sizing:border-box;'
+            f'background:{C["경고"]};color:{C["빨"]};border:1px solid {C["빨"]};border-radius:8px;'
+            f'font-size:15px;line-height:1.5;font-weight:700">'
+            f'{_esc(f"⚠️ {기대글} 종가가 아직 안 들어와 {신호글} 종가로 고른 후보입니다. 오늘 사기 전에 확인하세요.")}'
+            f'</div>')
+
+
 def quant_view(q, 보유=None):
     """`build_site.quant_view` 가 여기로 넘긴다. `q` 는 forward-log 마지막 줄, `보유` 는 `_보유()`."""
     보유 = 보유 or []
@@ -1183,7 +1240,8 @@ def quant_view(q, 보유=None):
             f'<div class="top"><div class="in">'
             f'<button class="tbtn" data-home type="button">← 처음</button>'
             f'<span class="now">퀀트 후보</span></div></div>'
-            f'<div class="rail qrail" data-active="true">'
+            + _묵은종가(q)
+            + f'<div class="rail qrail" data-active="true">'
             # ⭐ 2026-09-29 — _장1 이 **여러 장**을 돌려준다. 쪽 번호를 전체에 맞춰 다시 매긴다
             + _쪽번호매기기(_장1(q, 보유) + _장2() + _장3() + [_장4()])
             + '</div>'

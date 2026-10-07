@@ -699,6 +699,29 @@ def main():
     except Exception as _e4:  # noqa: BLE001
         알림(False, f"예측 기록 점검을 못 했다: {type(_e4).__name__}")
 
+    # ══ K 퀀트 후보가 묵은 종가로 골라졌나 ══ (10/7 · 사용자 「묵은 종가인지 모르니까 여태까지 조용히 넘어간거 아니야?」)
+    #    forward-log 마지막 줄의 신호기준일 = 기록한 날의 직전 거래일이어야 한다 (quant_cards._묵은종가 와 같은 잣대)
+    if not 조용:
+        print("\n  ══ K 퀀트 후보 종가 날짜 ══")
+    try:
+        from krx_calendar import 직전거래일 as _직전K
+        _줄K = None
+        for _z in io.open(os.path.join(_BASE, "data", "forward-log.jsonl"), encoding="utf-8"):
+            if _z.strip():
+                _줄K = _z
+        _qK = json.loads(_줄K) if _줄K else {}
+        _기록K = str(_qK.get("기록시각") or "")[:10]
+        _신호K = str(_qK.get("신호기준일") or "")
+        if len(_기록K) == 10 and len(_신호K) == 8:
+            _기대K = _직전K(dt.date.fromisoformat(_기록K))
+            if _기대K and _신호K < f"{_기대K:%Y%m%d}":
+                알림(True, f"{_기록K} 퀀트 후보가 묵은 종가({_신호K})로 골라졌다 — 직전 거래일 {_기대K:%Y%m%d} 종가가 안 왔다 "
+                           f"(화면엔 경고 줄이 떴다 · 종가가 오면 record_pick 다시)")
+            elif not 조용:
+                print(f"    ✅ {_기록K} 후보 = {_신호K} 종가 (직전 거래일과 같음)")
+    except Exception as _e5:  # noqa: BLE001
+        알림(False, f"퀀트 종가 날짜 점검을 못 했다: {type(_e5).__name__}")
+
     # ══ 마무리 ══
     print()
     if 문제:
