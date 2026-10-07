@@ -116,8 +116,38 @@ def main():
         세기[k] = (sum(1 for z in 결 if z > 0) / len(결) * 100 if 결 else 0.0, len(결))
     순서 = sorted(규칙, key=lambda k: -세기[k][0])
 
-    def 시뮬(켜, K=None, 시작년=None, 끝년=None, 곡돌려=False):
-        """켜 = 규칙 id 들 · K = 하루 최대(None 이면 제한 없음)"""
+    # ⭐ 10/7 시장 타이밍 — 사용자 「낙폭이 크다는 걸 알고 있다면, 매수 타이밍을 조절해서 우리가 낙폭을 줄일 수는 없는거야?」
+    #    전날 종가까지의 코스닥 지수로 「나쁜 날」 을 정하고 그날은 새로 안 산다(또는 절반만) — 미래를 안 본다
+    import glob as _gT
+    _닥 = {}
+    for _f in sorted(_gT.glob(os.path.join(O._DATA, "index-daily", "*.json"))):
+        try:
+            _v = (json.load(io.open(_f, encoding="utf-8-sig")).get("지수") or {}).get("코스닥") or {}
+            if _v.get("종가"):
+                _닥[os.path.basename(_f)[:8]] = float(_v["종가"])
+        except Exception:  # noqa: BLE001
+            pass
+    _닥날 = sorted(_닥)
+    _닥i = {d: k for k, d in enumerate(_닥날)}
+
+    def _나쁜날(i, 방식):
+        """날[i] 에 사기 전 — 날[i-1] 종가까지로 판단"""
+        if i < 1 or 날[i - 1] not in _닥i:
+            return False
+        k = _닥i[날[i - 1]]
+        c = _닥[_닥날[k]]
+        if 방식.startswith("20일"):
+            if k < 20:
+                return False
+            return (c / _닥[_닥날[k - 20]] - 1) * 100 <= float(방식[3:])
+        if 방식.endswith("60선"):
+            if k < 60:
+                return False
+            return c < sum(_닥[_닥날[j]] for j in range(k - 59, k + 1)) / 60
+        return False
+
+    def 시뮬(켜, K=None, 시작년=None, 끝년=None, 곡돌려=False, 시장=None):
+        """켜 = 규칙 id 들 · K = 하루 최대(None 이면 제한 없음) · 시장 = 나쁜 날 거름(「20일-5」 · 「60선」 · 「반60선」=절반만)"""
         켜 = [k for k in 순서 if k in 켜]
         # ⚠️ 10/1 독립 검사: 날[0] 은 2010 보다 1년 넘게 앞이다(사건은 260일 뒤부터) — 빈 해가 「해」를 늘린다 ⇒ own·gate7 처럼 2010 부터
         a = [j for j, d in enumerate(날) if d[:4] >= (시작년 or "2010")]
@@ -169,9 +199,15 @@ def main():
                     새날[뜬[0]] += 1
             if K is not None:
                 골 = 골[:K]
+            _몫비 = _비중
+            if 시장 and _나쁜날(i, 시장):
+                if 시장.startswith("반"):
+                    _몫비 = _비중 / 2
+                else:
+                    골 = []
             샀다 = False
             for p in 골:
-                쓸 = min(평 * _비중, 현금, (p.get("대금억") or 0) * 1e8 * 0.01)
+                쓸 = min(평 * _몫비, 현금, (p.get("대금억") or 0) * 1e8 * 0.01)
                 총 = int(쓸 // p["원시"])
                 if 총 < len(p["몫"]) or 총 * p["원시"] > 현금:
                     continue
@@ -347,6 +383,20 @@ def main():
             쌓.append(k)
             남.remove(k)
             앞밑, 뒤밑 = rr, 뒤
+
+    # ── ⑩ 시장 타이밍 (10/7) — 코스닥이 나쁜 날엔 새로 안 산다 · 낙폭이 주는 만큼 돈은 얼마나 주나 ──
+    if os.environ.get("MULTI_TIMING"):
+        찍기("\n  ⑩ 시장 타이밍 — 전날 코스닥이 나쁘면 그날 새로 안 산다(반 = 절반만) · 하루 최대 6 · 매일 종가 평가")
+        찍기("     20일-5 = 코스닥 20일 수익 −5% 이하 · 20일-10 = −10% 이하 · 60선 = 코스닥이 60일 평균 아래 · 반60선 = 60일 평균 아래면 절반만")
+        찍기(f"  {'묶음':<14}{'거름':<10}" + "".join(f"{nm:>34}" for nm, _, _ in 창) + f"{'2016~ 한 번에':>34}")
+        for 이름T, 켜T in (("실전만", ["L00"]), ("실전 또는 전부", ["L00"] + 무리)):
+            for 방식 in (None, "20일-5", "20일-10", "60선", "반60선"):
+                칸 = []
+                for _, a0, b0 in 창 + (("", "2016", None),):
+                    rr = 시뮬(켜T, K=6, 시작년=a0, 끝년=b0, 시장=방식)
+                    칸.append(f"{rr['끝']:>14,.0f}원 {rr['낙']:>6.1f}% {rr['산']:>6}산")
+                찍기(f"  {이름T:<14}{(방식 or '없음'):<10}" + "".join(f"{c:>34}" for c in 칸))
+        찍기("  [대조] 시장 타이밍 끝")
 
     # ── ⑦ 해마다 · 가장 깊은 구간 — 실전만 / 실전+전부 / 무리만 (하루 최대 6 · 2016~ 한 번에) ──
     찍기("\n  ⑦ 해마다 수익 · 가장 깊은 구간 셋 (하루 최대 6 · 2016-06~ 한 번에 · 종가 평가)")
