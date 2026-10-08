@@ -8112,7 +8112,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8208,6 +8208,44 @@ def main():
                      ("개인만 5일 크게 산 것 빼기 (+2%↑)", {"거름": _빼기("개인5", 2.0, 아래=False)}),
                      ("개인만 5일 산 것 빼기 (+1%↑)", {"거름": _빼기("개인5", 1.0, 아래=False)}))
             print("  ── BADCUT · 나쁜 쪽 끝만 빼기 (수급 · 시총 대비 순매수 % · 그날까지) ──")
+        # ⭐ 2026-10-08 TAILCUT — **모든 재료의 양 끝 10% 빼기** (B245 · 3연휴)
+        #    사용자 10/8 「어제도 그랬다가 찾았는데 안 해본 테스트 좀전에도 나왔잖아」 — 재료를 「빼기」 로 쓴 시험이
+        #    낙폭둔화(B242)·수급(B244)뿐이었다. 후보에 붙어 있는 재료 전부를 한 판에서 같은 방식으로 잰다.
+        #    끝 10% 문턱은 **2020년까지 실전 후보**의 분포로 정한다(앞 기간 · 뒤 2021~ 은 안 봄 · 미래 안 봄)
+        #    재료마다 「아래 10% 빼기」 · 「위 10% 빼기」 두 줄 · 값이 없으면 빼지 않는다 · 실전 거름(_H)과 AND
+        if "TAILCUT" in _ONLY.split("+") or _ONLY == "TAILCUT":
+            _재료T = ["낙5", "낙10", "낙20", "낙40", "낙60", "낙120", "낙250", "볼5", "볼10", "볼20", "볼40", "볼60", "볼120",
+                     "60일선대비", "평소등락", "PBR", "시총억", "대금억", "회전율", "상대강도", "섹터대비", "시장낙폭",
+                     "잉여금", "부채", "ROE", "영업이익률", "순이익률", "유동비율", "외인20", "기관20"]
+            _앞값 = {}
+            for _x in 사건:
+                if str(_x.get("해") or "9999") > "2020" or not _H(_x):
+                    continue
+                for _k in _재료T:
+                    _v = _x.get(_k)
+                    if isinstance(_v, (int, float)):
+                        _앞값.setdefault(_k, []).append(_v)
+
+            def _끝빼기(키, 문, 아래):
+                def f(x):
+                    if not _H(x):
+                        return False
+                    v = x.get(키)
+                    if not isinstance(v, (int, float)):
+                        return True
+                    return v > 문 if 아래 else v < 문
+                return f
+            _안들C = [("지금 그대로", {})]
+            for _k in _재료T:
+                _vs = sorted(_앞값.get(_k) or [])
+                if len(_vs) < 200:
+                    print(f"     ⓘ {_k}: 앞 기간 값 {len(_vs)}개 — 건너뜀")
+                    continue
+                _lo, _hi = _vs[int(len(_vs) * 0.10)], _vs[int(len(_vs) * 0.90)]
+                _안들C.append((f"{_k} 아래 10% 빼기 (≤{_lo:.3g})", {"거름": _끝빼기(_k, _lo, True)}))
+                _안들C.append((f"{_k} 위 10% 빼기 (≥{_hi:.3g})", {"거름": _끝빼기(_k, _hi, False)}))
+            _안들C = tuple(_안들C)
+            print(f"  ── TAILCUT · 재료 {len(_안들C) // 2}개 × 양 끝 10% 빼기 = {len(_안들C) - 1}줄 · 문턱은 2020년까지 실전 후보 분포 ──")
         try:
             _악재표.clear()
             _악재표.update(_새표C)
