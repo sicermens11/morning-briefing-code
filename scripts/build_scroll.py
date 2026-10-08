@@ -617,7 +617,13 @@ def s04_evidence(o, cp, num, total):
     #    건지**가 빠져 있었다. 지메일에는 "→ 오늘 국장 연관주" 칸이 있고 거기에
     #    "국내 연관: 지니언스·라온시큐어 · 미반영"처럼 **연결이 적혀 있다.** 그게 핵심이다.
     링크 = ""
+    # ⛔ 2026-10-08 (사용자 「너 권고대로 진행하자」) — 해외 대표 4곳은 이 칸에 안 싣는다.
+    #    매일 같은 넷이 「크게 움직인 회사」 로 나왔고(중국 휴장 중엔 지난 등락까지), 3년 실측 다음 날 갭 상관 −0.10~+0.12 —
+    #    아침 신호가 아니다. SKILL 에도 적었지만 모델이 놓쳐도 여기서 거른다
+    _대표4 = ("TSMC", "2330.TW", "CATL", "300750", "닝더", "라인메탈", "RHM", "Rheinmetall", "중국선박", "CSSC", "600150")
     for x in (cp.get("해외연관") or []):
+        if any(k in str(x.get("종목", "")) for k in _대표4):
+            continue
         등락 = x.get("등락", "")
         링크 += (f'<div style="border-top:1px solid {C["line"]};padding:13px 0">'
                 f'<span style="font-family:{SANS};font-size:15px;font-weight:700;'
