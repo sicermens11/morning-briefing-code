@@ -68,7 +68,7 @@ function 실전후보다시 {
 }
 function 점검($종류) {
     $o = & $py "scripts\preflight_check.py" --종류 $종류 2>&1
-    $o | ForEach-Object { 적기 "    [점검] $_" }
+    $o | ForEach-Object { 적기 "    [점검] $_" } | Out-Null   # 10/8: 적기 가 줄을 돌려줘서 함수 값이 배열이 되어 「못 넘음」 이 「넘음」 으로 읽혔다
     return ($LASTEXITCODE -eq 0)
 }
 적기 "[B242] B241(B 아침 후보 대조)이 끝나길 기다린다"
