@@ -364,9 +364,22 @@ def financials(code: str) -> dict:
             "ROE", "부채비율", "당좌비율", "EPS", "PER", "PBR", "BPS")
     try:
         fi = get(f"https://m.stock.naver.com/api/stock/{code}/finance/annual").get("financeInfo") or {}
-        periods = [t.get("title") for t in fi.get("trTitleList") or []]
+        _tt = fi.get("trTitleList") or []
+        periods = [t.get("title") for t in _tt]
         if not periods:
             return {"error": "기간 정보 없음"}
+        # ⭐ 10/8 — 자리(마지막 하나)가 아니라 **isConsensus 표시**로 예상치를 뺀다(예상 열이 둘이어도 맞게).
+        #    표시가 하나도 없으면 옛 방식(마지막 하나 뺌) 그대로
+        _예상 = {t.get("key") for t in _tt if t.get("isConsensus") == "Y"}
+        if _예상:
+            _확정 = [t for t in _tt if t.get("key") not in _예상]
+            out = {"기간": [t.get("title") for t in _확정], "_주의": "증권사 예상치 열(isConsensus)은 제외했다"}
+            for row in fi.get("rowList") or []:
+                title = row.get("title")
+                if title in KEEP:
+                    cols = row.get("columns") or {}
+                    out[title] = [(cols.get(t.get("key")) or {}).get("value") for t in _확정]
+            return out
         keep_n = max(0, len(periods) - 1)          # 마지막(추정치) 제외
         out = {"기간": periods[:keep_n], "_주의": "마지막 컨센서스 추정 열은 제외했다"}
         for row in fi.get("rowList") or []:
@@ -391,15 +404,23 @@ def quarterly(code: str) -> dict:
     KEEP = ("매출액", "영업이익", "당기순이익", "영업이익률", "순이익률", "ROE", "부채비율", "EPS")
     try:
         fi = get(f"https://m.stock.naver.com/api/stock/{code}/finance/quarter").get("financeInfo") or {}
-        periods = [t.get("title") for t in fi.get("trTitleList") or []]
-        if not periods:
+        # ⚠️⚠️ 2026-10-08 독립 검사 — **마지막 분기는 증권사 예상치(isConsensus "Y")였는데 실적처럼 나갔다.**
+        #    「2,806억→4,404억→6,228억 세 분기 연속 늘었고」(10/8 삼성전기) · 「9월 잠정 15.07%」(10/6 심텍) 처럼
+        #    아직 안 나온 3분기를 확정 실적으로 썼다. 값이 날마다 바뀐 것(심텍 837→844)이 증거다.
+        #    ⇒ 예상치 분기는 **뺀다**(연간 표와 같은 원칙). 뺀 분기 이름은 따로 적는다
+        _tt = fi.get("trTitleList") or []
+        if not _tt:
             return {"error": "분기 정보 없음"}
-        out = {"분기": periods}
+        _예상 = {t.get("key") for t in _tt if t.get("isConsensus") == "Y"}
+        _확정 = [t for t in _tt if t.get("key") not in _예상]
+        out = {"분기": [t.get("title") for t in _확정]}
         for row in fi.get("rowList") or []:
             if row.get("title") in KEEP:
-                out[row["title"]] = [v.get("value")
-                                     for _, v in sorted((row.get("columns") or {}).items())]
-        out["_주의"] = ("`-`는 미확정 분기다. **확정된 분기만** 추세로 읽는다. "
+                cols = row.get("columns") or {}
+                out[row["title"]] = [(cols.get(t.get("key")) or {}).get("value") for t in _확정]
+        out["_주의"] = ("**확정 실적 분기만** 담았다 — 증권사 예상치 분기"
+                        + (f"({', '.join(t.get('title') for t in _tt if t.get('key') in _예상)})" if _예상 else "")
+                        + "는 뺐다(실적처럼 쓰지 말 것). `-`는 값이 없는 칸이다. "
                         "직전 분기 대비 꺾임이 보이면 연간 지표가 좋아도 주의 신호다.")
         return out
     except Exception as e:

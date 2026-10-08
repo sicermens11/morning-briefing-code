@@ -47,6 +47,7 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 from itertools import zip_longest
+from market_fix import 시장정리  # noqa: E402  10/8 개장 전 0 고치기
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from card_theme import (  # noqa: E402
@@ -625,7 +626,7 @@ def c03_regime(o, cp, num, total):
 
 
 def c04_flows(o, cp, num, total):
-    mk = (_snap(o["date"], "fetch_market") or {}).get("summary") or {}
+    mk = 시장정리((_snap(o["date"], "fetch_market") or {}).get("summary") or {}, o["date"])   # 10/8 개장 전 0 고치기(market_fix)
     kospi = mk.get("코스피") or {}
     dep = mk.get("예탁금") or {}
     # 섹터 흐름 — 어제 어느 업종·테마로 돈이 몰렸는지. 후보 종목이 왜 그 업종인지를
@@ -681,11 +682,14 @@ def c04_flows(o, cp, num, total):
                      f'<div style="font-size:37px;line-height:1.6;'
                      f'color:{C["text2"]};word-break:keep-all">'
                      f'{first_sentence(cp.get("수급해설"), CUT["수급해설"])}</div>')
-             + block("투자자 예탁금", "",
+             # ⚠️ 10/8 독립 검사 — 예탁금은 네이버가 2~3일 늦게 올린다. 날짜 없이 「어제」 처럼 보였다 ⇒ 기준일을 붙인다
+             + block("투자자 예탁금" + (f' ({str(dep.get("기준일"))[4:6].lstrip("0")}/{str(dep.get("기준일"))[6:8].lstrip("0")} 기준)'
+                                       if len(str(dep.get("기준일") or "")) == 8 else ""), "",
                      _행("주식을 사려고 증권계좌에 넣어 둔 대기 자금",
                          f'{dv/10000:.1f}조', sign_color(dd),
                          signed(dd / 10000, 1, "조")))
-             + block("어제 오른 업종·테마", "", sector_rows(sectors)))
+             # ⚠️ 10/8 — 개장 전 0 뿐인 순위는 market_fix 가 비운다 · 비었으면 칸을 그리지 않는다
+             + (block("어제 오른 업종·테마", "", sector_rows(sectors)) if sectors else ""))
     return card(inner, "03 수급", 바닥=3)
 
 

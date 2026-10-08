@@ -219,6 +219,24 @@ def summarize(items: dict) -> dict:
             "이전치": x.get("previousValue"),
         } for x in cal[:8] if isinstance(x, dict)]
 
+    # ⚠️ 2026-10-08 독립 검사 — **개장 전엔 업종·테마 순위와 외국인 순매수 등락률이 전부 0.0 이다.**
+    #    9/30~10/8 엿새 내내 「▲제약 0.00% · 생명과학도구… 0.00%」 같은 다섯 줄이 「어제 오른 업종」 으로 나갔고,
+    #    SKILL 의 「업종랭킹 1위」 (①.9) 가 늘 같은 업종을 집었을 수 있다. 0 뿐인 순위는 순서에 뜻이 없다 ⇒ 비운다
+    if datetime.now(timezone(timedelta(hours=9))).hour < 9:
+        def _다영(lst):
+            try:
+                return bool(lst) and all(abs(float(x.get("등락률") or 0)) < 1e-9 for x in lst)
+            except (TypeError, ValueError):
+                return False
+        for _k in ("업종랭킹", "테마랭킹"):
+            if _다영(out.get(_k)):
+                out[_k] = []
+                out[f"{_k}_주의"] = "개장 전이라 등락이 전부 0 — 순위에 뜻이 없어 비웠다 (어제 업종 흐름으로 쓰지 말 것)"
+        if _다영(out.get("외국인순매수상위")):
+            for x in out["외국인순매수상위"]:
+                x["등락률"] = None
+            out["외국인순매수상위_주의"] = "개장 전이라 등락률은 0 — 지웠다 (종목·순서는 전 거래일 순매수 기준)"
+
     # 실패한 항목은 호출부가 "미확인"으로 처리할 수 있게 따로 알린다.
     failed = [k for k, v in items.items() if not v.get("ok")]
     if failed:

@@ -56,6 +56,7 @@ from card_theme import SANS as WEB_SANS  # noqa: E402
 from card_theme import mono_if as _mono_if  # noqa: E402
 # ⚠️ D-숫자 색칠은 가로·세로가 **같은 규칙**을 써야 한다. 한쪽만 고치면 또 갈린다.
 from build_cards import dcolor  # noqa: E402
+from market_fix import 시장정리  # noqa: E402  10/8 개장 전 0 고치기
 
 # ⚠️⚠️ **바탕색 깔린 상자는 `border-radius:{RADIUS}px`를 함께 준다** (2026-08-31).
 #    가로 요약(`build_cards`)의 상자를 둥글게 하면서 여기를 빼먹어 **가로는 둥글고
@@ -474,7 +475,7 @@ def s02_overview(o, cp, num, total):
        표 한 칸이었다. "그 부분만 다른 게 의미가 없다"는 지적을 받아 전부 상자로 통일했다.
     """
     reg = o.get("market_regime") or {}
-    mk = (_snap(o["date"], "fetch_market") or {}).get("summary") or {}
+    mk = 시장정리((_snap(o["date"], "fetch_market") or {}).get("summary") or {}, o["date"])   # 10/8 개장 전 0 고치기(market_fix)
     kospi = mk.get("코스피") or {}
     snap_us = _snap(o["date"], "fetch_us")
     idx = snap_us.get("지수") or {}
@@ -624,6 +625,10 @@ def s04_evidence(o, cp, num, total):
     for x in (cp.get("해외연관") or []):
         if any(k in str(x.get("종목", "")) for k in _대표4):
             continue
+        # ⚠️ 10/8 독립 검사 — 「미국 업종 순위」 「국제 유가 WTI」 「미국 에너지 업종(XLE)」 「마이크론 · 오늘 실적 발표」 처럼
+        #    회사가 아니거나 움직인 게 아닌 줄이 섞였다(바로 아래 업종·원자재 칸과 겹친다) — 등락이 % 인 개별 회사만
+        if "%" not in str(x.get("등락", "")) or any(k in str(x.get("종목", "")) for k in ("업종", "유가", "WTI", "순위", "XLE", "지수")):
+            continue
         등락 = x.get("등락", "")
         링크 += (f'<div style="border-top:1px solid {C["line"]};padding:13px 0">'
                 f'<span style="font-family:{SANS};font-size:15px;font-weight:700;'
@@ -695,7 +700,7 @@ def s04_evidence(o, cp, num, total):
 
 
 def s06_flows(o, cp, num, total):
-    mk = (_snap(o["date"], "fetch_market") or {}).get("summary") or {}
+    mk = 시장정리((_snap(o["date"], "fetch_market") or {}).get("summary") or {}, o["date"])   # 10/8 개장 전 0 고치기(market_fix)
     kospi, dep = mk.get("코스피") or {}, mk.get("예탁금") or {}
     kv = _f(kospi.get("등락률"), 0)
     dv, dd = _f(dep.get("투자자예탁금_억원"), 0), _f(dep.get("전일대비_억원"), 0)
@@ -729,7 +734,10 @@ def s06_flows(o, cp, num, total):
               f'border="0"><tr>'
               # ⚠️ 항목 이름은 **본문 크기에 굵게** — 다른 라벨과 같은 규격이다.
               f'<td style="font-family:{SANS};font-size:15px;font-weight:800;'
-              f'color:{C["text"]}">투자자 예탁금</td>'
+              f'color:{C["text"]}">투자자 예탁금'
+              + (f' <span style="font-weight:600;color:{C["muted"]}">({str(dep.get("기준일"))[4:6].lstrip("0")}/'
+                 f'{str(dep.get("기준일"))[6:8].lstrip("0")} 기준)</span>' if len(str(dep.get("기준일") or "")) == 8 else "")
+              + '</td>'
               f'<td align="right" style="font-family:{SANS};font-size:21px;font-weight:700;'
               f'color:{C["text"]}">{dv/10000:.1f}조'
               f'<span style="font-size:15px;color:{sign_color(dd)};margin-left:10px">'
@@ -737,18 +745,19 @@ def s06_flows(o, cp, num, total):
             + f'<div style="font-family:{SANS};font-size:13px;line-height:1.65;'
               f'color:{C["text2"]};margin-top:8px;word-break:keep-all">'
               f'주식을 사려고 증권계좌에 넣어 둔 <b>대기 자금</b>입니다. '
-              + ("줄었다는 건 사려는 힘이 그만큼 빠졌다는 뜻입니다."
-                 if dd < 0 else "늘었다는 건 살 돈이 그만큼 들어왔다는 뜻입니다.")
+              # ⚠️ 10/8 독립 검사 — 하루치 증감으로 「사려는 힘이 빠졌다」 고 판단하던 고정 문구를 뺐다
+              #    (SKILL 은 예탁금을 「사실만 · 판단 금지」 로 쓰라고 한다 · 날짜도 2~3일 늦다)
+              + "네이버가 2~3일 늦게 올려서 날짜를 같이 적습니다."
             + '</div></td></tr></table>'
             # ⚠️ 지메일 ③에는 "수급 온도" 판정 한 문단이 있는데 세로에는 없었다
             #    (2026-08-28 대조). 숫자만 있고 **그래서 좋은 건지 나쁜 건지**가 빠져 있었다.
             + (callout("수급 온도", cp.get("수급온도", ""), C["green"])
                if cp.get("수급온도") else "")
-            + tinted("어제 오른 업종·테마", "돈이 어느 쪽으로 몰렸는지 보여줍니다",
-                     sectors, "plain", mark="▲")
+            + (tinted("어제 오른 업종·테마", "돈이 어느 쪽으로 몰렸는지 보여줍니다",
+                      sectors, "plain", mark="▲") if sectors else "")
             # 세로형 전용 상세 — 외국인이 실제로 무엇을 샀는지, 국고채 금리는 얼마인지.
             + kv_table([(f'{x.get("순위")}. {x.get("종목")}',
-                         f'{int(_f(x.get("현재가"),0)):,}원 {pct(x.get("등락률"))}')
+                         f'{int(_f(x.get("현재가"),0)):,}원' + (f' {pct(x.get("등락률"))}' if x.get("등락률") is not None else ""))
                         for x in (mk.get("외국인순매수상위") or [])[:8]],
                        "외국인이 가장 많이 산 종목",
                        "외국인은 큰돈을 굴리는 쪽이라, 이들이 사는 종목은 방향을 봅니다")
@@ -814,7 +823,7 @@ def s07_calendar(o, cp, num, total):
     #      ③ 정책 발표 — 정부·국회 일정
     #    예전에는 이 셋이 뒤섞이고, 골라 쓴 실적과 스냅샷 실적 목록이 **따로 두 번** 나왔다.
     #    같은 회사가 두 번 보여 "뭐가 다르냐"는 지적을 받았다. 하나로 합친다.
-    mk = (_snap(o["date"], "fetch_market") or {}).get("summary") or {}
+    mk = 시장정리((_snap(o["date"], "fetch_market") or {}).get("summary") or {}, o["date"])   # 10/8 개장 전 0 고치기(market_fix)
     us = _snap(o["date"], "fetch_us")
 
     def _md(x):
