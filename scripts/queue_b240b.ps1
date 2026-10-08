@@ -1,7 +1,8 @@
 ﻿# ==============================================================
-#  queue_b240b.ps1 — **오르는 규칙 중 기간 바꿔도 통과한 47개만 실전과 한 계좌** (2026-10-08)
-#  B240 판정: 83개 중 47개 3/3 통과 · 83개 전부는 실전과 합치면 2.61억·−54.0%(실전만 3.06억·−38.8%) — 살아남은 것만이면?
-#  B241·B242 뒤 · B243 은 이 큐(queue_b240…)를 기다린다 · 약 10분 · 5~11GB
+#  queue_b240b.ps1 — **지금 규칙 몫을 지키며 합치기(보호)** (2026-10-08)
+#  사용자 「합치는건 지금 규칙이 못 보는 매수 기회를 보기 위해서니까 2번은 목적에 맞는데 수익율이 줄어들거나 낙폭이 커지는 1,3번은 맞지 않은 거잖아?」
+#  오르는 규칙 47개(B240 3/3) · 업종별 8개(B) · 전체 시장 4개(C) 각각: 그대로 / 실전 먼저 / 빈날 / 몫30·50 / 빈날+몫
+#  B241·B242 뒤 · B243 은 이 큐를 기다린다 · 묶음마다 약 10~20분 · 5~11GB
 # ==============================================================
 $ErrorActionPreference = "Continue"
 Set-Location "C:\Users\mrblue\Claude\morning breifing_code"
@@ -75,13 +76,21 @@ while (@(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-O
 Start-Sleep 60
 깃발보기 "시작 앞"
 $날 = Get-Date -f "yyyy-MM-dd"
-$env:MULTI_SPEC = "multi_rules_spec_trend47.json"; $env:MULTI_CAND = "trend_split2019.jsonl"; $env:MULTI_SPLIT = "2019"
-if (-not (점검 "multi")) { 그만 "🛑 점검 못 넘음(끝 날·나눔)" }
-if (-not (기다리기 "47개 한 계좌" 12)) { 그만 "🛑 12시간 기다려도 모자라다" }
-적기 "[B240b] 기간 바꿔도 통과한 47개만 실전과 한 계좌 시작"
-$밖 = "${날}_B240b_오르는규칙47_한계좌.txt"; $env:LAB_OUT = $밖
-$env:MULTI_NODD = "1"; $env:MULTI_HORIZON = "1"; $env:MULTI_FAST = "1"
-돌리기 "47개 한 계좌" "scripts\multi_lab.py"
-foreach ($k in "LAB_OUT", "MULTI_SPEC", "MULTI_CAND", "MULTI_SPLIT", "MULTI_NODD", "MULTI_HORIZON", "MULTI_FAST") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
-if (끝났나 (Join-Path "data\_labs" $밖) "\[대조\] MULTI 끝") { 적기 "[B240b] ✅ — data\_labs\$밖" } else { 적기 "❌ [B240b] 끝까지 안 갔다" }
+# 10/8 사용자 「합치는건 지금 규칙이 못 보는 매수 기회를 보기 위해서니까 2번은 목적에 맞는데 수익율이 줄어들거나 낙폭이 커지는 1,3번은 맞지 않은 거잖아?」
+#   → 세 묶음을 「보호」(실전 먼저 · 빈날 · 몫30/50) 와 함께 합친다 (multi_lab ⑯ MULTI_PROTECT)
+function 합치기($이름, $스펙, $후보, $나눔, $꼬리) {
+    깃발보기 "$이름 앞"
+    $env:MULTI_SPEC = $스펙; $env:MULTI_CAND = $후보; $env:MULTI_SPLIT = $나눔
+    if (-not (점검 "multi")) { 적기 "⚠️ [B240b] $이름 — 점검 못 넘음(끝 날·나눔) · 건너뜀"; foreach ($k in "MULTI_SPEC", "MULTI_CAND", "MULTI_SPLIT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }; return }
+    if (-not (기다리기 $이름 12)) { 그만 "🛑 12시간 기다려도 모자라다" }
+    적기 "[B240b] $이름 한 계좌 + 보호 시작"
+    $밖 = "${날}_B240b_${꼬리}.txt"; $env:LAB_OUT = $밖
+    $env:MULTI_NODD = "1"; $env:MULTI_HORIZON = "1"; $env:MULTI_FAST = "1"; $env:MULTI_PROTECT = "1"
+    돌리기 $이름 "scripts\multi_lab.py"
+    foreach ($k in "LAB_OUT", "MULTI_SPEC", "MULTI_CAND", "MULTI_SPLIT", "MULTI_NODD", "MULTI_HORIZON", "MULTI_FAST", "MULTI_PROTECT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
+    if (끝났나 (Join-Path "data\_labs" $밖) "\[대조\] 보호 끝") { 적기 "[B240b] $이름 ✅ — data\_labs\$밖" } else { 적기 "❌ [B240b] $이름 끝까지 안 갔다" }
+}
+합치기 "오르는 규칙 47개" "multi_rules_spec_trend47.json" "trend_split2019.jsonl" "2019" "오르는규칙47_보호"
+합치기 "업종별 8개(B)" "..\forward-groups-spec.json" "forward_groups_cand_data1006.jsonl" "2019" "업종별8_보호"
+합치기 "전체 시장 4개(C)" "spec_b221_2019all_4.json" "b221all_split2023.jsonl" "2023" "전체시장4_보호"
 적기 "===== queue_b240b 끝 ====="
