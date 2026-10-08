@@ -72,7 +72,7 @@ function 점검($종류) {
     return ($LASTEXITCODE -eq 0)
 }
 적기 "[B242] B241(B 아침 후보 대조)이 끝나길 기다린다"
-while (@(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'queue_b240|queue_b241' }).Count -gt 0) { Start-Sleep 60 }
+while (@(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'queue_b241\.ps1' }).Count -gt 0) { Start-Sleep 60 }   # 10/8: queue_b240b·c 를 기다리면 서로 기다려 멈춘다
 Start-Sleep 60
 깃발보기 "시작 앞"
 $날 = Get-Date -f "yyyy-MM-dd"
