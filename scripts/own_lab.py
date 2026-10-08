@@ -152,7 +152,29 @@ def _무리마다(한무리):
 
 def main():
     주가 = O.수정주가(("시총", "거래대금"))
+    # ⭐ 2026-10-08 B 사이트 반영 — OWN_END=YYYYMMDD: 그 날까지 자료만 쓴다 (아침 실행을 지난 날짜로 흉내 내 대조하려고)
+    _끝날 = os.environ.get("OWN_END")
+    if _끝날:
+        주가 = {d: v for d, v in 주가.items() if d <= _끝날}
     날 = sorted(주가)
+    # ⭐ 2026-10-08 OWN_LIVE=1: 마지막 날(신호일)의 후보도 낸다 — 사건은 「다음 날」 시세가 있어야 만들어져서
+    #    아침(전날 종가까지)엔 오늘 살 후보가 안 나왔다. **다음 거래일 자리를 하나 덧붙인다**:
+    #    시세는 마지막 날 종가를 그대로 · 시가/종가 1 · 갭 0. 재료는 전부 신호일(인-1)에서 재므로 바뀌지 않는다.
+    #    날짜는 krx_calendar 의 **진짜 다음 거래일** — 달력 재료(FOMC 전5 등)가 보통 판과 같은 자리를 보게
+    #    ⚠️ 덧붙인 날의 결과(앞으로 수익)는 없다 · 후보 고르기용 · 시험 성적에 쓰지 않는다
+    _가짜날 = None
+    if os.environ.get("OWN_LIVE"):
+        from krx_calendar import 장서는날 as _장서
+        import datetime as _dtL
+        _d = _dtL.date(int(날[-1][:4]), int(날[-1][4:6]), int(날[-1][6:8]))
+        for _ in range(30):
+            _d += _dtL.timedelta(days=1)
+            if _장서(_d)[0]:
+                break
+        _가짜날 = f"{_d:%Y%m%d}"
+        주가[_가짜날] = dict(주가[날[-1]])
+        날.append(_가짜날)
+        print(f"  ⭐ OWN_LIVE — {날[-2]} 신호의 후보를 내려고 다음 거래일 {_가짜날} 자리를 덧붙였다(시세 = {날[-2]} 종가 · 갭 0)", flush=True)
     _사라짐 = O.사라진종목(주가, 날)   # ⚠️ 상장폐지를 손실로 센다
     print(f"  중간에 사라진 종목 {len(_사라짐):,}개 — 상장폐지는 {O.폐지손실:.0f}% 손실로 센다", flush=True)
     # ⚠️ 짧은 한글 이름 덮어쓰기로 하루에 다섯 번 당했다 — 훑기 전에 못 박는다
@@ -186,6 +208,8 @@ def main():
     for f in sorted(glob.glob(os.path.join(O._DATA, "krx-daily", "*.json"))):
         d = json.load(io.open(f, encoding="utf-8-sig"))
         d8 = d["기준일"]
+        if _끝날 and d8 > _끝날:
+            continue
         하루 = {}
         for c, v in d["종목"].items():
             try:
@@ -208,6 +232,12 @@ def main():
                 if abs(g) <= 32:
                     하루[c] = g
         갭표[d8] = 하루
+    if _가짜날:
+        _앞 = 날[-2]
+        비[_가짜날] = {c: (1.0, 1.0, t[2]) for c, t in (비.get(_앞) or {}).items()}
+        원시[_가짜날] = {c: 앞종[c] for c in (비.get(_앞) or {}) if c in 앞종}     # 원시 = 원본 가격 · 마지막 날 원본 종가
+        거량[_가짜날] = dict(거량.get(_앞) or {})
+        갭표[_가짜날] = {c: 0.0 for c in 비[_가짜날]}
     # ⭐ own_lab — 그날 **시장 전체** 시가 갭의 중앙값 (08:55 표본 30 이 재려는 값)
     _시장중앙 = {d: st.median(list(v.values())) for d, v in 갭표.items() if len(v) >= 30}
 
