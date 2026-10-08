@@ -75,6 +75,28 @@ ENDPOINTS = {
 }
 
 
+def _전거래일코스피():
+    r"""data/index-daily/<직전 거래일>.json 의 「코스피」 (KRX OpenAPI · morning_krx 가 08:02 에 받는다). 없으면 None"""
+    import io as _io
+    import os as _os
+    try:
+        _here = _os.path.dirname(_os.path.abspath(__file__))
+        sys.path.insert(0, _here)
+        from krx_calendar import 직전거래일
+        d0 = 직전거래일()
+        p = _os.path.join(_os.path.dirname(_here), "data", "index-daily", f"{d0:%Y%m%d}.json")
+        z = (json.load(_io.open(p, encoding="utf-8-sig")).get("지수") or {}).get("코스피") or {}
+        종, 률 = z.get("종가"), z.get("등락률")
+        if 종 is None or 률 is None:
+            return None
+        전 = 종 - 종 / (1 + 률 / 100)
+        return {"지수": f"{종:,.2f}", "전일대비": f"{전:+.2f}", "등락률": f"{률:+.2f}",
+                "방향": "상승" if 률 > 0 else ("하락" if 률 < 0 else "보합"),
+                "기준": f"{d0:%m/%d} 종가 (KRX 공식 · 개장 전이라 실시간 대신)"}
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def fetch(url: str, timeout: int = 15):
     req = urllib.request.Request(url, headers=HEADERS)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -138,6 +160,16 @@ def summarize(items: dict) -> dict:
                 "방향": _g(d, "compareToPreviousPrice", "text"),
                 "거래시간": f'{_g(d, "stockExchangeType", "startTime")}~{_g(d, "stockExchangeType", "endTime")}',
             }
+            # ⚠️ 2026-10-08 — **개장 전(09:00 전)엔 실시간 값이 「등락 0.00」 이다** (장이 안 열려 오늘 변화가 없다).
+            #    브리핑(08:02)이 매일 이 0 을 받아 10회 넘게 「코스피 3개 매체 교차확인」 으로 메웠다.
+            #    08:02 에 morning_krx 가 받은 **KRX 공식 전 거래일 종가**(index-daily)로 바꾼다. 못 읽으면 실시간 값 그대로 + 표시
+            _kst = datetime.now(timezone(timedelta(hours=9)))
+            if _kst.hour < 9:
+                _공식 = _전거래일코스피()
+                if _공식:
+                    out["코스피"] = dict(_공식, 실시간_참고=out["코스피"])
+                else:
+                    out["코스피"]["주의"] = "개장 전이라 실시간 등락은 0 이다 — 전 거래일 공식 종가를 못 읽었다"
 
     # --- 업종·테마 랭킹 ----------------------------------------------------
     if _g(items, "sector_rank", "ok"):
