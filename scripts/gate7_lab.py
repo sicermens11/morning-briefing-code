@@ -8126,7 +8126,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8372,7 +8372,7 @@ def main():
             # ⭐ 2026-10-12 BRANCH — **지금 규칙 갈래 하나씩**: 혼자 · 빼면 (사용자 「기본 규칙부터 갈래/업종 등 모든 규칙 하나하나 …
             #    끝자산, 기회, 승률, 수익율, 낙폭 등등을 보여주고 … 기본 규칙에 얹어진 규칙인지, 단독 규칙인지」)
             #    갈래 판정은 _H 와 똑같이 나눈다(업종은 10/12 고친 _H 의 OR) · 운용(자리·비중·악재·종가평가)은 DDCTRL 그대로
-            if "BRANCH" in _ONLY.split("+") or _ONLY == "BRANCH":
+            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK")) or _ONLY in ("BRANCH", "BRANCHCHK"):
                 def _섹B(x):
                     return bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x) and (R.섹터규칙_큰회사 or 크기통과(x))
 
@@ -8403,6 +8403,34 @@ def main():
                     r["평"] = (sum(rs) / len(rs)) if rs else None
                     return r
                 _전체 = _또([f for _, f in _갈들])
+                # ⭐ 10/12 BRANCHCHK — BRANCH 결과(업종 빼면 168% · 크게 빠짐 혼자가 전체보다 많음)를 **해마다·조합마다** 확인
+                if "BRANCHCHK" in _ONLY.split("+") or _ONLY == "BRANCHCHK":
+                    _기, _섹, _시, _변, _업 = (f for _, f in _갈들)
+                    _조합 = (("전체(다섯)", _전체), ("업종 뺌", _또([_기, _섹, _시, _변])), ("업종·변동성 뺌", _또([_기, _섹, _시])),
+                            ("크게 빠짐 + 섹터", _또([_기, _섹])), ("크게 빠짐만", _기))
+                    print("  ── BRANCHCHK · 조합마다 해마다 (해마다 500만에서 · 같은 운용) ──")
+                    print(f"     {'해':<6}" + "".join(f"{n:>16}" for n, _ in _조합))
+                    _이김 = {n: 0 for n, _ in _조합}
+                    for _해 in range(2016, 2027):
+                        _y = str(_해)
+                        _rs = [_한판(f, _y, _y) for _, f in _조합]
+                        if not _rs[0]:
+                            continue
+                        _밑 = _rs[0]["끝"]
+                        for (n, _), r in zip(_조합, _rs):
+                            if r and r["끝"] > _밑 + 1:
+                                _이김[n] += 1
+                        print(f"     {_y:<6}" + "".join(f"{(r['끝'] / 1e4 if r else 0):>12,.0f}만{(r['낙'] if r else 0):>4.0f}" for r in _rs), flush=True)
+                    print("     (칸 = 끝 자산 만 원 · 계좌 낙폭 %)")
+                    print("     ⇒ 전체보다 돈이 많은 해: " + " · ".join(f"{n} {v}/11" for n, v in _이김.items() if n != "전체(다섯)"))
+                    for _라창, _시창, _끝창 in (("2016~", None, None), ("2019~", "2019", None), ("2021~", "2021", None), ("2024~", "2024", None)):
+                        print(f"   [{_라창}] ", end="")
+                        _줄 = []
+                        for n, f in _조합:
+                            r = _한판(f, _시창, _끝창)
+                            _줄.append(f"{n} {r['끝'] / 1e4:,.0f}만·{r['낙']:.1f}%·산{r['산']}·승{(r['승'] or 0):.0f}%" if r else f"{n} (못 잼)")
+                        print(" | ".join(_줄), flush=True)
+                    print("  [대조] BRANCHCHK 끝")
                 print("  ── BRANCH · 지금 규칙 갈래 하나씩 — 혼자 · 빼면 (500만 시작 · 비중 20% · 하루 6 + 섹터 2 · 종가 평가 · 비용 포함) ──")
                 print(f"     실전 규칙: {R.한줄()}")
                 for _라창, _시창, _끝창 in (("2016~ 전체", None, None), ("앞 ~2020", None, "2020"), ("뒤 2021~", "2021", None)):
