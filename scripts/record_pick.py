@@ -615,6 +615,9 @@ def B합치기(파일, 늦음=False):
     · 이미 들고 있는 것(그 규칙이 전에 「B로산다」 했고 그 규칙의 파는 날이 아직 안 옴)은 뺀다 — 시뮬과 같다
     · 늦음=True 거나 08:55 판정이 이미 들어갔으면 **사지 않고** `B늦음` 칸에만 적는다(화면 알림용)
     """
+    if not getattr(R, "B사기", True):
+        print("  B 사기 꺼짐(rule_def.B사기 = False) — 오늘 기록에 B 를 붙이지 않는다 · 예측 기록은 따로 돈다")
+        return 0
     if not os.path.exists(LOG) or not os.path.exists(파일):
         print(f"⚠️ 파일이 없다: {LOG if not os.path.exists(LOG) else 파일}")
         return 1
