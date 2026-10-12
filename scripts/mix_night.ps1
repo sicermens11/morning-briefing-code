@@ -91,10 +91,18 @@ if ((Get-Date) -ge $한계) { 그만 "🛑 06:00 까지 C 가 안 나왔다 — 
 if (Select-String -Path $오늘로그 -Pattern "C 는 건너뛴다" -Quiet -Encoding UTF8) { 그만 "🛑 오늘 C 를 건너뛰었다(여유 32GB 안 됨) — 그만둔다" }
 Start-Sleep 60
 $날 = Get-Date -f "yyyy-MM-dd"
+# ⭐ 10/12 저녁 — 지금 규칙 후보(multi_cand_live)를 **고친 _H(업종 갈래 OR)** 로 다시 낸다. 오후 MIX1 것은 업종 갈래가 빠진 옛 판이었다
+실전후보다시
 Copy-Item "data\forward_market_cand.jsonl" "data\_labs\fm_cand_1008.jsonl" -Force
 $o = & $py "scripts\make_mix.py" "C" "forward-market-spec.json" "_labs\fm_cand_1008.jsonl" 2>&1; 적기 "    $o"
 $o = & $py "scripts\make_mix.py" "ALL" "forward-groups-spec.json" "_labs\fg_cand_1008.jsonl" "forward-sectors-spec.json" "_labs\fs_cand_1008.jsonl" "forward-market-spec.json" "_labs\fm_cand_1008.jsonl" 2>&1; 적기 "    $o"
 합치기 "지금 규칙 + C (2024~)" "spec_mix_C.json" "mix_cand_C.jsonl" "2024" "지금+C_2024"
 $env:MULTI_MIXSPLIT = "1"   # 10/12: B·반도체(나눔 2019) + C(2024) — 규칙마다 제 해로 대조
 합치기 "지금 규칙 + B + 반도체 + C (2024~)" "spec_mix_ALL.json" "mix_cand_ALL.jsonl" "2024" "넷다_2024"
+# ⭐ 10/12 저녁 — 고친 지금 규칙으로 B · 반도체 합치기도 다시(오후 MIX1·MIX2 는 업종 갈래 빠진 바탕)
+합치기 "지금 규칙(고침) + B (2024~)" "spec_mix_B.json" "mix_cand_B.jsonl" "2024" "지금고침+B_2024"
+합치기 "지금 규칙(고침) + 반도체 (2024~)" "spec_mix_S.json" "mix_cand_S.jsonl" "2024" "지금고침+반도체_2024"
+Remove-Item env:MULTI_MIXSPLIT -ErrorAction SilentlyContinue
+합치기 "지금 규칙(고침) + B (2019~)" "spec_mix_B.json" "mix_cand_B.jsonl" "2019" "지금고침+B_2019"
+합치기 "지금 규칙(고침) + 반도체 (2019~)" "spec_mix_S.json" "mix_cand_S.jsonl" "2019" "지금고침+반도체_2019"
 적기 "===== mix_night 끝 ====="
