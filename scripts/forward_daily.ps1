@@ -80,6 +80,37 @@ $env:FG_SPEC = "forward-sectors-spec.json"; $env:FG_CAND = "forward_sectors_cand
 $o2 = & $py "scripts\forward_groups.py" 2>&1
 foreach ($k2 in "FG_SPEC", "FG_CAND", "FG_LOG") { Remove-Item "env:$k2" -ErrorAction SilentlyContinue }
 $o2 | Select-Object -Last 3 | ForEach-Object { 적기 "    [반도체·2차전지] $_" }
+# ④ 2026-10-12 **C(전체 시장 규칙 4개) 예측 기록** — 10/8 첫 판(B243) 뒤 **매일 돌리는 곳이 없었다**(0줄 · 내가 「예측 기록 중」 이라 잘못 말함)
+#    사용자 10/7 「오케이 그렇게 하자.」(20건↑ + 2주 뒤 판단) — 그러려면 매일 쌓여야 한다
+#    OWN_ALL 24GB 판이라 여유 32GB↑ · 큰 파이썬 0 · 대기열 0 일 때만(보통 밤) · 다음 날 05:30 까지 기다리고(아침 08:02·B 아침 계산과 안 겹치게) 못 하면 건너뛴다
+#    forward_groups.py 는 빠진 날을 다음 실행에서 몰아 적는다(얼린 날 뒤 매수만)
+$끝기다림 = (Get-Date).Date.AddDays(1).AddHours(5).AddMinutes(30)
+$ㅁC = 0
+while ((((여유GB) -lt 32) -or ((큰파이썬) -gt 0) -or ((대기열) -gt 0)) -and ((Get-Date) -lt $끝기다림)) {
+    if ($ㅁC % 60 -eq 0) { 적기 "  C 기다린다 — 여유 $(여유GB)GB · 큰 파이썬 $(큰파이썬)개 · 대기열 $(대기열)개" }
+    Start-Sleep 60; $ㅁC++
+}
+if ((Get-Date) -ge $끝기다림) {
+    적기 "⚠️ C: $($끝기다림.ToString('MM-dd HH:mm')) 까지 여유 32GB 가 안 됐다 — 오늘 C 는 건너뛴다(다음 실행이 몰아 적는다)"
+} else {
+    Remove-Item "data\forward_market_cand.jsonl" -ErrorAction SilentlyContinue
+    $env:OWN_ALL = "1"; $env:OWN_START = "20200102"; $env:OWN_SPLIT = "20240101"; $env:MAXDD = "-999"; $env:OWN_CUT = "20"
+    $env:OWN_EXPORT = "data\forward-market-spec.json"; $env:OWN_EXPORT_OUT = "forward_market_cand.jsonl"; $env:LAB_OUT = "${날}_예측기록_C시장전체.txt"
+    적기 "  C 후보 내보내기 시작 · 여유 $(여유GB)GB"
+    $pC = Start-Process -FilePath $py -ArgumentList "scripts\own_lab.py" -PassThru -WindowStyle Hidden
+    $null = $pC.Handle
+    while (-not $pC.HasExited) {
+        Start-Sleep 30
+        if ((여유GB) -lt 3) { 적기 "🛑 C 여유 $(여유GB)GB — 끈다"; try { Stop-Process -Id $pC.Id -Force } catch { }; break }
+    }
+    foreach ($k3 in "OWN_ALL", "OWN_START", "OWN_SPLIT", "MAXDD", "OWN_CUT", "OWN_EXPORT", "OWN_EXPORT_OUT", "LAB_OUT") { Remove-Item "env:$k3" -ErrorAction SilentlyContinue }
+    적기 "  C 후보 내보내기 끝 — 코드 $($pC.ExitCode)"
+    $env:FG_SPEC = "forward-market-spec.json"; $env:FG_CAND = "forward_market_cand.jsonl"; $env:FG_LOG = "forward-market-log.jsonl"
+    $o3 = & $py "scripts\forward_groups.py" 2>&1
+    foreach ($k3 in "FG_SPEC", "FG_CAND", "FG_LOG") { Remove-Item "env:$k3" -ErrorAction SilentlyContinue }
+    $o3 | Select-Object -Last 3 | ForEach-Object { 적기 "    [C 시장 전체] $_" }
+}
+
 # ③ 변화 감지 보고서 — 매주 한 번 (월요일, 또는 마지막 보고서가 6일 넘었으면) · 가볍다(지수·후보 파일만)
 #    사용자 10/6 「너 권고대로 하자.」(기준 확정) · 10/2 「만들어두자.」
 $마지막 = Get-ChildItem "data\watch\watch-*.md" -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -Last 1
