@@ -63,6 +63,9 @@ from day_lab import 연간재무  # noqa: E402
 
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOG = os.path.join(_BASE, "data", "forward-log.jsonl")
+# ⭐ 2026-10-12 임시 사본 시험용(dry-run-live-code) — RP_LOG 를 주면 그 파일을 기록으로 쓴다 · 실전은 안 준다
+if os.environ.get("RP_LOG"):
+    LOG = os.environ["RP_LOG"]
 _YH = os.path.join(O._DATA, "yahoo")
 _FR = os.path.join(O._DATA, "fred")
 _ETF = os.path.join(O._DATA, "etf-krx")
@@ -454,6 +457,14 @@ def 동시호가기록(값들, 표본갭=None):
             if v.get("갭") is None:
                 continue
             상 = v["갭"] - 중
+            # ⭐ 2026-10-12 B — 지금 규칙엔 안 걸리고 B 에만 걸린 종목: 문턱 없이 아래 B 자리에서 고른다
+            _후B = 이름표.get(c)
+            if _후B is not None and _후B.get("B전용"):
+                _후B["상대갭"] = round(상, 2)
+                _후B["주문가"] = 지정가(0, v["예상시가"])
+                print(f"  {v['이름'][:13]:<14}{v['어제종가']:>10,}{v['예상시가']:>10,.0f}{v['갭']:>+7.2f}%{상:>+8.2f}%   "
+                      f"B 전용({'·'.join(_후B.get('B라벨') or [])}) — 아래 B 자리에서")
+                continue
             # ⭐⭐⭐ **업종 갈래는 제 문턱** (2026-09-29 반영 · B135)
             #    업종 갈래로 걸린 종목만 -3.5 → -1.5%p. 나머지는 그대로.
             #    108% · 낙폭 -10.6 → -7.1% · 기회 +60건 · 걷기 앞뒤 둘 다 ✅
@@ -484,6 +495,7 @@ def 동시호가기록(값들, 표본갭=None):
                   f"{v['예상시가']:>10,.0f}{v['갭']:>+7.2f}%{상:>+8.2f}%   "
                   f"{'⬛ **산다** — 지정가 ' + format(주문, ',') + '원' if ok else '안 산다'}")
         print()
+        _뽑 = []
         if 살:
             # ⭐⭐⭐ **섹터 갈래 전용 자리** (2026-09-29 반영)
             #    6 자리를 고른 **뒤에**, 아직 안 뽑힌 것 중 섹터 갈래로 걸린 것을 더 담는다.
@@ -528,9 +540,40 @@ def 동시호가기록(값들, 표본갭=None):
                 print(f"     {v['이름']} ({c})  지정가 **{주문:,}원**"
                       f"   (예상체결가 {v['예상시가']:,.0f}원보다 "
                       f"{주문 / v['예상시가'] * 100 - 100:+.1f}%)")
-            print(f"\n  ⚠️⚠️ **09:01에 미체결 주문을 반드시 취소한다** (108차)")
         else:
-            print(f"  ⬛ **오늘 살 것: 없음** — 상대갭 {_갭문턱}%p를 넘는 게 없다")
+            print(f"  ⬛ **지금 규칙으로 살 것: 없음** — 상대갭 {_갭문턱}%p를 넘는 게 없다")
+        # ⭐⭐⭐ 2026-10-12 **B 자리** — 같은 목록(최대 8 = 하루 자리 + 섹터 자리 + 바구니) 안에서 **남은 자리만** 채운다
+        #    규칙마다 제 자리만큼 · 상대갭 깊은 순(own_lab 「순서 갭」 과 같다) · 문턱 없음 · 이미 고른 종목은 건너뜀
+        _B상 = 끝.get("B") or {}
+        if _B상.get("끝난규칙"):
+            _총자리 = _최대매수 + getattr(R, "섹터전용자리", 0) + sum(_v["자리"] for _v in getattr(R, "바구니전용", {}).values())
+            _고른 = {z[0] for z in _뽑}
+            _B뽑 = []
+            for _규 in B규칙들():
+                if _규["id"] not in _B상["끝난규칙"]:
+                    continue
+                _이것 = sorted([(c2, 종별[c2]) for c2, x2 in 이름표.items()
+                              if _규["id"] in (x2.get("B규칙") or []) and c2 in 종별 and 종별[c2].get("갭") is not None
+                              and c2 not in _고른],
+                             key=lambda z: z[1]["갭"] - 중)[:_규["자리"]]
+                for c2, v2 in _이것:
+                    if len(_고른) >= _총자리:
+                        break
+                    _x2 = 이름표[c2]
+                    _x2["오늘산다"] = True
+                    _x2["B로산다"] = _규["id"]
+                    _주2 = _x2.get("주문가") or 지정가(0, v2["예상시가"])
+                    _x2["주문가"] = _주2
+                    _고른.add(c2)
+                    _B뽑.append((c2, v2, _주2, _규))
+            if _B뽑:
+                print(f"  ⭐ B 자리 **{len(_B뽑)}개** (남은 자리 {_총자리 - len(_뽑)} 중)")
+                for c2, v2, _주2, _규 in _B뽑:
+                    print(f"     {v2['이름']} ({c2})  지정가 **{_주2:,}원** · {_규['라벨']}({_규['id']}) · 상대갭 {v2['갭'] - 중:+.2f}%")
+            else:
+                print(f"  B: 남은 자리 {_총자리 - len(_뽑)} · B 후보 중 살 것 없음")
+        if _뽑 or any(x.get("B로산다") for x in 이름표.values()):
+            print(f"\n  ⚠️⚠️ **09:01에 미체결 주문을 반드시 취소한다** (108차)")
     with io.open(LOG, "w", encoding="utf-8") as f:
         for r in 줄들:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
@@ -538,9 +581,141 @@ def 동시호가기록(값들, 표본갭=None):
     return 0
 
 
+# ⭐⭐⭐ 2026-10-12 **B(업종·섹터·규모 전용 규칙 8개) 연결** — 사용자 10/7 반영 결정 · 10/12 「응」(두 번)
+#    설계 docs/2026-10-08_B반영_설계.md · 아침 계산 scripts/b_morning.ps1(own_lab OWN_LIVE · BV1·BV2 대조 통과)
+#    ⚠️ B 는 「지금 규칙」 과 따로 논다 — 문턱 없음(스펙 문턱 99) · 규칙마다 자리 · 같은 목록(최대 8) 안에서 **빈 자리만** 채운다
+#    ⚠️ 끝난 규칙만 넣는다(대조끝 줄이 있는 규칙) · 08:55 판정 뒤에 끝난 것은 「늦게 나온 B 후보」 로 화면에만
+B스펙 = os.path.join(_BASE, "data", "forward-groups-spec.json")
+B라벨표 = {"섹터 = 조선 본선": "조선 전용", "섹터 = 휴머노이드/로봇": "로봇 전용", "섹터 = 해운": "해운 전용",
+          "규모 700억~1,000억": "소형주 전용(700~1,000억)", "업종 = 비금속": "비금속 전용",
+          "업종 = 섬유·의류": "섬유·의류 전용", "업종 = 종이·목재": "종이·목재 전용"}
+
+
+def B규칙들():
+    """스펙의 B 규칙 [{id, 무리, 자리, 라벨}, …] — 스펙 차례 그대로"""
+    j = json.load(io.open(B스펙, encoding="utf-8"))
+    return [{"id": r["id"], "무리": r["무리"], "자리": int(r["자리"]), "라벨": B라벨표.get(r["무리"], r["무리"] + " 전용")}
+            for r in j["규칙"]]
+
+
+def _다음거래일(기준일):
+    import krx_calendar as K
+    d = dt.date(int(기준일[:4]), int(기준일[4:6]), int(기준일[6:8]))
+    for _ in range(15):
+        d += dt.timedelta(days=1)
+        if K.장서는날(d)[0]:
+            return d.strftime("%Y%m%d")
+    return None
+
+
+def B합치기(파일, 늦음=False):
+    r"""B 아침 계산 결과(own_lab OWN_LIVE 후보 파일)를 오늘 기록 줄에 붙인다.
+
+    · 끝난 규칙(대조끝 줄 있음)만 · 후보 날짜 = 기록 줄 신호기준일의 다음 거래일 = 파일 머리 끝날 이어야 한다
+    · 이미 들고 있는 것(그 규칙이 전에 「B로산다」 했고 그 규칙의 파는 날이 아직 안 옴)은 뺀다 — 시뮬과 같다
+    · 늦음=True 거나 08:55 판정이 이미 들어갔으면 **사지 않고** `B늦음` 칸에만 적는다(화면 알림용)
+    """
+    if not os.path.exists(LOG) or not os.path.exists(파일):
+        print(f"⚠️ 파일이 없다: {LOG if not os.path.exists(LOG) else 파일}")
+        return 1
+    줄들 = [json.loads(x) for x in io.open(LOG, encoding="utf-8") if x.strip()]
+    끝 = 줄들[-1]
+    기준일 = 끝.get("신호기준일")
+    살날 = _다음거래일(기준일)
+    규칙들 = B규칙들()
+    규id = {r["id"]: r for r in 규칙들}
+    머리, 후보표, 끝난 = {}, {}, set()
+    for z in io.open(파일, encoding="utf-8"):
+        try:
+            r = json.loads(z)
+        except ValueError:
+            continue            # 아직 쓰는 중인 마지막 줄
+        if r.get("규칙") == "_머리":
+            머리[r["무리"]] = r["끝날"]
+        elif "대조끝" in r:
+            끝난.add(r["규칙"])
+        elif "날" in r and r.get("규칙") in 규id:
+            후보표[(r["규칙"], r["날"])] = r.get("후보") or []
+    if 머리 and set(머리.values()) != {살날}:
+        print(f"🛑 날짜가 안 맞는다 — 기록 신호기준일 {기준일} 의 다음 거래일 {살날} · 파일 머리 끝날 {sorted(set(머리.values()))} → 안 붙인다")
+        return 1
+    # 들고 있는 것: 전 줄들에서 그 규칙으로 산 것 → 같은 파일의 그날 후보 줄 몫에서 파는 날
+    보유 = {}
+    for r0 in 줄들[:-1]:
+        d0 = _다음거래일(r0.get("신호기준일")) if r0.get("신호기준일") else None
+        for x in (r0.get("후보") or []):
+            k = x.get("B로산다")
+            if not k or not d0:
+                continue
+            팔날들 = [m[2] for c in 후보표.get((k, d0), []) if c.get("code") == x["종목코드"] for m in (c.get("몫") or [])]
+            if not 팔날들 or any(f is None or f >= 살날 for f in 팔날들):
+                보유.setdefault(k, set()).add(x["종목코드"])
+    이름표 = {}
+    try:
+        _kd = json.load(io.open(os.path.join(_BASE, "data", "krx-daily", f"{기준일}.json"), encoding="utf-8-sig"))
+        이름표 = _kd.get("종목") or {}
+    except (OSError, ValueError):
+        print(f"  ⚠️ krx-daily {기준일} 을 못 읽었다 — 이름·종가 대조 없이 간다")
+    끝_후보 = 끝.setdefault("후보", [])
+    있는 = {x["종목코드"]: x for x in 끝_후보}
+    판정됨 = (끝.get("동시호가") or {}).get("예상시장갭") is not None
+    늦게 = 늦음 or 판정됨
+    넣은, 뺀보유, 종가다름 = {}, [], 0
+    for 규 in 규칙들:
+        k = 규["id"]
+        if k not in 끝난:
+            continue
+        if 늦게 and k in ((끝.get("B") or {}).get("끝난규칙") or []):
+            continue            # 08:55 전에 이미 넣은 규칙 — 늦은 목록에 다시 안 적는다
+        for c in 후보표.get((k, 살날), []):
+            code = c["code"]
+            if code in 보유.get(k, ()):
+                뺀보유.append(f"{k}:{code}")
+                continue
+            넣은.setdefault(k, []).append(code)
+            if 늦게:
+                continue
+            kd = 이름표.get(code) or {}
+            if kd.get("종가") and abs(float(kd["종가"]) - float(c.get("원시") or 0)) > 0.5:
+                종가다름 += 1
+            x = 있는.get(code)
+            if x is None:
+                x = {"종목코드": code, "이름": kd.get("이름", ""), "어제종가": round(float(c.get("원시") or kd.get("종가") or 0)),
+                     "시총억": round(float(c.get("시총억") or 0)), "B전용": True}
+                끝_후보.append(x)
+                있는[code] = x
+            if k not in (x.get("B규칙") or []):
+                x.setdefault("B규칙", []).append(k)
+                x.setdefault("B라벨", []).append(규["라벨"])
+    못끝 = [r["id"] for r in 규칙들 if r["id"] not in 끝난]
+    상태 = {"상태": ("늦음" if 늦게 else ("넣음" if not 못끝 else "일부")), "끝난규칙": sorted(끝난 & set(규id)),
+            "못끝난규칙": 못끝, "후보": {k: len(v) for k, v in 넣은.items()}, "보유라뺌": 뺀보유,
+            "시각": dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "파일": os.path.basename(파일)}
+    if 늦게:
+        끝["B늦음"] = {"규칙": {k: v for k, v in 넣은.items()},
+                     "이름": {c: (이름표.get(c) or {}).get("이름", "") for v in 넣은.values() for c in v},
+                     "라벨": {k: 규id[k]["라벨"] for k in 넣은}, **상태}
+    else:
+        끝["B"] = 상태
+    with io.open(LOG, "w", encoding="utf-8") as f:
+        for r in 줄들:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    print(f"  B {'늦게 나온 후보(사지 않음)' if 늦게 else '합침'} — 끝난 규칙 {len(상태['끝난규칙'])}/{len(규칙들)} · "
+          f"후보 {sum(len(v) for v in 넣은.values())}개 ({', '.join(f'{k} {len(v)}' for k, v in 넣은.items()) or '없음'})"
+          + (f" · 들고 있어 뺌 {len(뺀보유)}" if 뺀보유 else "") + (f" · ⚠️ 못 끝난 규칙 {', '.join(못끝)}" if 못끝 else "")
+          + (f" · ⚠️ 원시 종가가 krx 와 다른 것 {종가다름}" if 종가다름 else ""))
+    return 0
+
+
 def main():
     조용 = "--조용" in sys.argv
     채점만 = "--채점만" in sys.argv
+    if "--B합치기" in sys.argv:
+        _ib = sys.argv.index("--B합치기")
+        if _ib + 1 >= len(sys.argv):
+            print("⚠️ 파일이 없다. 꼴: --B합치기 data\\b-live\\20261013.jsonl [--늦음]")
+            return 1
+        return B합치기(sys.argv[_ib + 1], 늦음=("--늦음" in sys.argv))
     if "--동시호가" in sys.argv:
         i2 = sys.argv.index("--동시호가")
         if i2 + 1 >= len(sys.argv):
@@ -617,6 +792,9 @@ def main():
                 볼것.append(x)
         for x in 볼것:
             if x.get("결과") is not None:
+                continue
+            # ⭐ 2026-10-12 B 전용 종목은 파는 규칙이 다르다(20일선 회복 등) — 채점은 forward-groups-log 에 맡긴다
+            if x.get("B전용"):
                 continue
             c = x["종목코드"]
             매수 = x.get("매수가")

@@ -185,6 +185,20 @@ if ($Mode -eq 'auto') {
     Write-Log "선물·국고채(krx-extra) 받기: $fut"
 }
 
+# ⭐⭐⭐ 2026-10-12 **B(업종·섹터·규모 전용 규칙 8개) 아침 계산** — 사용자 10/7 반영 · 10/12 「응」
+#    종가·krx-extra 를 받은 **바로 뒤에, 기다리지 않고** 띄운다 (record_pick 08:02 를 늦추지 않는다).
+#    두 프로세스 26분(BV2) → 08:48 까지 끝난 규칙만 record_pick --B합치기 → 08:55 판정에서 남은 자리를 B 가 채운다.
+#    늦게 끝난 것은 「늦게 나온 B 후보」 로 화면에만. 임시 사본 시험 10/12 통과(일부·늦음·보유 빼기 포함)
+#    ⚠️ 종가가 묵었으면(08:45 까지 안 옴) 띄우지 않는다 — 묵은 자료로 B 를 내면 안 된다
+if ($Mode -eq 'auto') {
+    if ("$wait" -match '종가 기준일 맞음') {
+        Start-Process -FilePath powershell.exe -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'scripts\b_morning.ps1') -WindowStyle Hidden
+        Write-Log "B 아침 계산 띄움 (scripts\b_morning.ps1 · 로그 run-logs\b_morning_*.log)"
+    } else {
+        Write-Log "⚠️ 종가 기준일이 안 맞아 B 아침 계산을 띄우지 않는다 — 오늘 B 는 빠진다"
+    }
+}
+
 # --- 퀀트 후보 뽑기 + 옛 후보 채점 -------------------------------------------
 # ⚠️⚠️ **여기여야 한다** (2026-09-07 옮김). 예전엔 07:50 morning_prep 이 돌았다.
 #    그런데 전 거래일 종가는 **바로 윗줄 fetch_krx 가 받아 온다** — 07:50엔 없다.
