@@ -1667,11 +1667,19 @@ def main():
                 _계산재료[_이8] = (lambda x, _n=_이8: newmat.재무새값(_재표B, x["code"], 날[x["인"] - 1], x["시총억"] * 1e8).get(_n))
             재료들 = 재료들 + tuple(z for z in newmat.새재무 if z not in (os.environ.get("OWN_NEW_DROP") or "").split(","))
             print(f"    B247 새 재무 재료 {len(newmat.새재무)}개 · 연간 재무 {len(_재표B):,}종목", flush=True)
+        # ⭐ 2026-10-12 B251 현금흐름 재료 5개 (OWN_NEWCF=1 일 때만) — dart-cf 다 받은 해만
+        if os.environ.get("OWN_NEWCF"):
+            _재표C, _현표C = newmat._연간원본(), newmat._현금흐름표()
+            for _이7 in newmat.새현금:
+                _계산재료[_이7] = (lambda x, _n=_이7: newmat.현금새값(_재표C, _현표C, x["code"], 날[x["인"] - 1], x["시총억"] * 1e8).get(_n))
+            재료들 = 재료들 + tuple(z for z in newmat.새현금 if z not in (os.environ.get("OWN_NEW_DROP") or "").split(","))
+            print(f"    B251 현금흐름 재료 {len(newmat.새현금)}개 · 현금흐름 {len(_현표C):,}종목", flush=True)
         # ⭐ 2026-10-12 **겹침 먼저** (OWN_CORR=1 · 사용자 10/8 「이미 재료를 다 갖고 있었으니까 과거에 테스트한 거랑 겹칠 수도」)
         #    새 재료마다 기존 재료와의 순위 상관(사건 표본) — |상관| ≥ 0.7 이면 같은 것을 두 번 재는 셈이라 뺀다 · 찍고 끝낸다
         if os.environ.get("OWN_CORR"):
             import random as _rnd
-            _기본새 = (_새PV if os.environ.get("OWN_NEWPV") else ()) + (newmat.새재무 if os.environ.get("OWN_NEWFIN") else ())
+            _기본새 = ((_새PV if os.environ.get("OWN_NEWPV") else ()) + (newmat.새재무 if os.environ.get("OWN_NEWFIN") else ())
+                     + (newmat.새현금 if os.environ.get("OWN_NEWCF") else ()))
             _새들 = [z for z in (os.environ.get("OWN_CORR_NEW") or ",".join(_기본새)).split(",") if z in 재료들]
             _표본 = _rnd.Random(7).sample(사건, min(len(사건), int(os.environ.get("OWN_CORR_N") or 120000)))
 

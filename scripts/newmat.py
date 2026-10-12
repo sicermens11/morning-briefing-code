@@ -1196,5 +1196,51 @@ def 재무새값(표, code, d8, 시총원, _캐시={}):
     return out
 
 
+# ⭐⭐ 2026-10-12 **B251 현금흐름 재료** — data/dart-cf/{해}.json(collect_cashflow · 별도 우선) · 재무와 같은 해·같은 적용일(Y+1년 4/1)
+새현금 = ("영업CF자산", "발생액", "현금이익비", "FCF수익률", "F점수9")
+
+
+def _현금흐름표():
+    """{코드: {해: {"영업현금흐름", "설비투자"}}} — 다 받은 해({해}.json)만"""
+    out = {}
+    for f in sorted(glob.glob(os.path.join(_DATA, "dart-cf", "[0-9][0-9][0-9][0-9].json"))):
+        y = os.path.basename(f)[:4]
+        try:
+            d = json.load(io.open(f, encoding="utf-8"))
+        except ValueError:
+            continue
+        for code, v in d.items():
+            out.setdefault(code, {})[y] = v
+    return out
+
+
+def 현금새값(재표, 현표, code, d8, 시총원):
+    """그날 알 수 있는 해의 현금흐름 재료 5개 — 현금흐름이 없는 해는 빈 dict"""
+    t = 재표.get(code)
+    if not t:
+        return {}
+    p = bisect.bisect_right(t[0], d8) - 1
+    if p < 0:
+        return {}
+    a = t[1][p]
+    cf = (현표.get(code) or {}).get(a["해"])
+    if not cf or cf.get("영업현금흐름") is None:
+        return {}
+    cfo = cf["영업현금흐름"]
+    out = {}
+    if a["자산"] and a["자산"] > 0:
+        out["영업CF자산"] = cfo / a["자산"] * 100
+        if a["순익"] is not None:
+            out["발생액"] = (a["순익"] - cfo) / a["자산"] * 100
+    if a["순익"] and a["순익"] > 0:
+        out["현금이익비"] = cfo / a["순익"]
+    if 시총원 and 시총원 > 0 and cf.get("설비투자") is not None:
+        out["FCF수익률"] = (cfo - abs(cf["설비투자"])) / 시총원 * 100
+    f7 = 재무새값(재표, code, d8, 시총원).get("F점수7")
+    if f7 is not None and a["순익"] is not None:
+        out["F점수9"] = f7 + (1.0 if cfo > 0 else 0.0) + (1.0 if cfo > a["순익"] else 0.0)
+    return out
+
+
 if __name__ == "__main__":
     print(__doc__)
