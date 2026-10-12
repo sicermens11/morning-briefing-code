@@ -318,6 +318,91 @@ def main():
         _TA["스토K14"][_c] = _sto
     print(f"    {len(종계):,}종목 · 다섯 지표", flush=True)
 
+    # ⭐⭐ 2026-10-12 **B246 새 가격·거래량 재료 9개** (OWN_NEWPV=1 일 때만 · 사용자 10/8 「다음에 잴 10가지」 · 「겹치는지 먼저」)
+    #    복권MAX20(20일 중 하루 최대 상승) · 고점거리250(52주 고점 대비) · 모멘텀12_1(250일 전→20일 전) · 수익률750(3년 되돌림)
+    #    대금배20(오늘 대금 ÷ 20일 평균) · OBV20(20일 오른 날 대금 − 내린 날 대금 ÷ 대금 합) · VWAP거리20(대금 가중 평균값 대비)
+    #    일목전환기준(9일 중심 − 26일 중심 ÷ 종가 · 종가로) · RSI2
+    #    ⚠️ 신호일 kk 까지만 본다 · 굴리는 창(덱·누적합)으로 계산 — 같은 정의를 매일 처음부터 다시 세지 않는다
+    _새PV = ("복권MAX20", "고점거리250", "모멘텀12_1", "수익률750", "대금배20", "OBV20", "VWAP거리20", "일목전환기준", "RSI2")
+    if os.environ.get("OWN_NEWPV"):
+        import collections as _col
+        print("  B246 새 가격·거래량 재료 9개 계산 중...", flush=True)
+        for _이9 in _새PV:
+            _TA[_이9] = {}
+
+        def _굴림(열, w, 큰):
+            """k 마다 열[k-w+1..k] 의 최대(큰=True)/최소 — 덱"""
+            out = [_nan] * len(열)
+            dq = _col.deque()
+            for k, v in enumerate(열):
+                if v != v:
+                    v = None
+                while dq and dq[0] <= k - w:
+                    dq.popleft()
+                if v is not None:
+                    while dq and ((열[dq[-1]] <= v) if 큰 else (열[dq[-1]] >= v)):
+                        dq.pop()
+                    dq.append(k)
+                if k >= w - 1 and dq:
+                    out[k] = 열[dq[0]]
+            return out
+        for _c, _sq in 종계.items():
+            _n = len(_sq)
+            _dg = 대금계.get(_c) or [0.0] * _n
+            _r = [_nan] + [(_sq[k] / _sq[k - 1] - 1.0) if _sq[k - 1] > 0 else _nan for k in range(1, _n)]
+            _mx20 = _굴림(_r, 20, True)
+            _hi250 = _굴림(_sq, 250, True)
+            _hi9, _lo9 = _굴림(_sq, 9, True), _굴림(_sq, 9, False)
+            _hi26, _lo26 = _굴림(_sq, 26, True), _굴림(_sq, 26, False)
+            a_lot, a_hi, a_mom, a_r750 = (_array("f", [_nan] * _n) for _ in range(4))
+            a_vr, a_obv, a_vw, a_ich, a_rsi2 = (_array("f", [_nan] * _n) for _ in range(5))
+            _s대 = _s부 = _s양 = 0.0
+            _au2 = _ad2 = None
+            for k in range(_n):
+                c = _sq[k]
+                d = float(_dg[k] or 0.0)
+                # 굴리는 합 — 20일(대금 · 대금/종가 · 오른 날 대금−내린 날 대금)
+                _s대 += d
+                _s부 += (d / c) if c > 0 else 0.0
+                _s양 += (d if (_r[k] == _r[k] and _r[k] > 0) else (-d if (_r[k] == _r[k] and _r[k] < 0) else 0.0))
+                if k >= 20:
+                    d0 = float(_dg[k - 20] or 0.0)
+                    c0 = _sq[k - 20]
+                    _s대 -= d0
+                    _s부 -= (d0 / c0) if c0 > 0 else 0.0
+                    _s양 -= (d0 if (_r[k - 20] == _r[k - 20] and _r[k - 20] > 0) else (-d0 if (_r[k - 20] == _r[k - 20] and _r[k - 20] < 0) else 0.0))
+                if _mx20[k] == _mx20[k]:
+                    a_lot[k] = _mx20[k] * 100.0
+                if _hi250[k] == _hi250[k] and _hi250[k] > 0:
+                    a_hi[k] = (c / _hi250[k] - 1.0) * 100.0
+                if k >= 250 and _sq[k - 250] > 0:
+                    a_mom[k] = (_sq[k - 20] / _sq[k - 250] - 1.0) * 100.0
+                if k >= 750 and _sq[k - 750] > 0:
+                    a_r750[k] = (c / _sq[k - 750] - 1.0) * 100.0
+                if k >= 20:
+                    _평 = (_s대 - d + float(_dg[k - 20] or 0.0)) / 20.0     # 어제까지 20일 평균(오늘 뺌)
+                    if _평 > 0:
+                        a_vr[k] = d / _평
+                    if _s대 > 0:
+                        a_obv[k] = _s양 / _s대
+                    if _s부 > 0 and c > 0:
+                        a_vw[k] = (c / (_s대 / _s부) - 1.0) * 100.0
+                if _hi26[k] == _hi26[k] and _hi9[k] == _hi9[k] and c > 0:
+                    a_ich[k] = (((_hi9[k] + _lo9[k]) / 2.0) - ((_hi26[k] + _lo26[k]) / 2.0)) / c * 100.0
+                if k >= 1 and _sq[k - 1] > 0:
+                    ch = c - _sq[k - 1]
+                    g, l = (ch if ch > 0 else 0.0), (-ch if ch < 0 else 0.0)
+                    if _au2 is None:
+                        _au2, _ad2 = g, l
+                    else:
+                        _au2 += (g - _au2) / 2.0
+                        _ad2 += (l - _ad2) / 2.0
+                    if k >= 3:
+                        a_rsi2[k] = 100.0 if _ad2 == 0 else 100.0 - 100.0 / (1.0 + _au2 / _ad2)
+            for _이9, _a9 in zip(_새PV, (a_lot, a_hi, a_mom, a_r750, a_vr, a_obv, a_vw, a_ich, a_rsi2)):
+                _TA[_이9][_c] = _a9
+        print(f"    새 재료 9개 · {len(종계):,}종목", flush=True)
+
     def _ta(이름, code, kk):
         a = _TA[이름].get(code)
         if a is None or kk >= len(a):
@@ -1571,6 +1656,68 @@ def main():
             재료들 = 재료들 + tuple(_새달력)
         for _이름Y in _해외재료:
             _계산재료[_이름Y] = (lambda x, _n=_이름Y: _해외(x, _n))
+        if os.environ.get("OWN_NEWPV"):
+            for _이9 in _새PV:
+                _계산재료[_이9] = _dict계산(_이9, (lambda c, kk, _n=_이9: _ta(_n, c, kk)))
+            재료들 = 재료들 + _새PV
+        # ⭐ 2026-10-12 **겹침 먼저** (OWN_CORR=1 · 사용자 10/8 「이미 재료를 다 갖고 있었으니까 과거에 테스트한 거랑 겹칠 수도」)
+        #    새 재료마다 기존 재료와의 순위 상관(사건 표본) — |상관| ≥ 0.7 이면 같은 것을 두 번 재는 셈이라 뺀다 · 찍고 끝낸다
+        if os.environ.get("OWN_CORR"):
+            import random as _rnd
+            _새들 = [z for z in (os.environ.get("OWN_CORR_NEW") or ",".join(_새PV)).split(",") if z in 재료들]
+            _표본 = _rnd.Random(7).sample(사건, min(len(사건), int(os.environ.get("OWN_CORR_N") or 120000)))
+
+            def _값들(재):
+                f = _계산재료.get(재)
+                return [(f(x) if f else x.get(재)) for x in _표본]
+
+            def _순위(v):
+                idx = [i for i, z in enumerate(v) if isinstance(z, (int, float)) and z == z]
+                idx.sort(key=lambda i: v[i])
+                r = [None] * len(v)
+                for k2, i in enumerate(idx):
+                    r[i] = k2 / max(1, len(idx) - 1)
+                return r
+
+            def _상관(a, b):
+                pr = [(x1, y1) for x1, y1 in zip(a, b) if x1 is not None and y1 is not None]
+                if len(pr) < 1000:
+                    return None, len(pr)
+                n = len(pr)
+                mx = sum(p[0] for p in pr) / n
+                my = sum(p[1] for p in pr) / n
+                sxy = sum((p[0] - mx) * (p[1] - my) for p in pr)
+                sxx = sum((p[0] - mx) ** 2 for p in pr)
+                syy = sum((p[1] - my) ** 2 for p in pr)
+                return (sxy / (sxx * syy) ** 0.5 if sxx > 0 and syy > 0 else None), n
+            print("\n" + "=" * 122)
+            print(f"  ── 겹침 검사 — 새 재료 {len(_새들)}개 × 기존 재료 {len(재료들) - len(_새들)}개 · 사건 표본 {len(_표본):,} · 순위 상관 ──")
+            print("     |상관| ≥ 0.7 = 같은 것을 두 번 재는 셈 → 뺀다 (사용자 10/8) · 0.5~0.7 = 많이 겹침(참고)")
+            _순위표 = {}
+            for 재 in 재료들:
+                _순위표[재] = _순위(_값들(재))
+            for 새 in _새들:
+                _줄 = []
+                for 재 in 재료들:
+                    if 재 == 새 or 재 in _새들:
+                        continue
+                    r_, n_ = _상관(_순위표[새], _순위표[재])
+                    if r_ is not None:
+                        _줄.append((abs(r_), r_, 재, n_))
+                _줄.sort(reverse=True)
+                _판 = "❌ 뺀다(0.7↑)" if (_줄 and _줄[0][0] >= 0.7) else ("△ 많이 겹침" if (_줄 and _줄[0][0] >= 0.5) else "✅ 새것")
+                _값수 = sum(1 for z in _순위표[새] if z is not None)
+                print(f"  {새:<12} 값 {_값수:>7,}건 · {_판} · 가장 닮은 셋: "
+                      + " · ".join(f"{z[2]} {z[1]:+.2f}" for z in _줄[:3]), flush=True)
+            # 새 재료끼리도
+            print("  ── 새 재료끼리 |상관| ≥ 0.5 ──")
+            for i1, a1 in enumerate(_새들):
+                for a2 in _새들[i1 + 1:]:
+                    r_, n_ = _상관(_순위표[a1], _순위표[a2])
+                    if r_ is not None and abs(r_) >= 0.5:
+                        print(f"     {a1} ↔ {a2} {r_:+.2f}")
+            print("  [대조] 겹침 검사 끝")
+            return 0
         # ⭐⭐ own_lab — **앞 기간 값으로만 문턱** · **자료 시작 전 해는 없음**
         _해들 = [날[x["인"] - 1][:4] for x in 사건]
         _앞여부 = [날[x["인"] - 1] < _분할 for x in 사건]
