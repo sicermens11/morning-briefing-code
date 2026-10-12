@@ -1,5 +1,5 @@
 ﻿# ==============================================================
-#  queue_corr.ps1 — **B246 새 가격·거래량 재료 9개 겹침 검사** (2026-10-12 · own_lab OWN_NEWPV + OWN_CORR)
+#  queue_corr.ps1 — **B246 가격·거래량 9 + B247 재무 9 = 새 재료 18개 겹침 검사** (2026-10-12 · OWN_NEWPV + OWN_NEWFIN + OWN_CORR)
 #  사용자 10/8 「이미 재료를 다 갖고 있었으니까, 과거에 테스트한 거랑 겹칠 수도 있을 것 같은데」 → 「오케이 그렇게 진행하자」(|상관| ≥ 0.7 은 뺀다 · 표 먼저)
 #  무리: 규모 300~2,000억(지금 규칙 기본 영역 · 16년) · 사건 표본 12만 · BTH 뒤 · 약 12GB
 #
@@ -89,10 +89,10 @@ Start-Sleep 60
 깃발보기 "시작 앞"
 $날 = Get-Date -f "yyyy-MM-dd"
 if (-not (기다리기 "겹침 검사" 15)) { 그만 "🛑 12시간 기다려도 모자라다" }
-$밖 = "${날}_CORR_새재료9_겹침.txt"
-적기 "[CORR] 새 재료 9개 겹침 검사 시작 · 여유 $(여유GB)GB"
-$env:OWN_GROUPS = "규모||300|2000|$밖"; $env:OWN_NEWPV = "1"; $env:OWN_CORR = "1"; $env:MAXDD = "-12"; $env:OWN_CUT = "20"; $env:LAB_OUT = "${날}_CORR_묶음.txt"
+$밖 = "${날}_CORR_새재료18_겹침.txt"
+적기 "[CORR] 새 재료 18개(가격·거래량 9 · 재무 9) 겹침 검사 시작 · 여유 $(여유GB)GB"
+$env:OWN_GROUPS = "규모||300|2000|$밖"; $env:OWN_NEWPV = "1"; $env:OWN_NEWFIN = "1"; $env:OWN_CORR = "1"; $env:MAXDD = "-12"; $env:OWN_CUT = "20"; $env:LAB_OUT = "${날}_CORR_묶음.txt"
 돌리기 "겹침 검사" "scripts\own_lab.py"
-foreach ($k in "OWN_GROUPS", "OWN_NEWPV", "OWN_CORR", "MAXDD", "OWN_CUT", "LAB_OUT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
+foreach ($k in "OWN_GROUPS", "OWN_NEWPV", "OWN_NEWFIN", "OWN_CORR", "MAXDD", "OWN_CUT", "LAB_OUT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
 if (끝났나 (Join-Path "data\_labs" $밖) "\[대조\] 겹침 검사 끝") { 적기 "[CORR] ✅ — data\_labs\$밖" } else { 적기 "❌ [CORR] 끝까지 안 갔다 — data\_labs\$밖" }
 적기 "===== queue_corr 끝 ====="

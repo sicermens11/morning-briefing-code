@@ -1108,5 +1108,93 @@ def 붙이기(사건, 날들, 뉴스포함=True, 찍기=print):
     return 붙은
 
 
+# ⭐⭐ 2026-10-12 **B247 새 재무 재료** (사용자 10/8 「다음에 잴 10가지」 · 연휴에 못 했다)
+#    dart-fin 연간(2015~) — Y년치는 Y+1년 4월 1일부터(day_lab.연간재무 와 같은 규칙) · 전년치와 견주는 것은 두 해가 다 있을 때만
+#    ⚠️ 현금흐름이 없다(OpenDART 전체 재무제표는 따로 받아야 함 · B251) → F점수는 현금흐름 둘을 뺀 7점
+#    마법공식은 「이익수익률EV↑ + ROIC근사↑」 두 조건 조합과 같다 — 무리 판의 둘씩 조합이 그대로 잰다
+새재무 = ("ROA", "영업이익자산", "ROIC근사", "자산증가율", "매출증가율", "F점수7", "AltmanZ", "넷넷", "이익수익률EV")
+
+
+def _연간원본():
+    """{코드: ([적용일…], [원본 dict…])} — 적용일 차례"""
+    out = {}
+    for f in sorted(glob.glob(os.path.join(_DATA, "dart-fin", "*.json"))):
+        y = os.path.basename(f)[:-5]
+        if not y.isdigit():
+            continue
+        try:
+            d = json.load(io.open(f, encoding="utf-8-sig"))
+        except ValueError:
+            continue
+        for code, v in d.items():
+            def g(k):
+                x = v.get(k)
+                return float(x) if isinstance(x, (int, float)) else None
+            out.setdefault(code, ([], []))
+            out[code][0].append(f"{int(y) + 1}0401")
+            out[code][1].append({"자산": g("자산총계"), "자본": g("자본총계"), "부채": g("부채총계"), "유자": g("유동자산"),
+                                 "유부": g("유동부채"), "비유부": g("비유동부채"), "잉여": g("이익잉여금"), "자본금": g("자본금"),
+                                 "매출": g("매출액"), "영익": g("영업이익") if g("영업이익") is not None else g("영업이익(손실)"),
+                                 "순익": g("당기순이익(손실)"), "해": y})
+    return out
+
+
+def _나눔(a, b):
+    return (a / b) if (a is not None and b not in (None, 0)) else None
+
+
+def 재무새값(표, code, d8, 시총원, _캐시={}):
+    r"""그날(d8) 알 수 있는 해의 재무로 새 재무 재료 9개 — {이름: 값 또는 None}. 시총이 드는 셋(AltmanZ·넷넷·이익수익률EV)만 매번 계산"""
+    t = 표.get(code)
+    if not t:
+        return {}
+    p = bisect.bisect_right(t[0], d8) - 1
+    if p < 0:
+        return {}
+    키 = (code, p)
+    고 = _캐시.get(키)
+    if 고 is None:
+        a = t[1][p]
+        b = t[1][p - 1] if (p >= 1 and int(t[1][p - 1]["해"]) == int(a["해"]) - 1) else None
+        roa = _나눔(a["순익"], a["자산"])
+        고 = {"ROA": (roa * 100 if roa is not None else None),
+             "영업이익자산": (lambda z: z * 100 if z is not None else None)(_나눔(a["영익"], a["자산"])),
+             "ROIC근사": (lambda z: z * 100 if z is not None else None)(
+                 _나눔(a["영익"], ((a["자본"] or 0) + (a["비유부"] or 0)) or None)),
+             "자산증가율": None, "매출증가율": None, "F점수7": None}
+        if b:
+            if a["자산"] and b["자산"]:
+                고["자산증가율"] = (a["자산"] / b["자산"] - 1) * 100
+            if a["매출"] and b["매출"] and b["매출"] > 0:
+                고["매출증가율"] = (a["매출"] / b["매출"] - 1) * 100
+            roa0 = _나눔(b["순익"], b["자산"])
+            레, 레0 = _나눔(a["부채"], a["자산"]), _나눔(b["부채"], b["자산"])
+            유, 유0 = _나눔(a["유자"], a["유부"]), _나눔(b["유자"], b["유부"])
+            마, 마0 = _나눔(a["영익"], a["매출"]), _나눔(b["영익"], b["매출"])
+            회, 회0 = _나눔(a["매출"], a["자산"]), _나눔(b["매출"], b["자산"])
+            점 = [roa is not None and roa > 0,
+                 roa is not None and roa0 is not None and roa > roa0,
+                 레 is not None and 레0 is not None and 레 < 레0,
+                 유 is not None and 유0 is not None and 유 > 유0,
+                 a["자본금"] is not None and b["자본금"] is not None and a["자본금"] <= b["자본금"],
+                 마 is not None and 마0 is not None and 마 > 마0,
+                 회 is not None and 회0 is not None and 회 > 회0]
+            고["F점수7"] = float(sum(1 for z in 점 if z))
+        고["_원"] = a
+        _캐시[키] = 고
+    a = 고["_원"]
+    out = {k: v for k, v in 고.items() if k != "_원"}
+    if 시총원 and 시총원 > 0:
+        if a["자산"] and a["자산"] > 0 and a["부채"]:
+            운 = (a["유자"] or 0) - (a["유부"] or 0)
+            out["AltmanZ"] = (1.2 * 운 / a["자산"] + 1.4 * (a["잉여"] or 0) / a["자산"] + 3.3 * (a["영익"] or 0) / a["자산"]
+                              + 0.6 * 시총원 / a["부채"] + 1.0 * (a["매출"] or 0) / a["자산"])
+        if a["유자"] is not None and a["부채"] is not None:
+            out["넷넷"] = (a["유자"] - a["부채"]) / 시총원 * 100
+        if a["영익"] is not None:
+            out["이익수익률EV"] = a["영익"] / (시총원 + (a["부채"] or 0)) * 100
+    return out
+
+
 if __name__ == "__main__":
     print(__doc__)

@@ -1660,11 +1660,19 @@ def main():
             for _이9 in _새PV:
                 _계산재료[_이9] = _dict계산(_이9, (lambda c, kk, _n=_이9: _ta(_n, c, kk)))
             재료들 = 재료들 + _새PV
+        # ⭐ 2026-10-12 B247 새 재무 재료 9개 (OWN_NEWFIN=1 일 때만) — newmat.재무새값 · 사건에 저장하지 않고 그때그때(메모리)
+        if os.environ.get("OWN_NEWFIN"):
+            _재표B = newmat._연간원본()
+            for _이8 in newmat.새재무:
+                _계산재료[_이8] = (lambda x, _n=_이8: newmat.재무새값(_재표B, x["code"], 날[x["인"] - 1], x["시총억"] * 1e8).get(_n))
+            재료들 = 재료들 + newmat.새재무
+            print(f"    B247 새 재무 재료 {len(newmat.새재무)}개 · 연간 재무 {len(_재표B):,}종목", flush=True)
         # ⭐ 2026-10-12 **겹침 먼저** (OWN_CORR=1 · 사용자 10/8 「이미 재료를 다 갖고 있었으니까 과거에 테스트한 거랑 겹칠 수도」)
         #    새 재료마다 기존 재료와의 순위 상관(사건 표본) — |상관| ≥ 0.7 이면 같은 것을 두 번 재는 셈이라 뺀다 · 찍고 끝낸다
         if os.environ.get("OWN_CORR"):
             import random as _rnd
-            _새들 = [z for z in (os.environ.get("OWN_CORR_NEW") or ",".join(_새PV)).split(",") if z in 재료들]
+            _기본새 = (_새PV if os.environ.get("OWN_NEWPV") else ()) + (newmat.새재무 if os.environ.get("OWN_NEWFIN") else ())
+            _새들 = [z for z in (os.environ.get("OWN_CORR_NEW") or ",".join(_기본새)).split(",") if z in 재료들]
             _표본 = _rnd.Random(7).sample(사건, min(len(사건), int(os.environ.get("OWN_CORR_N") or 120000)))
 
             def _값들(재):
