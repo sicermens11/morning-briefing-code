@@ -86,7 +86,9 @@ $o2 | Select-Object -Last 3 | ForEach-Object { 적기 "    [반도체·2차전�
 #    forward_groups.py 는 빠진 날을 다음 실행에서 몰아 적는다(얼린 날 뒤 매수만)
 $끝기다림 = (Get-Date).Date.AddDays(1).AddHours(5).AddMinutes(30)
 $ㅁC = 0
-while ((((여유GB) -lt 32) -or ((큰파이썬) -gt 0) -or ((대기열) -gt 0)) -and ((Get-Date) -lt $끝기다림)) {
+#    ⚠️ 10/12 저녁: 아무것도 안 돌 때 여유가 28.7~30.9GB 뿐이라 32 를 영영 못 넘었다(오후 14:41 큰 파이썬 0 · 대기열 0 · 28.7GB 에도 안 돎)
+#       → 28 로 낮춤 · 10/8 C 판 최대 24.5GB → 남는 여유 약 4GB · 3GB 밑이면 아래 지킴이가 끈다
+while ((((여유GB) -lt 28) -or ((큰파이썬) -gt 0) -or ((대기열) -gt 0)) -and ((Get-Date) -lt $끝기다림)) {
     if ($ㅁC % 60 -eq 0) { 적기 "  C 기다린다 — 여유 $(여유GB)GB · 큰 파이썬 $(큰파이썬)개 · 대기열 $(대기열)개" }
     Start-Sleep 60; $ㅁC++
 }
