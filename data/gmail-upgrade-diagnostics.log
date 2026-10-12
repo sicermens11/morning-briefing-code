@@ -23,3 +23,15 @@ len=39344 emoji=True at=2026-08-31 08:16:15
 2026-09-10T08:19:59	draft=r2355272253686908798	chars=4250	emoji=12	mode=summary
 2026-09-11 draft=r-9129005051074427548 html_chars=3700 emoji=yes upgrade=1
 2026-09-11 08:00 draft=r4795434974211954261 html_chars=4513 emoji=yes upgrade=1
+2026-09-15 08:24:53 | draft=r3458918193031156732 | html_chars=3504 | emoji_present=False | candidates=3 | mcp_calls=26
+  ^ 정정: emoji_present=True (정규식 파싱 오류로 False로 기록됨. 실제 본문에 📊 🟡 ⬛ 👉 포함)
+2026-09-16 08:00 draft=r5251810738845537366 html_chars=5508 text_chars=3253 emoji=yes picks=0(관망)
+2026-09-18 08:0x | draftId=r-8268169882880440597 | 1차 텍스트 확정 성공(약 3,750자) | HTML 업그레이드 시도 1회 | HTML 약 5,400자 | 이모지 포함(📊🟡■) | 제목 하드체크 SUBJECT_OK 1회 | 후보4 전원 🟡
+2026-09-28 08:00 draft=r-6109494633121655127 mode=summary-html picks=3 grades=YYY us_opp=SHMD chars~3600 emoji=yes result=attempt
+2026-09-29 08:2x KST | draftId=r9061415263808306488 | 업그레이드 1회 시도 | HTML 요약본 방식(전문 아님) | 후보 4종(LG전자 U+1F7E2 / 동성화인텍·한화오션·삼성전기 U+1F7E1) | 이모지 포함 | 하드카운터 PROCEED
+2026-10-01T08:00 KST | draftId=r-107646726690726570 | html_chars=4987 | emoji_count=8 | picks=4 | grades=4x YELLOW | upgrade=1st_attempt
+2026-10-02 08:30:38 | draftId=r4268435541545683281 | chars=5058 | emoji_pairs=10 | mode=summary_from_cardcopy
+2026-10-06 08:58:40 | draft=r912413271447688501 | html_len=6871 | emoji=13 | subject_ok=1 | mode=auto0800
+2026-10-07 08:20 KST | draftId=r-7975215754966462463 | summary_html_chars~3620 | emoji=yes | mode=STEP6-summary(3000-4000 target) | result=attempt
+2026-10-08 08:32:40 | draftId=r-8289593856539900095 | chars=4276 | emoji_surrogate_pairs=12 | has_img=False | anchor_count=1 | result=PROCEED
+2026-10-12 10:18:28 | draftId=r3287025123342316533 | 요약HTML 업그레이드 1회 | 후보4(전부 🟡) | 제목검증 SUBJECT_OK | 웹게시 성공
