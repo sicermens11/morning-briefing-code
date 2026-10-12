@@ -8484,12 +8484,19 @@ def main():
                     _v = sorted(z for z in (_값P(x, 재) for x in _앞사건) if z is not None)
                     return _v[len(_v) // 5] if len(_v) >= 100 else None
                 _금문A, _선문A2 = _앞문턱A("기준금리20"), _앞문턱A("코스피200선물20")
+                _금값A = sorted(z for z in (_값P(x, "기준금리20") for x in _앞사건) if z is not None)
+                _금몰A = bool(_금값A) and _금값A[len(_금값A) // 5] == _금값A[len(_금값A) * 4 // 5]   # 아래 20% = 위 20% → 몰림
 
                 def _금선A(x):
                     if _금문A is None or _선문A2 is None or not 문통과(x):
                         return False
                     _a, _b = _값P(x, "기준금리20"), _값P(x, "코스피200선물20")
-                    return _a is not None and _b is not None and _a <= _금문A and _b <= _선문A2
+                    # ⚠️ 10/13 고침: 기준금리20 아래 20% 값이 0(금리 안 바뀐 날이 대부분)이라 「≤ 0」 은 **안 올린 날 전부**였다(첫 판 85%)
+                    #    원래 Q-9(_조건P)는 몰림(아래=위)이면 「< 문턱」 = **실제로 내린 날만** — 그대로 맞춘다
+                    if _a is None or _b is None:
+                        return False
+                    _금됨 = (_a < _금문A) if _금몰A else (_a <= _금문A)
+                    return _금됨 and _b <= _선문A2
 
                 def _더함(*fs):
                     return lambda x: bool(_H(x)) or any(f(x) for f in fs)
@@ -8520,6 +8527,11 @@ def main():
                         if _밑A is None:
                             _밑A = _r
                         print(f"     {_라:<34}{_r['끝']:>16,.0f}{_r['끝'] / _밑A['끝'] * 100:>8.0f}%{_r['낙']:>7.1f}%{_r['산']:>6}", flush=True)
+                # 10/13: 첫 판에서 「중형 시장낙폭」 줄이 지금 규칙과 원 단위까지 같았다 — 더해지는 사건이 정말 있나부터 찍는다
+                for _라n, _fn in (("회전율·선물20", _회선A), ("대형", _대형A), ("중형", _중형A), ("기준금리·선물", _금선A)):
+                    _맞n = [x for x in 사건 if _fn(x)]
+                    _새n = [x for x in _맞n if not _H(x)]
+                    print(f"     사건 수 [{_라n}] 맞음 {len(_맞n):,} · 지금 규칙엔 없는 것 {len(_새n):,} · 그런 날 {len({x['인'] for x in _새n}):,}")
                 _켬A = {}
                 for x in 사건:
                     if _금선A(x):
