@@ -8478,6 +8478,19 @@ def main():
                     return (2000 <= (x.get("시총억") or 0) < 10000 and 재무통과(x) and 대금통과(x)
                             and x.get("시장낙폭") is not None and x["시장낙폭"] <= -15)
 
+                # ④ 10/12 저녁 추가 — 기준금리20↓ + 코스피200선물20↓ (9/17 Q-9 · 103% · 「금리 인하기에만 켜진다」 보류 · 사용자 결정 없음)
+                #    옛 판은 업종 갈래 없는 바탕 · 문턱은 전체 기간 값 → 여기선 **2020년까지 사건으로만** 문턱(아래 20%)
+                def _앞문턱A(재):
+                    _v = sorted(z for z in (_값P(x, 재) for x in _앞사건) if z is not None)
+                    return _v[len(_v) // 5] if len(_v) >= 100 else None
+                _금문A, _선문A2 = _앞문턱A("기준금리20"), _앞문턱A("코스피200선물20")
+
+                def _금선A(x):
+                    if _금문A is None or _선문A2 is None or not 문통과(x):
+                        return False
+                    _a, _b = _값P(x, "기준금리20"), _값P(x, "코스피200선물20")
+                    return _a is not None and _b is not None and _a <= _금문A and _b <= _선문A2
+
                 def _더함(*fs):
                     return lambda x: bool(_H(x)) or any(f(x) for f in fs)
 
@@ -8490,7 +8503,8 @@ def main():
                          ("+ 회전율 위20%·선물20", _더함(_회선A), ()),
                          ("+ 대형 1조↑ 낙40 −30%", _더함(_대형A), ((_대형A, "대형"),)),
                          ("+ 중형 시장낙폭 −15%", _더함(_중형A), ((_중형A, "중형"),)),
-                         ("+ 셋 다", _더함(_회선A, _대형A, _중형A), ((_대형A, "대형"), (_중형A, "중형"))))
+                         ("+ 셋 다", _더함(_회선A, _대형A, _중형A), ((_대형A, "대형"), (_중형A, "중형"))),
+                         ("+ 기준금리20↓·선물20↓", _더함(_금선A), ()))
                 print("  ── ADDCHK · 결정 없이 멈춘 후보를 고친 지금 규칙에 한 계좌로 더하기 ──")
                 print(f"     실전 규칙: {R.한줄()}")
                 print(f"     ① 문턱(2020년까지 · 재무·대금 통과 사건): 회전율 ≥ {_회위A:.2f}% · 그중 선물20 ≤ {(_선문A if _선문A is not None else float('nan')):.2f}%")
@@ -8506,6 +8520,12 @@ def main():
                         if _밑A is None:
                             _밑A = _r
                         print(f"     {_라:<34}{_r['끝']:>16,.0f}{_r['끝'] / _밑A['끝'] * 100:>8.0f}%{_r['낙']:>7.1f}%{_r['산']:>6}", flush=True)
+                _켬A = {}
+                for x in 사건:
+                    if _금선A(x):
+                        _켬A.setdefault(str(x.get("해")), set()).add(x["인"])
+                print(f"     ④ 문턱(2020년까지): 기준금리20 ≤ {_금문A} · 선물20 ≤ {_선문A2} · 켜진 날(해마다): "
+                      + " · ".join(f"{_y} {len(_켬A.get(str(_y), ()))}" for _y in range(2016, 2027)))
                 print("     ⚠️ 이익 절반 시험(실제 체결이 나쁠 때)은 multi_lab 몫 — 여기선 그대로 값만")
                 print("  [대조] ADDCHK 끝")
                 _안들C = ()
