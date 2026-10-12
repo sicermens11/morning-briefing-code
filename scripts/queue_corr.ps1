@@ -84,7 +84,7 @@ function 합치기($이름, $스펙, $후보, $나눔, $꼬리) {
     if (끝났나 (Join-Path "data\_labs" $밖) "\[대조\] 보호 끝") { 적기 "[CORR] $이름 ✅ — data\_labs\$밖" } else { 적기 "❌ [CORR] $이름 끝까지 안 갔다" }
 }
 적기 "[CORR] B 문턱 시험(BTH)이 끝나길 기다린다"
-while (@(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'queue_bth\.ps1' }).Count -gt 0) { Start-Sleep 60 }
+while (@(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'queue_bth\.ps1|queue_branch\.ps1' }).Count -gt 0) { Start-Sleep 60 }
 Start-Sleep 60
 깃발보기 "시작 앞"
 $날 = Get-Date -f "yyyy-MM-dd"
