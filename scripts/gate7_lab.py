@@ -8126,7 +8126,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8420,6 +8420,66 @@ def main():
                 print("\n     「혼자」 = 그 갈래만 켠 계좌 · 「빼면」 = 그 갈래만 끈 계좌 — 지금의% 가 100 보다 작으면 그 갈래가 돈을 보탠 것")
                 print("     ⚠️ 운송장비 제 문(잉여금 24.84 · 부채 157)이 사건 그물(30·80)보다 느슨해 그 사이 종목은 빠져 있다")
                 print("  [대조] BRANCH 끝")
+                _안들C = ()
+            # ⭐ 2026-10-12 ADDCHK — **결정 없이 멈춘 후보를 고친 지금 규칙(업종 갈래 OR)에 한 계좌로 더해 본다**
+            #    사용자 10/12 「끝자산만 중요하다고 했을때 다시 후보에 오를 수 있는 규칙이 있나」 → 탈락 대장(docs/2026-10-12_탈락규칙_대장.md)
+            #    ① 회전율 위20%·선물20(9/22 Q-27 · 121% · 사용자 결정 없음) — 문턱은 **2020년까지 사건으로만**(옛 판은 전체 기간 값 = 미래를 봄)
+            #    ② 대형 1조↑ 낙40 ≤ −30%(9/29 B132 · 혼자 연 22.6% · −9.9%) — 갭 −1.0 · 자리 4 (비중은 계좌 하나라 20% 그대로)
+            #    ③ 중형 2천억~1조 시장낙폭 ≤ −15%(B133) — 갭 −1.0 · 자리 4
+            #    9/29 엔 「나눠 담기」만 쟀다 — 「한 계좌에 기회 더하기」는 처음
+            if "ADDCHK" in _ONLY.split("+") or _ONLY == "ADDCHK":
+                _앞사건 = [x for x in 사건 if str(x.get("해") or "9999") <= "2020" and 재무통과(x) and 대금통과(x)]
+                _회값A = sorted(z for z in (x.get("회전율") for x in _앞사건) if z is not None)
+                _회위A = _회값A[len(_회값A) * 4 // 5]
+                _회칸A = [x for x in _앞사건 if (x.get("회전율") or -1) >= _회위A]
+                _선값A = sorted(z for z in (_선물19(x) for x in _회칸A) if z is not None)
+                _선문A = _선값A[len(_선값A) // 5] if _선값A else None
+
+                def _회선A(x):
+                    if not (재무통과(x) and 대금통과(x)):
+                        return False
+                    _r = x.get("회전율")
+                    _f = _선물19(x)
+                    return _r is not None and _r >= _회위A and _f is not None and _선문A is not None and _f <= _선문A
+
+                def _대형A(x):
+                    return ((x.get("시총억") or 0) >= 10000 and 재무통과(x) and 대금통과(x)
+                            and x.get("낙40") is not None and x["낙40"] <= -30)
+
+                def _중형A(x):
+                    return (2000 <= (x.get("시총억") or 0) < 10000 and 재무통과(x) and 대금통과(x)
+                            and x.get("시장낙폭") is not None and x["시장낙폭"] <= -15)
+
+                def _더함(*fs):
+                    return lambda x: bool(_H(x)) or any(f(x) for f in fs)
+
+                def _옵A(*무리):
+                    o = _옵C()
+                    o["무리자리"] = list(o.get("무리자리") or []) + [(f, n, 4) for f, n in 무리 if n in ("대형", "중형")]
+                    o["무리갭"] = list(o.get("무리갭") or []) + [(f, n, -1.0) for f, n in 무리 if n in ("대형", "중형")]
+                    return o
+                _줄들A = (("지금 규칙(고침 · 업종 갈래 포함)", _H, ()),
+                         ("+ 회전율 위20%·선물20", _더함(_회선A), ()),
+                         ("+ 대형 1조↑ 낙40 −30%", _더함(_대형A), ((_대형A, "대형"),)),
+                         ("+ 중형 시장낙폭 −15%", _더함(_중형A), ((_중형A, "중형"),)),
+                         ("+ 셋 다", _더함(_회선A, _대형A, _중형A), ((_대형A, "대형"), (_중형A, "중형"))))
+                print("  ── ADDCHK · 결정 없이 멈춘 후보를 고친 지금 규칙에 한 계좌로 더하기 ──")
+                print(f"     실전 규칙: {R.한줄()}")
+                print(f"     ① 문턱(2020년까지 · 재무·대금 통과 사건): 회전율 ≥ {_회위A:.2f}% · 그중 선물20 ≤ {(_선문A if _선문A is not None else float('nan')):.2f}%")
+                for _라창, _시창, _끝창 in (("2016~ 전체", None, None), ("앞 ~2020", None, "2020"), ("뒤 2021~", "2021", None), ("2024~", "2024", None)):
+                    print(f"\n   [{_라창}]")
+                    print(f"     {'줄':<34}{'끝 자산':>16}{'지금의%':>9}{'낙폭':>8}{'산':>6}")
+                    _밑A = None
+                    for _라, _f, _무 in _줄들A:
+                        _r = 시뮬(_c(_f, **_옵A(*_무)), 시작년=_시창, 끝년=_끝창)
+                        if not _r:
+                            print(f"     {_라:<34} (못 잼)")
+                            continue
+                        if _밑A is None:
+                            _밑A = _r
+                        print(f"     {_라:<34}{_r['끝']:>16,.0f}{_r['끝'] / _밑A['끝'] * 100:>8.0f}%{_r['낙']:>7.1f}%{_r['산']:>6}", flush=True)
+                print("     ⚠️ 이익 절반 시험(실제 체결이 나쁠 때)은 multi_lab 몫 — 여기선 그대로 값만")
+                print("  [대조] ADDCHK 끝")
                 _안들C = ()
             print(f"     실전 규칙: {R.한줄()}")
             print("     잣대: 종가 기준(들고 있는 종목을 전날 종가로 평가) · 표의 「한계 −12%」 표시는 옛 시험 잣대다(사용자가 정한 계좌 낙폭 아님 · 사용자 12% = 종목 하나) · 「비중 10%」는 시뮬 가정 줄이라 규칙 후보가 아니다")
