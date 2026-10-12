@@ -91,6 +91,8 @@ if ((Get-Date) -ge $한계) { 그만 "🛑 06:00 까지 C 가 안 나왔다 — 
 if (Select-String -Path $오늘로그 -Pattern "C 는 건너뛴다" -Quiet -Encoding UTF8) { 그만 "🛑 오늘 C 를 건너뛰었다(여유 32GB 안 됨) — 그만둔다" }
 Start-Sleep 60
 $날 = Get-Date -f "yyyy-MM-dd"
+# ⚠️ 10/12 — 아침 08:02 브리핑과 안 겹치게: 06:30 넘었으면 오늘 밤 합치기는 건너뛴다(내일 다시 건다)
+if ((Get-Date).Hour -ge 7 -or ((Get-Date).Hour -eq 6 -and (Get-Date).Minute -ge 30)) { 그만 "⚠️ 06:30 넘었다 — 아침과 겹치지 않게 합치기를 건너뛴다" }
 # ⭐ 10/12 저녁 — 지금 규칙 후보(multi_cand_live)를 **고친 _H(업종 갈래 OR)** 로 다시 낸다. 오후 MIX1 것은 업종 갈래가 빠진 옛 판이었다
 실전후보다시
 Copy-Item "data\forward_market_cand.jsonl" "data\_labs\fm_cand_1008.jsonl" -Force
