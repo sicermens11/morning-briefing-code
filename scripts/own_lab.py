@@ -383,9 +383,9 @@ def main():
                     _평 = (_s대 - d + float(_dg[k - 20] or 0.0)) / 20.0     # 어제까지 20일 평균(오늘 뺌)
                     if _평 > 0:
                         a_vr[k] = d / _평
-                    if _s대 > 0:
+                    if _s대 > 1e6:
                         a_obv[k] = _s양 / _s대
-                    if _s부 > 0 and c > 0:
+                    if _s부 > 1e-6 and _s대 > 1e6 and c > 0 and (_s대 / _s부) > 0:   # 10/12 굴리는 합의 찌꺼기(0 근처)로 0 나눗셈이 났다
                         a_vw[k] = (c / (_s대 / _s부) - 1.0) * 100.0
                 if _hi26[k] == _hi26[k] and _hi9[k] == _hi9[k] and c > 0:
                     a_ich[k] = (((_hi9[k] + _lo9[k]) / 2.0) - ((_hi26[k] + _lo26[k]) / 2.0)) / c * 100.0
