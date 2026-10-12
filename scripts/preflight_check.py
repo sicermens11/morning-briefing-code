@@ -74,7 +74,8 @@ def main():
             if len(끝들) != 1:
                 문제.append(f"후보 파일들의 끝 날이 다르다 {sorted(끝들)} — 실전 후보(MULTIDUMP)나 무리 후보를 다시 내라")
             나들 = 대조나눔(경로["무리 후보"])
-            if 나들 and 나들 != {나눔}:
+            # 10/12: MULTI_MIXSPLIT=1 — 얼린 묶음(나누는 해가 서로 다름)을 그대로 합칠 때. multi_lab 이 규칙마다 제 나누는 해로 대조한다
+            if 나들 and 나들 != {나눔} and not os.environ.get("MULTI_MIXSPLIT"):
                 문제.append(f"무리 후보의 나누는 해 {sorted(나들)} ≠ 합치기 MULTI_SPLIT {나눔}")
     if 문제:
         print("🛑 걸지 마라 — " + " · ".join(문제))

@@ -95,5 +95,6 @@ Copy-Item "data\forward_market_cand.jsonl" "data\_labs\fm_cand_1008.jsonl" -Forc
 $o = & $py "scripts\make_mix.py" "C" "forward-market-spec.json" "_labs\fm_cand_1008.jsonl" 2>&1; 적기 "    $o"
 $o = & $py "scripts\make_mix.py" "ALL" "forward-groups-spec.json" "_labs\fg_cand_1008.jsonl" "forward-sectors-spec.json" "_labs\fs_cand_1008.jsonl" "forward-market-spec.json" "_labs\fm_cand_1008.jsonl" 2>&1; 적기 "    $o"
 합치기 "지금 규칙 + C (2024~)" "spec_mix_C.json" "mix_cand_C.jsonl" "2024" "지금+C_2024"
+$env:MULTI_MIXSPLIT = "1"   # 10/12: B·반도체(나눔 2019) + C(2024) — 규칙마다 제 해로 대조
 합치기 "지금 규칙 + B + 반도체 + C (2024~)" "spec_mix_ALL.json" "mix_cand_ALL.jsonl" "2024" "넷다_2024"
 적기 "===== mix_night 끝 ====="
