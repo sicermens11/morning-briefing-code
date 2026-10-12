@@ -191,7 +191,11 @@ if ($Mode -eq 'auto') {
 #    늦게 끝난 것은 「늦게 나온 B 후보」 로 화면에만. 임시 사본 시험 10/12 통과(일부·늦음·보유 빼기 포함)
 #    ⚠️ 종가가 묵었으면(08:45 까지 안 옴) 띄우지 않는다 — 묵은 자료로 B 를 내면 안 된다
 if ($Mode -eq 'auto') {
-    if ("$wait" -match '종가 기준일 맞음') {
+    # 10/12 사용자 「꺼!」 — rule_def.B사기 = False 면 아침 계산도 안 띄운다(성적 기록은 12:30 forward_daily 가 따로 쌓는다 · 20GB 아낌)
+    $B켬 = Select-String -Path (Join-Path $PSScriptRoot 'scripts\rule_def.py') -Pattern '^B사기 = True' -Quiet -Encoding UTF8
+    if (-not $B켬) {
+        Write-Log "B 사기 꺼짐(rule_def.B사기) — B 아침 계산을 띄우지 않는다 · 예측 기록은 12:30 에 따로"
+    } elseif ("$wait" -match '종가 기준일 맞음') {
         Start-Process -FilePath powershell.exe -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'scripts\b_morning.ps1') -WindowStyle Hidden
         Write-Log "B 아침 계산 띄움 (scripts\b_morning.ps1 · 로그 run-logs\b_morning_*.log)"
     } else {
