@@ -80,6 +80,9 @@ $env:FG_SPEC = "forward-sectors-spec.json"; $env:FG_CAND = "forward_sectors_cand
 $o2 = & $py "scripts\forward_groups.py" 2>&1
 foreach ($k2 in "FG_SPEC", "FG_CAND", "FG_LOG") { Remove-Item "env:$k2" -ErrorAction SilentlyContinue }
 $o2 | Select-Object -Last 3 | ForEach-Object { 적기 "    [반도체·2차전지] $_" }
+# ⑤ 2026-10-13 **임원·주요주주 여럿이 함께 산 종목** 예측 기록 — 사용자 10/13 「응」(화면엔 안 넣고 기록만 · 20건↑ 쌓이면 판단) · 약 80초 · 4GB 안팎
+$o5 = & $py "scripts\forward_insider.py" 2>&1
+$o5 | Select-Object -Last 2 | ForEach-Object { 적기 "    [임원 함께 매수] $_" }
 # ④ 2026-10-12 **C(전체 시장 규칙 4개) 예측 기록** — 10/8 첫 판(B243) 뒤 **매일 돌리는 곳이 없었다**(0줄 · 내가 「예측 기록 중」 이라 잘못 말함)
 #    사용자 10/7 「오케이 그렇게 하자.」(20건↑ + 2주 뒤 판단) — 그러려면 매일 쌓여야 한다
 #    OWN_ALL 24GB 판이라 여유 32GB↑ · 큰 파이썬 0 · 대기열 0 일 때만(보통 밤) · 다음 날 05:30 까지 기다리고(아침 08:02·B 아침 계산과 안 겹치게) 못 하면 건너뛴다
