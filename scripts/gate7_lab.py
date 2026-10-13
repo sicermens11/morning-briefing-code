@@ -8603,6 +8603,9 @@ def main():
 
                 def _옵A(*무리):
                     o = _옵C()
+                    # ⭐ 10/13 ③-0b — ADD_W 로 한 번에 사는 비중을 바꾼다(안 주면 20% 그대로)
+                    if os.environ.get("ADD_W"):
+                        o["비중"] = float(os.environ["ADD_W"])
                     o["무리자리"] = list(o.get("무리자리") or []) + [(f, n, 4) for f, n in 무리 if n in ("대형", "중형")]
                     o["무리갭"] = list(o.get("무리갭") or []) + [(f, n, -1.0) for f, n in 무리 if n in ("대형", "중형")]
                     return o

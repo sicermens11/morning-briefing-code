@@ -27,7 +27,9 @@ import omni_lab as O  # noqa: E402
 
 _L = os.path.join(O._DATA, "_labs")
 _시드 = 5_000_000.0
-_비중 = 0.20
+# ⭐ 10/13 ③-0b 돈 가정 흔들기 — MULTI_WEIGHT 로 한 번에 사는 비중을 바꾼다(안 주면 20% 그대로)
+#    사용자 10/13 「돈과 하루 자리를 나눠 쓰는 건 테스트를 위한 거잖아? 돈이 제한되어 있으니까 자리를 제한하는 거고?」
+_비중 = float(os.environ.get("MULTI_WEIGHT") or 0.20)
 _이자 = 0.025
 _낙한 = float(os.environ.get("MAXDD") or -12.0)
 # ⭐ 10/2 사용자 「그렇다」 — ② 계좌 낙폭은 체가 아니라 정보. MULTI_NODD=1 이면 쌓기 관문이 **돈만** 본다 (낙폭은 찍기만)
