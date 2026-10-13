@@ -34,7 +34,10 @@ while (((큰파이썬) -gt 0) -or ((대기열) -gt 0) -or ((여유GB) -lt 15) -o
     if ($ㅁ -ge 1200) { 적기 "⚠️ 20시간 기다려도 판이 안 끝났다 — 오늘은 건너뛴다(내일 몰아 적는다)"; 적기 "===== 예측 기록 끝 ====="; exit 0 }
 }
 
+# 10/13 큰 계산 자물쇠 — 시험 줄과 같은 분에 같이 출발하지 않게 (biglock.ps1)
+. "$PSScriptRoot\biglock.ps1"
 function 내보내기($이름, $스펙, $후보, $무리들, $낙) {
+    $null = 큰판잡기 "예측 기록 $이름"
     Remove-Item (Join-Path "data" $후보) -ErrorAction SilentlyContinue
     $env:OWN_GROUPS = ($무리들 -join ';'); $env:OWN_EXPORT = "data\$스펙"; $env:OWN_EXPORT_OUT = $후보
     $env:MAXDD = $낙; $env:OWN_CUT = "20"; $env:LAB_OUT = "$(Get-Date -f yyyy-MM-dd)_예측기록_${이름}_묶음.txt"
@@ -45,6 +48,7 @@ function 내보내기($이름, $스펙, $후보, $무리들, $낙) {
         if ((여유GB) -lt 3) { 적기 "🛑 $이름 여유 $(여유GB)GB — 끈다"; try { Stop-Process -Id $p.Id -Force } catch { }; break }
     }
     foreach ($k in "OWN_GROUPS", "OWN_EXPORT", "OWN_EXPORT_OUT", "MAXDD", "OWN_CUT", "LAB_OUT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
+    큰판놓기
     적기 "  $이름 후보 내보내기 끝 — 코드 $($p.ExitCode)"
 }
 
@@ -106,6 +110,7 @@ for ($시도 = 1; ($시도 -le 3) -and (-not $C됨); $시도++) {
     Remove-Item "data\forward_market_cand.jsonl" -ErrorAction SilentlyContinue
     $env:OWN_ALL = "1"; $env:OWN_START = "20200102"; $env:OWN_SPLIT = "20240101"; $env:MAXDD = "-999"; $env:OWN_CUT = "20"
     $env:OWN_EXPORT = "data\forward-market-spec.json"; $env:OWN_EXPORT_OUT = "forward_market_cand.jsonl"; $env:LAB_OUT = "${날}_예측기록_C시장전체.txt"
+    $null = 큰판잡기 "예측 기록 C"
     적기 "  C 후보 내보내기 시작($시도 번째) · 여유 $(여유GB)GB"
     $pC = Start-Process -FilePath $py -ArgumentList "scripts\own_lab.py" -PassThru -WindowStyle Hidden
     $null = $pC.Handle
@@ -115,6 +120,7 @@ for ($시도 = 1; ($시도 -le 3) -and (-not $C됨); $시도++) {
         if ((여유GB) -lt 3) { 적기 "🛑 C 여유 $(여유GB)GB — 끈다($시도 번째)"; try { Stop-Process -Id $pC.Id -Force } catch { }; $꺼짐 = $true; break }
     }
     foreach ($k3 in "OWN_ALL", "OWN_START", "OWN_SPLIT", "MAXDD", "OWN_CUT", "OWN_EXPORT", "OWN_EXPORT_OUT", "LAB_OUT") { Remove-Item "env:$k3" -ErrorAction SilentlyContinue }
+    큰판놓기
     적기 "  C 후보 내보내기 끝 — 코드 $($pC.ExitCode)"
     if ($꺼짐 -or -not (Test-Path "data\forward_market_cand.jsonl")) {
         if ($시도 -lt 3) { 적기 "  ↻ C 를 30분 뒤 다시 한다"; Start-Sleep 1800 }
