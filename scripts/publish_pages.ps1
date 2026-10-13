@@ -106,6 +106,17 @@ $pubArgs = @('--site', $siteHtml, '--repo', $Repo)
 if ($DryRun) { $pubArgs += '--dry-run' }
 $pub = & (Join-Path $PSScriptRoot 'run-py.ps1') -Script 'publish_pages.py' -Args $pubArgs
 Say $pub
+# ⭐ 2026-10-14 — 08:30 GitHub 409 「Repository rule violations found · Timed out validating the rule」(GitHub 쪽 일시 오류)로
+#    본문 게시가 실패해 어제 페이지가 남았다(손으로 다시 올림). ok 가 아니면 90초 뒤 두 번 더 해 본다
+for ($다시 = 1; $다시 -le 2; $다시++) {
+    $okNow = $false
+    try { $okNow = [bool](($pub | ConvertFrom-Json).ok) } catch { }
+    if ($okNow -or $DryRun) { break }
+    Say "  게시 실패 — 90초 뒤 다시 해 본다($다시/2)"
+    Start-Sleep 90
+    $pub = & (Join-Path $PSScriptRoot 'run-py.ps1') -Script 'publish_pages.py' -Args $pubArgs
+    Say $pub
+}
 
 try {
     $pj = $pub | ConvertFrom-Json
