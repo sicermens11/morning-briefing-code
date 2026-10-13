@@ -249,6 +249,22 @@ def main():
     for 이름, 있어야, 실제, ok in 표:
         s = f"{실제:>10g}" if 실제 is not None else f"{'못 찾음':>10}"
         print(f"     {'✅' if ok else '❌'} {이름:<20}{있어야:>10g}{s}")
+    # ③ 2026-10-13 — 규칙이 바뀐 뒤 「갈래 하나씩 빼 보기(BRANCH·BRANCHCHK)」 를 다시 쟀나
+    #    업종 갈래는 9/22~23 에 넣은 뒤 하루 6·섹터 자리 2 가 들어왔는데 2주간 다시 안 재서, 빼야 할 것을 들고 있었다
+    #    (사용자 10/13 「계산에 대한 결과가 번복되면 지금 결과가 또 번복되지 않는다고 어떻게 확신하지?」) — 경고만, 게시는 안 막는다
+    import glob as _g
+    import os as _os
+    _규 = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "rule_def.py")
+    _갈 = sorted(_g.glob(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "data", "_labs", "*_BRANCH*.txt")),
+                key=_os.path.getmtime)
+    _규때, _갈때 = _os.path.getmtime(_규), (_os.path.getmtime(_갈[-1]) if _갈 else 0)
+    import datetime as _dt
+    print("\n  ③ 규칙이 바뀐 뒤 갈래 하나씩 빼 보기")
+    if _갈때 < _규때:
+        print(f"     ⚠️ rule_def.py 가 바뀐 때({_dt.datetime.fromtimestamp(_규때):%m-%d %H:%M}) 뒤에 갈래 시험이 없다"
+              f" (마지막 {(_dt.datetime.fromtimestamp(_갈때).strftime('%m-%d %H:%M') if _갈 else '없음')}) — gate7 ONLY=BRANCH+BRANCHCHK 를 걸어라")
+    else:
+        print(f"     ✅ 마지막 갈래 시험 {_dt.datetime.fromtimestamp(_갈때):%m-%d %H:%M} ≥ 규칙 바뀐 때 {_dt.datetime.fromtimestamp(_규때):%m-%d %H:%M}")
     어 = 나1 + 나2
     print()
     if 어:
