@@ -8126,7 +8126,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8372,7 +8372,7 @@ def main():
             # ⭐ 2026-10-12 BRANCH — **지금 규칙 갈래 하나씩**: 혼자 · 빼면 (사용자 「기본 규칙부터 갈래/업종 등 모든 규칙 하나하나 …
             #    끝자산, 기회, 승률, 수익율, 낙폭 등등을 보여주고 … 기본 규칙에 얹어진 규칙인지, 단독 규칙인지」)
             #    갈래 판정은 _H 와 똑같이 나눈다(업종은 10/12 고친 _H 의 OR) · 운용(자리·비중·악재·종가평가)은 DDCTRL 그대로
-            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK")) or _ONLY in ("BRANCH", "BRANCHCHK"):
+            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK"):
                 def _섹B(x):
                     return bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x) and (R.섹터규칙_큰회사 or 크기통과(x))
 
@@ -8403,6 +8403,32 @@ def main():
                     r["평"] = (sum(rs) / len(rs)) if rs else None
                     return r
                 _전체 = _또([f for _, f in _갈들])
+                # ⭐ 10/13 CAUSECHK — 「업종 갈래는 넣을 때(9/22~23) 돈이 늘었는데 지금은 빼야 돈이 는다」 가
+                #    **하루 자리(9/28 하루 6)·섹터 자리(9/29 2개)** 때문인지 실제로 잰다 (사용자 10/13 「지금 추측으로 결정하게 만드는거야?」)
+                #    업종 갈래를 잠깐 켠 채(IND_FORCE_ON=1) 하루 자리 3·4·6 × 섹터 자리 0·2 마다 「전체 ÷ 업종 뺌」
+                if "CAUSECHK" in _ONLY.split("+") or _ONLY == "CAUSECHK":
+                    _기, _섹, _시, _변, _업 = (f for _, f in _갈들)
+                    _업뺌 = _또([_기, _섹, _시, _변])
+
+                    def _판K(fn, 하루, 섹자리, 시=None):
+                        o = _옵C()
+                        o["하루상한"] = (lambda 골, n=하루: n)
+                        o["무리자리"] = [(_섹C, "섹터", 섹자리)] if 섹자리 else []
+                        return 시뮬(_c(fn, **o), 시작년=시)
+                    print("  ── CAUSECHK · 업종 갈래가 돈을 늘리나 — 하루 자리 × 섹터 자리마다 (넣음 ÷ 뺌) ──")
+                    print(f"     업종 갈래 켜짐: {R.업종규칙_켬} (이 시험만 IND_FORCE_ON 으로 켠다)")
+                    print(f"     {'하루':>4}{'섹터자리':>8}  {'2016~ 넣음':>14}{'뺌':>14}{'넣음÷뺌':>8}  {'2021~ 넣음':>14}{'뺌':>14}{'넣음÷뺌':>8}")
+                    for _하 in (3, 4, 6):
+                        for _섹자 in (0, 2):
+                            _a, _b = _판K(_전체, _하, _섹자), _판K(_업뺌, _하, _섹자)
+                            _c2, _d2 = _판K(_전체, _하, _섹자, "2021"), _판K(_업뺌, _하, _섹자, "2021")
+                            if not (_a and _b and _c2 and _d2):
+                                print(f"     {_하:>4}{_섹자:>8}  (못 잼)")
+                                continue
+                            print(f"     {_하:>4}{_섹자:>8}  {_a['끝']:>14,.0f}{_b['끝']:>14,.0f}{_a['끝'] / _b['끝'] * 100:>7.0f}%"
+                                  f"  {_c2['끝']:>14,.0f}{_d2['끝']:>14,.0f}{_c2['끝'] / _d2['끝'] * 100:>7.0f}%", flush=True)
+                    print("     넣음÷뺌 > 100 이면 그 설정에선 업종 갈래가 돈을 보탠다 — 하루 3·4 · 섹터 0 에서 100↑ 이고 6·2 에서 100↓ 이면 자리 설정 탓이 맞다")
+                    print("  [대조] CAUSECHK 끝")
                 # ⭐ 10/12 BRANCHCHK — BRANCH 결과(업종 빼면 168% · 크게 빠짐 혼자가 전체보다 많음)를 **해마다·조합마다** 확인
                 if "BRANCHCHK" in _ONLY.split("+") or _ONLY == "BRANCHCHK":
                     _기, _섹, _시, _변, _업 = (f for _, f in _갈들)
