@@ -42,6 +42,13 @@ _분할 = os.environ.get("OWN_SPLIT") or "20190101"     # 앞 = 찾기 · 뒤 = 
 _자름 = int(os.environ.get("OWN_CUT") or 20)
 assert _자름 in (10, 20, 30), ("OWN_CUT 은 10·20·30 만", _자름)
 _낙한 = float(os.environ.get("MAXDD") or -12.0)       # 사용자 9/21 「12% 견딜 수 있어!」 · 9/30 「12% 그대로」
+# ⛔ 2026-10-13 지킴 — 10/2 결정 「계좌 낙폭은 체가 아니라 정보로」(사용자 「그렇다」) 뒤에도 새 규칙 찾기를 −12% 체로 두 번 걸어
+#    (10/12 밤 NEW18 세 판 · 현금흐름) 「통과 없음」 을 얻고 하룻밤을 버렸다. 규칙 찾기는 MAXDD −999 만 받는다.
+#    예외: 얼린 규칙 후보 내보내기(OWN_EXPORT — 얼릴 때 설정 그대로 재현) · 겹침 검사(OWN_CORR) · 일부러 옛 체로 견줄 때 MAXDD_OK=1
+if _낙한 > -900 and not (os.environ.get("OWN_EXPORT") or os.environ.get("OWN_CORR") or os.environ.get("MAXDD_OK")):
+    print(f"⛔ MAXDD {_낙한} — 규칙 찾기에 계좌 낙폭 체를 걸었다. 10/2 결정(낙폭은 정보로)과 어긋난다 → MAXDD=-999 로 다시 걸어라"
+          " (일부러 견줄 때만 MAXDD_OK=1) · 터졌다", flush=True)
+    sys.exit(2)
 _무리종류 = os.environ.get("OWN_KIND") or "규모"
 _무리값 = os.environ.get("OWN_VALUE") or ""
 _시드 = 5_000_000.0
