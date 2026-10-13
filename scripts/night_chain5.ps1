@@ -1,0 +1,125 @@
+﻿# ==============================================================
+#  night_chain5.ps1 — 업종 갈래 끔(사용자 10/13) → ADDCHK2 끝나면 **화면 성적표·빈도 다시** → 현금흐름 → 새 재료 18개 다시 (2026-10-13 10:40)
+#  왜: 10/12 밤 NEW18 세 판과 night_chain3 의 현금 규칙 찾기가 옛 「계좌 낙폭 −12%」 체(MAXDD −12)로 걸려 있었다
+#      10/2 결정 「계좌 낙폭은 체가 아니라 정보로」(사용자 「그렇다」) — 그래서 셋 다 「통과 없음」 · 이 줄은 MAXDD −999
+#  낮 12:30 예측 기록이 먼저 돌게 비켜 준다 · 07:20 전에 못 끝나는 판은 09:10 뒤로
+#  ⚠️ 이름에 queue_ 를 안 쓴다
+# ==============================================================
+# ==============================================================
+$ErrorActionPreference = "Continue"
+Set-Location "C:\Users\mrblue\Claude\morning breifing_code"
+$env:PYTHONIOENCODING = "utf-8"
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+$py = "C:\Users\mrblue\AppData\Local\Programs\Python\Python313\python.exe"
+$log = "run-logs\night_chain5_$(Get-Date -f yyyyMMdd_HHmmss).log"
+function 적기($s) { $줄 = "$(Get-Date -f 'MM-dd HH:mm')  $s"; Write-Output $줄; try { Add-Content -Path $log -Value $줄 -Encoding UTF8 -ErrorAction Stop } catch { } }
+function 큰파이썬 { @(Get-Process python -ErrorAction SilentlyContinue | Where-Object { $_.WorkingSet64 -gt 1GB }).Count }
+function 여유GB { [math]::Round((Get-CimInstance Win32_OperatingSystem).FreeVirtualMemory / 1MB, 1) }
+function 껍데기($무늬) { @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match $무늬 }).Count }
+$깃발 = "data\_labs\_STOP.txt"
+# 걸리는 분을 받아 「지금 시작하면 07:20 전에 못 끝나거나 아침 시간(07:20~09:10)인가」
+function 아침과겹치나($걸림분) {
+    $n = Get-Date; $m = $n.Hour * 60 + $n.Minute
+    $평일 = ([int]$n.DayOfWeek -ge 1) -and ([int]$n.DayOfWeek -le 5)
+    return ($평일 -and (($m + $걸림분) -gt 440) -and ($m -lt 550))
+}
+function 차례기다리기($이름, $문GB, $걸림분) {
+    $ㅁ = 0
+    while ((아침과겹치나 $걸림분) -or ((여유GB) -lt $문GB) -or ((큰파이썬) -gt 0)) {
+        if ($ㅁ % 60 -eq 0) { 적기 "[CHAIN5] $이름 — 여유 $(여유GB)GB · 큰 파이썬 $(큰파이썬)개 · 아침과 겹침 $(아침과겹치나 $걸림분) (약 ${걸림분}분 걸림) — 기다린다" }
+        Start-Sleep 60; $ㅁ++
+    }
+    if (Test-Path $깃발) { 적기 "🛑 멈춤 깃발: $(Get-Content $깃발 -Raw -Encoding UTF8)"; 적기 "===== night_chain 끝 ====="; exit 1 }
+}
+function 돌리기($이름, $스크립트) {
+    $최대 = 0.0
+    $p = Start-Process -FilePath $py -ArgumentList $스크립트 -PassThru -WindowStyle Hidden
+    $null = $p.Handle
+    while (-not $p.HasExited) {
+        Start-Sleep 30
+        try { $ws = (Get-Process -Id $p.Id -ErrorAction Stop).WorkingSet64 / 1GB; if ($ws -gt $최대) { $최대 = $ws } } catch { }
+        if ((여유GB) -lt 3) { 적기 "🛑 [CHAIN5] $이름 여유 $(여유GB)GB — 끈다"; try { Stop-Process -Id $p.Id -Force } catch { }; Set-Content $깃발 "night_chain 메모리 3GB 밑 $(Get-Date -f 'MM-dd HH:mm')" -Encoding UTF8; break }
+    }
+    적기 ("[CHAIN5] {0} 끝 — 코드 {1} · 최대 메모리 {2:N1}GB" -f $이름, $p.ExitCode, $최대)
+}
+function 끝났나($f, $무늬) { return ((Test-Path $f) -and (Select-String -Path $f -Pattern $무늬 -Quiet) -and -not (Select-String -Path $f -Pattern "Traceback|터졌다" -Quiet)) }
+$표준 = @{ BASE_GAP = "표본만+실전표본"; BASE_RELGAP = "-3.5"; BASE_SELL = "0.4,15,40 / 0.6,40,90"; BASE_PICKS = "120"; SIZE_HI = "999999" }
+function gate7($이름, $only, $밖, $대조, $걸림분) {
+    차례기다리기 $이름 15 $걸림분
+    적기 "[CHAIN5] $이름 시작 · 여유 $(여유GB)GB"
+    foreach ($k in $표준.Keys) { Set-Item "env:$k" $표준[$k] }
+    $env:ONLY = $only; $env:LAB_OUT = $밖
+    돌리기 $이름 "scripts\gate7_lab.py"
+    foreach ($k in @($표준.Keys) + @("ONLY", "LAB_OUT")) { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
+    if (끝났나 (Join-Path "data\_labs" $밖) $대조) { 적기 "[CHAIN5] $이름 ✅ — data\_labs\$밖" } else { 적기 "❌ [CHAIN5] $이름 끝까지 안 갔다 — data\_labs\$밖" }
+}
+
+
+# ── 낮 예측 기록(12:30 forward_daily)에 길을 비켜 준다 — 12:30 이 지났고 오늘 「예측 기록 끝」 이 없으면 기다린다
+function 예측기록차례인가 {
+    $n = Get-Date
+    if ($n.Hour * 60 + $n.Minute -lt 750) { return $false }
+    $fl = "run-logs\forward_daily_$(Get-Date -f yyyyMMdd).log"
+    $cal = Get-Content "data\_holiday_today.txt" -ErrorAction SilentlyContinue
+    if (-not (Test-Path $fl)) { return ($n.Hour -lt 20) }   # 아직 안 떴으면(휴장일이면 안 뜬다) 20시까지만 기다린다
+    return (-not (Select-String -Path $fl -Pattern "예측 기록 끝|휴장" -Quiet -Encoding UTF8))
+}
+function 차례($이름, $문GB, $걸림분) {
+    $ㅁ = 0
+    while (예측기록차례인가) { if ($ㅁ % 60 -eq 0) { 적기 "[CHAIN5] $이름 — 낮 예측 기록(12:30)이 먼저 — 기다린다" }; Start-Sleep 60; $ㅁ++ }
+    차례기다리기 $이름 $문GB $걸림분
+    while (예측기록차례인가) { Start-Sleep 60 }
+}
+function 소유($이름, $groups, $새, $뺄, $밖묶음, $걸림분, $대조파일) {
+    차례 $이름 25 $걸림분
+    적기 "[CHAIN5] $이름 시작 · 여유 $(여유GB)GB"
+    $env:OWN_GROUPS = $groups; $env:MAXDD = "-999"; $env:OWN_CUT = "20"; $env:LAB_OUT = $밖묶음
+    foreach ($k in $새) { Set-Item "env:$k" "1" }
+    if ($뺄) { $env:OWN_NEW_DROP = $뺄 }
+    돌리기 $이름 "scripts\own_lab.py"
+    foreach ($k in @("OWN_GROUPS", "MAXDD", "OWN_CUT", "LAB_OUT", "OWN_NEW_DROP") + $새) { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
+    if (끝났나 (Join-Path "data\_labs" $대조파일) "\[대조\] 무리 규모") { 적기 "[CHAIN5] $이름 ✅ — data\_labs\$대조파일" } else { 적기 "❌ [CHAIN5] $이름 끝까지 안 갔다 — data\_labs\$대조파일" }
+}
+
+적기 "[CHAIN5] ADDCHK2(10:02 시작 · night_chain4 가 띄움)가 끝나길 기다린다 — 큰 파이썬 0"
+while ((큰파이썬) -gt 0) { Start-Sleep 30 }
+$밖A2 = "2026-10-13_ADDCHK2_기준금리고침.txt"
+if (끝났나 (Join-Path "data\_labs" $밖A2) "\[대조\] ADDCHK 끝") { 적기 "[CHAIN5] ADDCHK2 ✅ — data\_labs\$밖A2" } else { 적기 "❌ [CHAIN5] ADDCHK2 끝까지 안 갔다 — data\_labs\$밖A2" }
+
+# ① 업종 갈래 끈 규칙으로 화면 성적표(CARDLIVE) · 빈도 · 규칙 맞춤 — 내일 08:02 브리핑이 쓴다 (rule_align 이 어긋남 2개를 알렸다)
+$날 = Get-Date -f "yyyy-MM-dd"
+while (예측기록차례인가) { Start-Sleep 60 }
+gate7 "화면 성적표 다시 · 업종 갈래 끔(CARDLIVE)" "CARDLIVE" "${날}_REBUILD2_CARDLIVE_업종끔.txt" "새로 썼다" 50
+적기 "[CHAIN5] 빈도(how_often)"
+& $py "scripts\how_often.py" 2>&1 | Select-Object -Last 3 | ForEach-Object { 적기 "    $_" }
+적기 "[CHAIN5] rule_align"
+& $py "scripts\rule_align.py" 2>&1 | Select-Object -Last 8 | ForEach-Object { 적기 "    $_" }
+# ①-2 ADDCHK 를 새 바탕(업종 갈래 끔)으로 — 10:02 ADDCHK2 는 끄기 전에 시작해 바탕에 업종 갈래가 들어 있다
+$날 = Get-Date -f "yyyy-MM-dd"
+while (예측기록차례인가) { Start-Sleep 60 }
+gate7 "결정 없이 멈춘 후보 · 업종 끈 바탕(ADDCHK3)" "ADDCHK" "${날}_ADDCHK3_업종끈바탕.txt" "\[대조\] ADDCHK 끝" 50
+
+# ② 현금흐름 재료 겹침 → 규칙 찾기 (⚠️ 낙폭 체 없음 MAXDD −999 · 10/2 결정)
+$날 = Get-Date -f "yyyy-MM-dd"
+$밖C = "${날}_CF251_현금재료_겹침.txt"
+차례 "현금 재료 겹침" 25 40
+적기 "[CHAIN5] 현금 재료 겹침 시작 · 여유 $(여유GB)GB"
+$env:OWN_GROUPS = "규모||300|2000|$밖C"; $env:OWN_NEWCF = "1"; $env:OWN_CORR = "1"; $env:MAXDD = "-999"; $env:OWN_CUT = "20"; $env:LAB_OUT = "${날}_CF251_묶음.txt"
+돌리기 "현금 재료 겹침" "scripts\own_lab.py"
+foreach ($k in "OWN_GROUPS", "OWN_NEWCF", "OWN_CORR", "MAXDD", "OWN_CUT", "LAB_OUT") { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
+$뺄C = @()
+foreach ($m in (Select-String -Path (Join-Path "data\_labs" $밖C) -Pattern "^\s+(\S+)\s+값 .*❌ 뺀다" -Encoding UTF8 -ErrorAction SilentlyContinue)) { $뺄C += $m.Matches[0].Groups[1].Value }
+if (끝났나 (Join-Path "data\_labs" $밖C) "뺀다|남긴다") {
+    적기 "[CHAIN5] 현금 겹침 끝 — 빼는 재료 $($뺄C.Count)개: $($뺄C -join ', ')"
+    $날 = Get-Date -f "yyyy-MM-dd"
+    소유 "현금 재료 규칙 찾기(300~2,000억 · 낙폭 체 없음)" "규모||300|2000|${날}_CF251_규모300_2000_낙폭체없음.txt" @("OWN_NEWCF") ($뺄C -join ",") "${날}_CF251_묶음2.txt" 260 "${날}_CF251_규모300_2000_낙폭체없음.txt"
+} else { 적기 "❌ [CHAIN5] 현금 재료 겹침이 끝까지 안 갔다 — 규칙 찾기 건너뜀" }
+
+# ③ 새 재료 18개 규칙 찾기 다시 — 10/12 밤 판은 옛 「계좌 낙폭 −12%」 체로 셋 다 「통과 없음」(낙폭60↓ 6,763만 vs 현금 611만 인데 −55% 로 ❌)
+$뺄N = "복권MAX20,모멘텀12_1,대금배20,VWAP거리20,일목전환기준,RSI2,ROA,영업이익자산,ROIC근사,AltmanZ,넷넷,이익수익률EV"
+foreach ($칸 in @(@("300", "2000", 260), @("2000", "10000", 120), @("10000", "", 70))) {
+    $날 = Get-Date -f "yyyy-MM-dd"
+    $밖N = "${날}_NEW18_규모$($칸[0])_$($칸[1])_낙폭체없음.txt"
+    소유 "새 재료 규칙 찾기 $($칸[0])~$($칸[1])억(낙폭 체 없음)" "규모||$($칸[0])|$($칸[1])|$밖N" @("OWN_NEWPV", "OWN_NEWFIN") $뺄N "${날}_NEW18_묶음_낙폭체없음.txt" $칸[2] $밖N
+}
+적기 "===== night_chain4 끝 ====="
