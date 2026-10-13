@@ -8126,7 +8126,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8368,6 +8368,54 @@ def main():
                               f"{_bf:>14,.0f}{_bf / _mb * 100:>8.0f}%{_평(_뒤들, '낙'):>7.1f}%{_평(_뒤들, '산'):>6.0f}", flush=True)
                 print("     「지금%」 = 같은 오차에서 문턱 −3.5 의 몇 % · 끝 자산은 남은 보유를 산 값으로 · 앞·뒤 따로 500만에서")
                 print("  [대조] GAPCHK 끝")
+                _안들C = ()
+            # ⭐ 2026-10-13 LIVECMP — **시험이 고른 종목 = 실전이 고른 종목?** (②-2 헛점)
+            #    live_vs_sim.py 첫 대조: 9/3~ 실전 「산다」 16건 중 시험과 겹침 1건 · 시험은 9/15 뒤 후보 0
+            #    날마다 단계별로 찍는다: 사건 그물에 있나 → 규칙(_H) 통과 → 표본갭·상대갭 → 실전 기록(forward-log)
+            if "LIVECMP" in _ONLY.split("+") or _ONLY == "LIVECMP":
+                _실L = {}
+                for _zL in io.open(os.path.join(O._DATA, "forward-log.jsonl"), encoding="utf-8"):
+                    _rL = json.loads(_zL)
+                    _sL = str(_rL.get("신호기준일") or "")
+                    if _sL:
+                        _실L[_sL] = _rL
+                _표L = _표본갭.get("실전표본") or {}
+                _날자L = {d: k for k, d in enumerate(날)}
+                print("  ── LIVECMP · 날마다 시험 단계 vs 실전 기록 (신호일 = 전날 종가 날) ──")
+                print(f"     실전 표본(08:55 시장 갭) 종목 수 {len(_실전표본)} · 표본갭 있는 날 {len(_표L):,} · 날 끝 {날[-1]}")
+                for _sL in sorted(_실L):
+                    if _sL < "20260901":
+                        continue
+                    _iL = _날자L.get(_sL)
+                    _rL = _실L[_sL]
+                    _산L = {x.get("종목코드") for x in (_rL.get("후보") or []) if x.get("규칙매수") and not x.get("B전용")}
+                    _후L = {x.get("종목코드"): x for x in (_rL.get("후보") or [])}
+                    if _iL is None or _iL + 1 >= len(날):
+                        print(f"\n   [{_sL}] 시험 자료에 이 날(또는 다음 날)이 없다 — 날 끝 {날[-1]} · 실전 산다 {sorted(_산L)}")
+                        continue
+                    _사L = [x for x in 사건 if x["인"] == _iL + 1]
+                    _H통L = [x for x in _사L if _H(x)]
+                    _표9L = _표L.get(_iL + 1)
+                    _중L = st.median(_표9L) if _표9L else None
+                    print(f"\n   [{_sL} → 매수 {날[_iL + 1]}] 그물 {len(_사L)} · 규칙 통과 {len(_H통L)} · 표본갭 {len(_표9L or [])}개 중앙 "
+                          f"{(f'{_중L:+.2f}%' if _중L is not None else '없음 → 이 날 시험은 안 산다')}")
+                    for x in sorted(_H통L, key=lambda z: z["갭"]):
+                        _v3 = (x["갭"] - _중L) if _중L is not None else None
+                        _실x = _후L.get(x["code"]) or {}
+                        print(f"      시험 {x['code']} 실제갭 {x['갭']:+.2f} 상대갭 {(f'{_v3:+.2f}' if _v3 is not None else '—')} "
+                              f"{'✅' if (_v3 is not None and _v3 <= R.상대갭문턱) else '·'} │ 실전 후보 {'있음' if _실x else '없음'}"
+                              f"{(' · 실전 상대갭 ' + str(_실x.get('상대갭')) + ' 산다 ' + str(bool(_실x.get('규칙매수')))) if _실x else ''}")
+                    _H코드L = {x["code"] for x in _H통L}
+                    for _cL in sorted(_산L - _H코드L):
+                        _xL = next((x for x in _사L if x["code"] == _cL), None)
+                        _실x = _후L.get(_cL) or {}
+                        if _xL is None:
+                            print(f"      실전만 {_cL} — 시험 그물에 없다 · 실전 볼린저 {_실x.get('볼린저')} 낙20 {_실x.get('20일낙폭')} 시총 {_실x.get('시총억')} "
+                                  f"잉여금 {_실x.get('잉여금비율')} 부채 {_실x.get('부채비율')}")
+                        else:
+                            print(f"      실전만 {_cL} — 그물엔 있는데 규칙(_H) 불통 · 시험 볼린저 {_xL.get('볼린저'):.2f} 낙20 {_xL.get('낙폭20'):.1f} "
+                                  f"시총 {_xL.get('시총억'):.0f} 재무통과 {_xL.get('재통과')} │ 실전 볼린저 {_실x.get('볼린저')} 낙20 {_실x.get('20일낙폭')}")
+                print("  [대조] LIVECMP 끝")
                 _안들C = ()
             # ⭐ 2026-10-12 BRANCH — **지금 규칙 갈래 하나씩**: 혼자 · 빼면 (사용자 「기본 규칙부터 갈래/업종 등 모든 규칙 하나하나 …
             #    끝자산, 기회, 승률, 수익율, 낙폭 등등을 보여주고 … 기본 규칙에 얹어진 규칙인지, 단독 규칙인지」)
