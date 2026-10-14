@@ -227,6 +227,22 @@ body{font-family:__MONO__}
 .fs+.seg{margin-left:6px}
 @media(max-width:430px){.fs button{padding:7px 9px;font-size:12px}}
 
+/* ⭐ 2026-10-14 목차 · 세로 상세 위에 소제목 단추를 붙인다 (사용자 「2번으로 해보자」).
+   누르면 그 소제목으로 가고, 읽는 동안 지금 소제목에 불이 들어온다.
+   ⚠️ 단추가 화면보다 많으면 **옆으로 밀어서** 본다 · 이름을 줄이지 않는다 */
+.jump{display:flex;gap:6px;overflow-x:auto;padding:0 16px 10px;max-width:1100px;
+  margin:0 auto;box-sizing:border-box;width:100%;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.jump::-webkit-scrollbar{display:none}
+.jump[hidden]{display:none}
+.jump button{flex:none;border:1px solid #d5cec0;background:#f2efe8;color:#4a463f;
+  border-radius:999px;padding:6px 12px;font-family:inherit;font-size:13px;font-weight:600;
+  white-space:nowrap;cursor:pointer;transition:background .15s,color .15s}
+.jump button:hover{border-color:#2050c8;color:#2050c8}
+.jump button:focus-visible{outline:2px solid #2050c8;outline-offset:1px}
+.jump button[aria-current="true"]{background:#17181a;border-color:#17181a;color:#e8e3d8}
+@media(max-width:430px){.jump{padding:0 10px 9px}.jump button{padding:6px 10px}}
+@media(prefers-reduced-motion:reduce){.jump button{transition:none}}
+
 /* 형식 전환. 누른 쪽이 눌린 티가 나야 한다. */
 .seg{display:flex;border:1px solid #d5cec0;border-radius:8px;overflow:hidden;
   flex:none}
@@ -360,8 +376,46 @@ SITE_JS = """<script>
    // ⚠️ 세로형일 때만 페이지를 세로로 잠근다. 카드형에 걸면 가로 넘기기가 죽는다.
    document.body.classList.toggle('lock-x', fmt==='scroll');
    var fsb=document.querySelector('.fs'); if(fsb) fsb.style.display=(fmt==='scroll')?'flex':'none';
+   // ⭐ 2026-10-14 — 카드 간격(채움)은 **카드가 보일 때** 다시 잰다.
+   //    처음 열 때는 세로 상세라 카드가 숨어 높이가 0 → 모든 장이 「위아래로 벌림」이 됐다.
+   //    05 기관 1/2 가 채움 46% 인데 벌어져 가운데 260px 이 비었다 (사용자 「빈공간이 많은 것 같은데?」)
+   if(fmt==='card'&&window.__cards){try{window.__cards.fit();if(window.__cards.채움)window.__cards.채움()}catch(e){}}
+   buildToc();
    try{localStorage.setItem('brief-fmt',fmt)}catch(e){}
  }
+ // 목차 (2026-10-14) · 보이는 세로 상세의 [data-toc] 머리로 단추를 만든다
+ var tocHeads=[];
+ function topH(){var t=document.querySelector('#day .top'); return t?t.offsetHeight:0}
+ function buildToc(){
+   var toc=document.querySelector('#day .jump'); if(!toc) return;
+   var w=document.querySelector('.scrollwrap[data-on="true"]');
+   tocHeads=(fmt==='scroll'&&w)?Array.prototype.slice.call(w.querySelectorAll('[data-toc]')):[];
+   toc.innerHTML='';
+   toc.hidden=!tocHeads.length;
+   tocHeads.forEach(function(h,i){
+     var b=document.createElement('button'); b.type='button';
+     b.textContent=h.getAttribute('data-toc');
+     b.addEventListener('click',function(){
+       var y=h.getBoundingClientRect().top+window.pageYOffset-topH()-8;
+       var still=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+       window.scrollTo({top:Math.max(0,y),behavior:still?'auto':'smooth'});
+     });
+     toc.appendChild(b);
+   });
+   spyToc();
+ }
+ function spyToc(){
+   if(!tocHeads.length) return;
+   var toc=document.querySelector('#day .jump'), lim=topH()+24, on=0;
+   tocHeads.forEach(function(h,i){if(h.getBoundingClientRect().top<=lim) on=i});
+   var bs=toc.querySelectorAll('button');
+   bs.forEach(function(b,i){b.setAttribute('aria-current',String(i===on))});
+   var b=bs[on]; if(!b) return;
+   var l=b.offsetLeft-toc.offsetLeft, r=l+b.offsetWidth;
+   if(l<toc.scrollLeft+8) toc.scrollLeft=Math.max(0,l-16);
+   else if(r>toc.scrollLeft+toc.clientWidth-8) toc.scrollLeft=r-toc.clientWidth+16;
+ }
+ window.addEventListener('scroll',function(){if(tocHeads.length) spyToc()},{passive:true});
  var cur=null;
  function openDay(d){
    cur=d;
@@ -1216,7 +1270,8 @@ def build(out, days=DEFAULT_DAYS):
         f'<span class="ax">세로 </span>상세</button>'
         f'<button data-f="card" type="button" aria-pressed="false">'
         f'<span class="ax">가로 </span>요약</button>'
-        f'</span></div></div>'
+        f'</span></div>'
+        f'<nav class="jump" aria-label="목차" hidden></nav></div>'
         + "".join(rails) + "".join(scrolls)
         + '<div class="nav"></div>'
         + '<button class="arw prev" type="button" aria-label="이전 카드">&#8249;</button>'

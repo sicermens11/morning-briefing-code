@@ -380,6 +380,7 @@ document.getElementById("f").onload=function(){
    var de=d.documentElement, over=[];
    d.querySelectorAll("body *").forEach(function(el){
      if(el.closest(".rail")) return;            // 레일은 가로로 넘기는 게 목적이다
+     if(el.closest(".jump")) return;            // 목차 단추 줄도 옆으로 밀어 보는 칸이다 (10/14) · 줄 자체는 아래에서 잰다
      var r=el.getBoundingClientRect();
      if(r.width>0&&r.right>w+0.5)
        over.push(el.tagName+"«"+(el.textContent||"").trim().slice(0,14)+"»");

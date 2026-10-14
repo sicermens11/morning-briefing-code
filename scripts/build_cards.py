@@ -778,17 +778,17 @@ def c06_opinion(o, cp, num, total, 쪽=1, 쪽수=1):
         #    정확히 이 경우다. 등락률이 아니라 「의견의 방향」이라 같은 색을 쓰면
         #    숫자 색과 뜻이 섞인다.
         #    시안 `report` 블록: 인용 32px #1c1813 · 코멘트 28px #6f6a60. 색 없음
-        rows += (f'<div style="padding-top:{BLOCK_PAD if i else 0}px;'
+        rows += (f'<div style="padding-top:{BLOCK_PAD if i else 0}px;margin-top:{18 if i else 0}px;'
                  f'{f"border-top:{BLOCK_RULE};" if i else ""}'
                  f'display:flex;flex-direction:column;gap:9px">'
                  f'<div style="display:flex;gap:12px;align-items:baseline">'
-                 f'<span style="font-size:33px;color:{C["faint"]}">{x.get("날짜")}</span>'
-                 f'<span style="font-size:33px;color:{C["faint"]}">{x.get("사")}</span>'
-                 f'<span style="font-size:34px;font-weight:700;color:{C["text"]}">'
+                 f'<span style="font-size:30px;color:{C["faint"]}">{x.get("날짜")}</span>'
+                 f'<span style="font-size:30px;color:{C["faint"]}">{x.get("사")}</span>'
+                 f'<span style="font-size:31px;font-weight:700;color:{C["text"]}">'
                  f'{x.get("종목")}</span></div>'
-                 f'<div style="font-size:38px;line-height:1.55;color:{C["text"]};'
+                 f'<div style="font-size:35px;line-height:1.5;color:{C["text"]};'
                  f'word-break:keep-all">"{tint_pct(x.get("말"))}"</div>'
-                 f'<div style="font-size:33px;line-height:1.5;color:{C["faint"]};'
+                 f'<div style="font-size:30px;line-height:1.45;color:{C["faint"]};'
                  f'word-break:keep-all">→ {tint_pct(x.get("뜻"))}</div></div>')
     # ⭐ 지시서 2절 — 보는 법(문단) -> 리포트 2건 -> 애널리스트 컨센서스(문단)
     # ⭐ 한 장이면 지금과 똑같다. 두 장이면 **앞장에 보는 법 + 리포트 앞 절반**,
@@ -796,11 +796,11 @@ def c06_opinion(o, cp, num, total, 쪽=1, 쪽수=1):
     _꼬리 = "" if 쪽수 == 1 else f" ({쪽}/{쪽수})"
     _머리 = head(SEC["기관"], "기관" + _꼬리, pg(num, total), "증권가는 뭐라고 했나")
     _보는법 = block("보는 법", "",
-                    f'<div style="font-size:37px;line-height:1.6;'
+                    f'<div style="font-size:34px;line-height:1.5;'
                     f'color:{C["text2"]};word-break:keep-all">'
                     f'{first_sentence(cp.get("의견해설"), CUT["의견해설"])}</div>', top=0)
     _컨센 = block("애널리스트 컨센서스", "",
-                  f'<div style="font-size:37px;line-height:1.6;'
+                  f'<div style="font-size:34px;line-height:1.5;'
                   f'color:{C["text2"]};word-break:keep-all">'
                   f'{first_sentence(cp.get("컨센서스"), CUT["컨센서스"])}</div>')
     _리표 = block("리포트" + (f" ({쪽}/{쪽수})" if 쪽수 > 1 else ""), "",
@@ -1227,7 +1227,7 @@ def cards_for(o, cp):
     # ⚠️ **표지는 세지 않는다** — "밤사이 무슨 일이 있었나"가 01이다(2026-08-28 지시).
     #    세로 상세도 같은 규칙이라 두 화면의 쪽 번호가 맞는다.
     # ⭐ 기관 카드가 넘치면 **두 장**이 된다 (2026-09-21 · 08:55 게시가 막혀서)
-    _기관쪽수 = 2 if _기관쪼갤까(cp) else 1
+    _기관쪽수 = 건수예산("기관쪽수", o.get("date"))   # ⭐ 10/14 — 한 장에 들어가면 한 장 · 넘친 날만 2
     total = 5 + len(chunks) + (_기관쪽수 - 1)
     out = [b(o, cp, max(i, 1), total) for i, b in enumerate(
         [c01_cover, c02_news, c03_regime, c04_flows, c05_calendar], 0)]
@@ -1540,7 +1540,8 @@ def build(date, out):
 #    「내용을 지우는 것보다 여백이 좁은 게 낫다」 (2026-09-11 디자인 답)
 국면본문 = [31]
 건수 = {"미장뉴스": 3, "한국뉴스": 3, "이미반영줄": 3, "미반영줄": 3,
-        "업종테마": 3, "일정": 3, "리포트": 2, "어제후보": 3}
+        "업종테마": 3, "일정": 3, "리포트": 2, "어제후보": 3,
+        "기관쪽수": 1}   # ⭐ 10/14 기관 카드는 한 장이 기본 · 넘치는 날만 두 장 (줄이는순서 첫 단계)
 
 
 def 남은줄(n):
@@ -1568,7 +1569,8 @@ def 남은줄(n):
     "02 국면": (("시장국면", 80), ("반영", 26), ("국면본문", 29)),
     "03 수급": (("수급해설", 60), ("건수:업종테마", 2)),
     "04 일정": (("캘린더해설", 80), ("건수:일정", 2), ("일정", 36)),
-    "05 기관": (("컨센서스", 90), ("건수:리포트", 1), ("의견해설", 85)),
+    # ⭐ 10/14 — 넘치면 **글을 자르기 전에 먼저 두 장으로** 나눈다 (사용자 「2페이지를 1페이지로 합치는게 낫지 않아?」)
+    "05 기관": (("건수:기관쪽수", 2), ("컨센서스", 90), ("건수:리포트", 1), ("의견해설", 85)),
     "06 액션": (("신호", 120), ("건수:어제후보", 2)),
     "07 액션": (("신호", 120), ("건수:어제후보", 2)),
 }
@@ -1691,7 +1693,8 @@ def 예산맞추기(date, out, res=None):
             #    전역으로 줄이면 26일치가 전부 줄어든다. 그래서 전에는 지난 날을
             #    아예 안 봤는데, 그 사이 「넘치면 게시 금지」가 들어와
             #    **아무도 안 고치는데 게시만 막히는** 교착이 났다 (9/01·9/15·9/28).
-            if _날 and _날 < _오늘s:
+            # ⭐ 10/14 — 기관 쪽수는 **오늘도 그날만** 바꾼다 (전역으로 바꾸면 한 장에 들어가는 지난 날까지 두 장이 된다)
+            if _날 and (_날 < _오늘s or _이름 == "건수:기관쪽수"):
                 if _이름 == "국면본문":
                     continue      # 국면본문은 아직 날짜별 길이 없다
                 빠듯한날.setdefault(_날, {})[_이름] = _값

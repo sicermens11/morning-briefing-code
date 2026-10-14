@@ -35,6 +35,7 @@ build_scroll.py — 같은 브리핑을 **세로 스크롤 한 장**으로 렌�
 `--mode gmail` 출력은 `htmlBody`에 그대로 넣을 수 있는 조각이다(`<html>`/`<head>` 없음).
 """
 import argparse
+import html as _html
 import io
 import json
 import os
@@ -111,7 +112,9 @@ def h2(num, label, title, color):
         # ⚠️ **대제목과 번호는 검정이다** (2026-08-28). 청동색 하나로 대·소제목을 다 칠했더니
         #    둘이 구분되지 않았다. 제목은 검정, 소제목은 청동(`sub`), 본문은 회갈색으로
         #    **색으로도 층을 만든다.** 띠와 바탕은 청동을 유지해 섹션 경계를 표시한다.
-        f'<div style="background:{C["head"]}14;border-radius:{RADIUS}px;padding:13px 16px">'
+        # ⭐ 2026-10-14 `data-toc` — 웹 목차(build_site 의 .toc)가 이 머리를 찾아 바로 가기 단추를 만든다
+        f'<div data-toc="{_html.escape(re.sub(r"<[^>]+>", "", str(label)), quote=True)}" '
+        f'style="background:{C["head"]}14;border-radius:{RADIUS}px;padding:13px 16px">'
         f'<span style="font-family:{MONO};font-size:17px;letter-spacing:.14em;'
         f'color:{C["text"]};font-weight:700">{num}</span>'
         f'<span style="font-size:23px;font-weight:800;color:{C["text"]};'
@@ -434,8 +437,10 @@ def s01_cover(o, cp, num, total):
     #    넓은 화면은 온전한 이름, 430px 아래는 짧은 이름. 둘 다 한 줄이다.
     # ⚠️ 좁은 화면에서 두 글자로 줄여 봤다가 되돌렸다(2026-08-28) — "한눈에·근거·수급"은
     #    무슨 말인지 알 수 없다. **이름은 온전히 쓰고, 안 들어가면 접힌다.**
-    toc = "   ".join(
-        f'<b style="color:{C["head"]}">{i:02d}</b> {t}' for i, t in enumerate(
+    # ⭐ 2026-10-14 — 항목 하나는 **한 덩이**로 접힌다 (「01 시장」/「한눈에」 처럼 이름 가운데서 끊기지 않게)
+    toc = " ".join(
+        f'<span style="white-space:nowrap;margin-right:12px">'
+        f'<b style="color:{C["head"]}">{i:02d}</b> {t}</span>' for i, t in enumerate(
             ["시장 한눈에", "근거 데이터", "국장 수급", "D-7 이벤트",
              "기관 의견", "액션플랜"], 1))
     return (
