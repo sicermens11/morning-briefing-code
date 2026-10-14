@@ -8126,7 +8126,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8420,7 +8420,7 @@ def main():
             # ⭐ 2026-10-12 BRANCH — **지금 규칙 갈래 하나씩**: 혼자 · 빼면 (사용자 「기본 규칙부터 갈래/업종 등 모든 규칙 하나하나 …
             #    끝자산, 기회, 승률, 수익율, 낙폭 등등을 보여주고 … 기본 규칙에 얹어진 규칙인지, 단독 규칙인지」)
             #    갈래 판정은 _H 와 똑같이 나눈다(업종은 10/12 고친 _H 의 OR) · 운용(자리·비중·악재·종가평가)은 DDCTRL 그대로
-            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG"):
+            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS"):
                 def _섹B(x):
                     return bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x) and (R.섹터규칙_큰회사 or 크기통과(x))
 
@@ -8503,6 +8503,68 @@ def main():
                     globals()["_비용"] = _옛비용
                     print("     읽기: 어느 설정·비용에서도 순위가 같으면 줄이는 안이 자리·비용 탓이 아니다 · 해마다는 BRANCH2(BRANCHCHK) 표")
                     print("  [대조] CAUSECHK 끝")
+                # ⭐ 10/14 SECBIAS (②-0) — 섹터 종목 목록(value-chain-map · 2026년에 만들고 고침)이 과거 성적을 부풀렸나
+                #    같은 섹터 조건(볼린저·낙폭 창과 문턱)을 **목록 밖 · 같은 표준산업분류** 회사에 걸어 신호 하나하나 성적을 견준다
+                #    차이가 크면 그 몫이 「지금 잘 알려진 회사만 골라 담은」 부풀림 · 크기는 맞추지 않았다(재무·대금 문은 같게)
+                if "SECBIAS" in _ONLY.split("+") or _ONLY == "SECBIAS":
+                    import statistics as _stB
+                    _표B = _표본갭.get("실전표본") or {}
+
+                    def _수B(x):
+                        _r = 0.0
+                        for 몫 in R.몫들:
+                            _rr, _ = 결과(x, 몫[1], 몫[2], 몫[3] if len(몫) > 3 else None, None, "악재")
+                            if _rr is None:
+                                return None
+                            _r += 몫[0] * _rr
+                        return _r
+
+                    def _통B(rs):
+                        rs = [z for z in rs if z is not None]
+                        if not rs:
+                            return None
+                        return (len(rs), sum(1 for z in rs if z > 0) / len(rs) * 100, _stB.mean(rs), _stB.median(rs), min(rs))
+                    _회원 = {}
+                    for c, s in _사슬섹터.items():
+                        _회원.setdefault(s, set()).add(c)
+                    print("  ── SECBIAS · 섹터 조건을 목록 안 회사 vs 목록 밖 같은 산업 회사에 (상대갭 통과 · 40/60 매도 · 비용 포함) ──")
+                    print(f"     {'섹터':<16}{'창':<8}{'목록 안: 신호':>12}{'승%':>6}{'평균':>8}{'중앙':>8}  │{'목록 밖: 신호':>12}{'승%':>6}{'평균':>8}{'중앙':>8}  │{'안−밖 평균':>10}")
+                    _합안, _합밖 = {}, {}
+                    for _섹이름, (bw, bt, nw, nt) in R.섹터규칙.items():
+                        _안코드 = _회원.get(_섹이름, set())
+                        _산업들 = {_산업.get(c) for c in _안코드 if _산업.get(c)}
+                        for _창라, _시, _끝 in (("2016~", "2016", "9999"), ("~2020", "2016", "2020"), ("2021~", "2021", "9999")):
+                            안, 밖 = [], []
+                            for x in 사건:
+                                _h = str(x.get("해") or "0")
+                                if not (_시 <= _h <= _끝):
+                                    continue
+                                c = x["code"]
+                                _in = c in _안코드
+                                if not _in and _산업.get(c) not in _산업들:
+                                    continue
+                                if not (재무통과(x) and 대금통과(x)):
+                                    continue
+                                b, n = x.get(f"볼{bw}"), x.get(f"낙{nw}")
+                                if b is None or n is None or b > bt or n > nt:
+                                    continue
+                                _t = _표B.get(x["인"])
+                                if not _t or (x["갭"] - _stB.median(_t)) > R.상대갭문턱:
+                                    continue
+                                (안 if _in else 밖).append(_수B(x))
+                            a, b2 = _통B(안), _통B(밖)
+                            _합안.setdefault(_창라, []).extend(안)
+                            _합밖.setdefault(_창라, []).extend(밖)
+                            if a and b2:
+                                print(f"     {_섹이름[:15]:<16}{_창라:<8}{a[0]:>12,}{a[1]:>6.0f}{a[2]:>+8.2f}{a[3]:>+8.2f}  │{b2[0]:>12,}{b2[1]:>6.0f}{b2[2]:>+8.2f}{b2[3]:>+8.2f}  │{a[2] - b2[2]:>+10.2f}", flush=True)
+                            else:
+                                print(f"     {_섹이름[:15]:<16}{_창라:<8}" + (f"{a[0]:>12,}" if a else f"{'0':>12}") + f"  │  목록 밖 {b2[0] if b2 else 0}건")
+                    for _창라 in ("2016~", "~2020", "2021~"):
+                        a, b2 = _통B(_합안.get(_창라, [])), _통B(_합밖.get(_창라, []))
+                        if a and b2:
+                            print(f"     {'섹터 여섯 합':<16}{_창라:<8}{a[0]:>12,}{a[1]:>6.0f}{a[2]:>+8.2f}{a[3]:>+8.2f}  │{b2[0]:>12,}{b2[1]:>6.0f}{b2[2]:>+8.2f}{b2[3]:>+8.2f}  │{a[2] - b2[2]:>+10.2f}")
+                    print("     읽기: 「안−밖」 이 크면 섹터 목록(지금 기준)이 성적을 부풀린 몫 · 0 근처면 조건 자체가 통하는 것")
+                    print("  [대조] SECBIAS 끝")
                 # ⭐ 10/14 ALLSIG — **돈 제한 없이 규칙이 낸 신호를 전부 채점** (사용자 10/14 「반영을 안하더라도 돈 제한 없이, 규칙이 낸 신호를 전부 채점해는 건 필요할 것 같은데!」)
                 #    웹 후보 합격선(사용자 10/14 「1년 10번 이상 … 괜찮아. 더 많으면 좋긴하지만」): ① 아무 날보다 잘 범 ② 이익 절반이어도 ① ③ 1년 10번↑
                 #    + 「몇 번째 후보까지 좋은가」(화면 자리 수 · 사용자 「돈 제한이 없다면 자리수도 다시 생각」) · 「보완 규칙이 지금 규칙보다 강할 수도」(사용자) → 규칙마다 강도
