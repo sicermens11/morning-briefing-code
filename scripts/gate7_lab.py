@@ -8594,8 +8594,16 @@ def main():
                     # ⭐ 10/14 밤 SECWIDE 이어서 — 넓힌 섹터 신호를 **지금 규칙이 후보를 못 낸 날에만** 쓰면?
                     #    (1차: 넓힘을 늘 켜면 한 통장 54~77% · 신호 하나하나는 91% +23% — 「OR 은 빈 날을 채울 때만 돈이 는다」 를 확인)
                     #    사용자 10/14 「오류로 멈췄거나 추가 테스트 필요하면 허락없이 그냥 진행해」
-                    if os.environ.get("SECWIDE_EMPTY") == "1":
-                        _지금날W = {x["인"] for x in 사건 if _지금W(x)}
+                    if os.environ.get("SECWIDE_EMPTY") in ("1", "2"):
+                        if os.environ.get("SECWIDE_EMPTY") == "2":
+                            # ⭐ 10/14 밤 고침 — 「후보가 걸린 날」(2,115일 · 거의 매일)이 아니라 **문턱(상대갭)까지 넘어 실제로 사는 날**만 「찬 날」
+                            #    (ALLSIG: 지금 규칙이 실제로 산 날은 10.8년 134일)
+                            def _산다W(x):
+                                _t = _표W.get(x["인"])
+                                return bool(_지금W(x)) and bool(_t) and x.get("갭") is not None and (x["갭"] - _stW.median(_t)) <= R.상대갭문턱
+                            _지금날W = {x["인"] for x in 사건 if _산다W(x)}
+                        else:
+                            _지금날W = {x["인"] for x in 사건 if _지금W(x)}
                         _빈넓W = lambda x: bool(_지금W(x)) or (x["인"] not in _지금날W and _섹넓(x))   # noqa: E731
                         print(f"  ── SECWIDE 빈 날만 · 지금 규칙이 후보 낸 날 {len(_지금날W):,} · 그 밖의 날에만 넓힌 섹터 ──")
                         for _라창, _시창, _끝창 in (("2016~", None, None), ("~2020", None, "2020"), ("2021~", "2021", None), ("2024~", "2024", None)):
