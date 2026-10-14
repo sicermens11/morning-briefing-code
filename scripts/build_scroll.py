@@ -72,6 +72,7 @@ MAIL_MONO = "'SFMono-Regular',Consolas,'D2Coding',monospace"
 
 # 섹션 코드가 읽는 현재 설정. `build()`가 모드에 따라 갈아 끼운다.
 SANS, MONO, W = MAIL_SANS, MAIL_MONO, 600
+WEB = False   # ⭐ 10/14 웹 화면에서만 다르게 그리는 곳(구분 장치 줄이기) · 메일은 그대로
 
 # 웹은 글자를 키운다. 메일은 좁은 칸에 들어가야 해서 15px가 상한인데, 웹에서 그대로 쓰면
 # 작다. **크기를 두 벌로 적지 않고** 마지막에 한 번 곱한다 — 두 벌로 적으면 한쪽만 고친다.
@@ -114,11 +115,19 @@ def h2(num, label, title, color):
         #    **색으로도 층을 만든다.** 띠와 바탕은 청동을 유지해 섹션 경계를 표시한다.
         # ⭐ 2026-10-14 `data-toc` — 웹 목차(build_site 의 .toc)가 이 머리를 찾아 바로 가기 단추를 만든다
         f'<div data-toc="{_html.escape(re.sub(r"<[^>]+>", "", str(label)), quote=True)}" '
-        f'style="background:{C["head"]}14;border-radius:{RADIUS}px;padding:13px 16px">'
-        f'<span style="font-family:{MONO};font-size:17px;letter-spacing:.14em;'
-        f'color:{C["text"]};font-weight:700">{num}</span>'
-        f'<span style="font-size:23px;font-weight:800;color:{C["text"]};'
-        f'margin-left:12px;letter-spacing:{LS_KO}">{label}</span></div>'
+        # ⭐ 10/14 웹 — 굵은 줄 아래 **색 상자를 걷는다** (구분 장치가 줄·상자·금색 소제목·막대 상자로 다섯 겹이었다)
+        #    번호는 금색 작은 글자, 이름은 크게 · 줄 하나와 글자 크기로만 섹션을 가른다
+        + (f'style="padding:14px 0 0">'
+           f'<span style="font-family:{MONO};font-size:15px;letter-spacing:.12em;'
+           f'color:{C["head"]};font-weight:700">{num}</span>'
+           f'<span style="font-size:26px;font-weight:800;color:{C["text"]};'
+           f'margin-left:10px;letter-spacing:-.02em">{label}</span></div>'
+           if WEB else
+           f'style="background:{C["head"]}14;border-radius:{RADIUS}px;padding:13px 16px">'
+           f'<span style="font-family:{MONO};font-size:17px;letter-spacing:.14em;'
+           f'color:{C["text"]};font-weight:700">{num}</span>'
+           f'<span style="font-size:23px;font-weight:800;color:{C["text"]};'
+           f'margin-left:12px;letter-spacing:{LS_KO}">{label}</span></div>')
         + (f'<h2 style="font-family:{SANS};font-size:24px;font-weight:800;line-height:1.3;'
            f'letter-spacing:-.02em;color:{C["text"]};margin:18px 0 0">{title}</h2>'
            if title else ""))
@@ -273,6 +282,17 @@ def tinted(label, sub, items, tone, mark="·", lead=""):
         f'color:{C["text2"]};padding:3px 0;word-break:keep-all">{tint_pct(x)}</td></tr>'
         for x in items)
     # 왼쪽 색 막대 + 아주 옅은 바탕 — 카드뉴스의 `block()`과 같은 방식이다.
+    # ⭐ 10/14 웹 — 막대·바탕을 걷고 **위 가는 줄 + 소제목**으로만 묶는다 (강조 상자는 callout 하나만 남긴다)
+    if WEB:
+        return (f'<div style="margin:30px 0 0;border-top:1px solid {C["line"]};padding-top:16px">'
+                + (f'<div style="font-family:{SANS};font-size:19px;font-weight:800;'
+                   f'letter-spacing:{LS_KO};color:{C["sub"]}">{label}</div>' if label else "")
+                + (f'<div style="font-family:{SANS};font-size:14px;color:{C["muted"]};'
+                   f'margin-top:4px">{sub}</div>' if sub else "")
+                + lead
+                + f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+                  f'border="0" style="margin:8px 0 0;table-layout:fixed;width:100%">{rows}</table>'
+                + '</div>')
     return (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
             f'border="0" style="margin:26px 0 0"><tr>'
             f'<td width="3" style="background:{fg};font-size:0;line-height:0">&nbsp;</td>'
@@ -413,6 +433,13 @@ def grade_legend():
 
 
 def callout(label, body, color):
+    # ⭐ 10/14 웹 — 강조는 이것 하나만: 옅은 바탕 + 둥근 모서리 · 왼쪽 막대는 뺀다
+    if WEB:
+        return (f'<div style="margin:24px 0 0;background:{color}12;border-radius:{RADIUS}px;padding:16px 18px">'
+                f'<div style="font-family:{SANS};font-size:15px;letter-spacing:{LS_KO};'
+                f'color:{color};font-weight:800;margin-bottom:8px">{label}</div>'
+                f'<div style="font-family:{SANS};font-size:15px;line-height:1.7;'
+                f'color:{C["text2"]};word-break:keep-all">{tint_pct(body)}</div></div>')
     return (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
             f'border="0" style="margin:20px 0 0"><tr>'
             f'<td width="3" style="background:{color};font-size:0;line-height:0">&nbsp;</td>'
@@ -1130,11 +1157,11 @@ window.addEventListener('scroll',function(){
 
 def _use(mode):
     """섹션 코드가 읽는 글꼴·폭을 모드에 맞게 갈아 끼운다."""
-    global SANS, MONO, W
+    global SANS, MONO, W, WEB
     if mode == "gmail":
-        SANS, MONO, W = MAIL_SANS, MAIL_MONO, 600
+        SANS, MONO, W, WEB = MAIL_SANS, MAIL_MONO, 600, False
     else:
-        SANS, MONO, W = WEB_SANS, WEB_MONO, 720
+        SANS, MONO, W, WEB = WEB_SANS, WEB_MONO, 720, True
 
 
 def render(o, cp, mode="web"):

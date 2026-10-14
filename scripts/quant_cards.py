@@ -1334,17 +1334,128 @@ _폰CSS = (
     "</style>")
 
 
-def quant_view(q, 보유=None):
-    """`build_site.quant_view` 가 여기로 넘긴다. `q` 는 forward-log 마지막 줄, `보유` 는 `_보유()`."""
+# ⭐⭐ 2026-10-14 퀀트 「지난 날」 (사용자 10/14 「지난 브리핑 보기가 … 퀀트 후보의 과거는 못 보잖아」 · 「그대로 반영하자」)
+#    ‹ 날짜 › 로 지난 날로 가면 그날 산 것과 **그 뒤 결과**를 한 장 표로 보여 준다. 오늘은 카드 그대로.
+#    값: forward-log 그날 줄(주문가 · 매수가=그날 실제 시가 · 체결) + krx-daily 최근 종가
+#    ⚠️ 「지금까지」 는 **최근 종가 ÷ 매수가** 다 — 40%/60% 나눠 팔기 전 값이다 (표 아래에 그대로 적는다)
+#    ⚠️ 체결 표시가 없는 줄(채점 전)은 「채점 전」 으로 둔다 · 지어내지 않는다
+_지난CSS = (
+    "<style>"
+    ".qpast{max-width:760px;margin:12px auto 28px;padding:20px 18px;background:#f2efe8;border-radius:16px;box-sizing:border-box;width:calc(100% - 24px)}"
+    ".qpast .k{font-size:12.5px;font-weight:700;color:#8a7038;letter-spacing:.04em}"
+    ".qpast h3{font-size:24px;margin:4px 0 0;letter-spacing:-.03em;color:#1c1813}"
+    ".qpast .sum{font-size:14px;color:#4b4740;margin-top:6px;line-height:1.6}"
+    ".qpast table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px;font-feature-settings:'tnum'}"
+    ".qpast th{font-weight:500;font-size:11.5px;color:#7c766b;text-align:left;padding:6px 4px;border-bottom:1.5px solid #1c1813;white-space:nowrap}"
+    ".qpast td{padding:9px 4px;border-bottom:1px solid #d5cec0;vertical-align:top;color:#1c1813}"
+    ".qpast td.r,.qpast th.r{text-align:right}"
+    ".qpast td small{display:block;font-size:11px;color:#7c766b}"
+    ".qpast .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:5px;padding:1px 6px;white-space:nowrap}"
+    ".qpast .y{background:#1c1813;color:#fff}.qpast .n{background:#e8e3d8;color:#6b665c}.qpast .w{background:#fff;color:#8a7038;border:1px solid #d5cec0}"
+    ".qpast .foot{font-size:12px;color:#7c766b;margin-top:12px;line-height:1.6}"
+    "#qt.past .qrail,#qt.past .qmob,#qt.past .qhint,#qt.past [role=alert]{display:none!important}"
+    "</style>")
+
+
+def _최근종가():
+    r"""krx-daily 마지막 파일의 {종목코드: 종가} 와 그 날짜"""
+    import glob as _g
+    _K = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "krx-daily")
+    _fs = sorted(_g.glob(os.path.join(_K, "*.json")))
+    if not _fs:
+        return {}, ""
+    try:
+        j = json.load(io.open(_fs[-1], encoding="utf-8-sig"))
+    except Exception:  # noqa: BLE001
+        return {}, ""
+    return ({c: v.get("종가") for c, v in (j.get("종목") or {}).items()}, str(j.get("기준일") or ""))
+
+
+def _지난한날(d, r, 종가, 기준):
+    r"""지난 하루치 표 HTML. d='YYYY-MM-DD', r=forward-log 그날 줄"""
+    import datetime as _dt
+    _d = _dt.date.fromisoformat(d)
+    _요 = "월화수목금토일"[_d.weekday()]
+    _시 = str(((r.get("동시호가") or {}).get("잰시각")) or "")[11:16]
+    후보 = r.get("후보") or []
+    산 = [x for x in 후보 if x.get("오늘산다")]
+    _기 = f"{int(기준[4:6])}/{int(기준[6:8])}" if len(기준) == 8 else "최근"
+    if not 산:
+        본 = (f'<h3>그날 살 것: 없음</h3>'
+              f'<div class="sum">후보 {len(후보)}개 중 문턱가까지 내려온 종목이 없어 주문을 내지 않았습니다.</div>')
+    else:
+        줄, 체, 수 = [], 0, []
+        for x in 산:
+            _주 = x.get("주문가") or x.get("문턱가")
+            _매 = x.get("매수가")
+            _체 = x.get("체결")
+            if _체 is True:
+                체 += 1
+                _태 = '<span class="tag y">체결</span>'
+            elif _체 is False:
+                _태 = '<span class="tag n">못 삼</span>'
+            else:
+                _태 = '<span class="tag w">채점 전</span>'
+            _지 = "·"
+            _c = 종가.get(str(x.get("종목코드") or ""))
+            if _체 is True and _매 and _c:
+                _p = (float(_c) / float(_매) - 1) * 100
+                수.append(_p)
+                _색 = "#C8352B" if _p > 0 else ("#2050C8" if _p < 0 else "#4b4740")
+                _지 = f'<b style="color:{_색}">{"+" if _p > 0 else ("−" if _p < 0 else "")}{abs(_p):.1f}%</b>'
+            줄.append(f'<tr><td>{_esc(x.get("이름", ""))}<small>{_esc(x.get("종목코드", ""))}</small></td>'
+                      f'<td class="r">{f"{int(_주):,}" if _주 else "·"}</td>'
+                      f'<td class="r">{f"{int(_매):,}" if _매 else "·"}</td>'
+                      f'<td>{_태}</td><td class="r">{_지}</td></tr>')
+        _평 = (f" · 체결된 것 평균 {'+' if sum(수) / len(수) > 0 else '−'}{abs(sum(수) / len(수)):.1f}%" if 수 else "")
+        본 = (f'<h3>그날 살 것: {len(산)}개</h3>'
+              f'<div class="sum">지정가 {len(산)}개 중 체결 {체}개{_평} ({_기} 종가 기준)</div>'
+              f'<table><tr><th>종목</th><th class="r">주문가</th><th class="r">그날 시가</th><th>체결</th><th class="r">지금까지</th></tr>'
+              + "".join(줄) + '</table>')
+    return (f'<div class="qpast" data-d="{d}" hidden>'
+            f'<div class="k">QUANT · {_d.month}/{_d.day}({_요}){f" {_시} 확정" if _시 else ""}</div>'
+            + 본
+            + '<div class="foot">「못 삼」 = 9시 시가가 주문가보다 높아 체결되지 않은 것 · 「지금까지」 = 최근 종가 ÷ 그날 시가 (나눠 팔기 전 값) · '
+              '10/13 전에는 지정가가 아니라 예상가로 사던 때라 체결 표시가 없을 수 있습니다 · 매수 추천이 아닙니다</div>'
+            f'</div>')
+
+
+def _지난들(줄들, 오늘):
+    r"""forward-log 전체 → (날짜 목록, 지난 날 HTML). 같은 날 줄이 여럿이면 마지막 것"""
+    날별 = {}
+    for r in 줄들 or []:
+        d = str(r.get("기록시각") or "")[:10]
+        if len(d) == 10:
+            날별[d] = r
+    날들 = sorted(날별)[-35:]
+    if not 날들:
+        return [], ""
+    종가, 기준 = _최근종가()
+    html = "".join(_지난한날(d, 날별[d], 종가, 기준) for d in 날들 if d != 오늘)
+    return 날들, html
+
+
+def quant_view(q, 보유=None, 줄들=None):
+    """`build_site.quant_view` 가 여기로 넘긴다. `q` 는 forward-log 마지막 줄, `보유` 는 `_보유()`, `줄들` 은 forward-log 전체."""
     보유 = 보유 or []
     # ⭐ 2026-09-29 — _장1 이 **여러 장**을 돌려준다. 쪽 번호를 전체에 맞춰 다시 매긴다
     _덱 = _쪽번호매기기(_장1(q, 보유) + _장2() + _장3() + [_장4()])
-    return (f'<section class="view" id="qt" hidden>'
-            + _폰CSS
+    _오늘 = str(q.get("기록시각") or "")[:10]
+    _날들, _지난html = _지난들(줄들, _오늘)
+    _날값 = ",".join(_날들)
+    return (f'<section class="view" id="qt" hidden data-today="{_오늘}" data-days="{_날값}">'
+            + _폰CSS + _지난CSS
             + f'<div class="top"><div class="in">'
             f'<button class="tbtn" data-home type="button">← 처음</button>'
-            f'<span class="now">퀀트 후보</span></div></div>'
+            # ⭐ 10/14 ‹ 날짜 › — 브리핑과 같은 자리 · 오늘이면 카드, 지난 날이면 표
+            + (f'<span class="dnav">'
+               f'<button class="tbtn qprev dprev" type="button" aria-label="전날">‹</button>'
+               f'<span class="tbtn dnow"><span class="now qnow">퀀트 후보</span></span>'
+               f'<button class="tbtn qnext dnext" type="button" aria-label="다음 날">›</button>'
+               f'</span>' if len(_날들) > 1 else f'<span class="now">퀀트 후보</span>')
+            + '</div></div>'
             + _묵은종가(q)
+            + _지난html
             + f'<div class="rail qrail" data-active="true">'
             + _덱
             + '</div>'

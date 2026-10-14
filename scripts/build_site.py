@@ -146,25 +146,29 @@ body{font-family:__MONO__}
   padding:15px;border-radius:16px;border:0;cursor:pointer;text-align:left;
   font-family:inherit;letter-spacing:-.01em;word-break:keep-all;transition:.15s}
 #home .big:hover{filter:brightness(1.06)}
-#home .big .n{font-size:11px;font-weight:800;letter-spacing:.06em;flex:none}
+/* ⭐ 10/14 다듬기 — 번호(01~04)는 순서가 아니라 장식이라 숨긴다 · 작은 글을 한 단계 키운다 (10.5px 가 화면에서 가장 작았다) */
+#home .big .n{display:none}
 #home .big .lab{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
-#home .big .t1{font-size:15.5px;font-weight:800;line-height:1.25;letter-spacing:-.03em}
-#home .big .sub{font-size:11.5px;line-height:1.4;font-style:normal;font-weight:400}
-#home .big .up{font-size:10.5px;font-weight:600;white-space:nowrap;flex:none;
+#home .big .t1{font-size:16.5px;font-weight:800;line-height:1.25;letter-spacing:-.03em}
+#home .big .sub{font-size:12.5px;line-height:1.4;font-style:normal;font-weight:400}
+#home .big .up{font-size:12px;font-weight:600;white-space:nowrap;flex:none;
   font-style:normal}
-/* 칸 색 — 명세 4절. 글자색도 칸마다 다르다 */
-#home .big.c1{background:#0B3BF0}
-#home .big.c1 .t1{color:#FFFFFF}
-#home .big.c1 .n,#home .big.c1 .sub,#home .big.c1 .up{color:#F2F2F0}
-#home .big.c2{background:#0FD0A8}
-#home .big.c2 .t1{color:#04302A}
-#home .big.c2 .n,#home .big.c2 .sub,#home .big.c2 .up{color:#0A4A41}
+/* ⭐ 10/14 칸 색 — 종이색 바탕과 한 가족으로 (사용자 「너 권고대로」 · 비교 페이지 확인 뒤 게시)
+   전: 형광 파랑·민트·황동·회색 = 바탕과 따로 놀고, 메뉴 파랑이 「하락」 파랑과 겹쳤다
+   후: 많이 쓰는 순서로 무게를 준다 · 먹(오늘) → 올리브(퀀트) → 황동(포트폴리오) → 테두리만(지난 것) */
+#home .big.c1{background:#2B2620}
+#home .big.c1 .t1{color:#F6F1E7}
+#home .big.c1 .n,#home .big.c1 .sub,#home .big.c1 .up{color:#D9D1C1}
+#home .big.c2{background:#55613A}
+#home .big.c2 .t1{color:#F6F3E8}
+#home .big.c2 .n,#home .big.c2 .sub,#home .big.c2 .up{color:#E1E4D2}
 #home .big.c3{background:#B8893B}
 #home .big.c3 .t1{color:#2A1F0E}
-#home .big.c3 .n,#home .big.c3 .sub,#home .big.c3 .up{color:#241A06}
-#home .big.c4{background:#333333}
-#home .big.c4 .t1{color:#FFFFFF}
-#home .big.c4 .n,#home .big.c4 .sub,#home .big.c4 .up{color:#F2F2F0}
+#home .big.c3 .n,#home .big.c3 .sub,#home .big.c3 .up{color:#2E220C}
+#home .big.c4{background:transparent;box-shadow:inset 0 0 0 1.5px #CFC6B5}
+#home .big.c4 .t1{color:#2B2620}
+#home .big.c4 .n,#home .big.c4 .sub,#home .big.c4 .up{color:#5F574B}
+#home .big:focus-visible{outline:2px solid #2B2620;outline-offset:2px}
 
 /* ── 5절 주의 문구 — 두 줄 · 가운데 ── */
 #home .note{flex:none;display:flex;flex-direction:column;gap:3px;
@@ -241,7 +245,23 @@ body{font-family:__MONO__}
 .jump button:focus-visible{outline:2px solid #2050c8;outline-offset:1px}
 .jump button[aria-current="true"]{background:#17181a;border-color:#17181a;color:#e8e3d8}
 @media(max-width:430px){.jump{padding:0 10px 9px}.jump button{padding:6px 10px}}
+/* ⭐ 10/14 읽는 동안 위 막대 접기 · 아래로 읽으면 단추 줄(처음·달력·글씨·상세/요약)을 위로 밀어 올리고
+   목차 줄만 남긴다 · 위로 올리면 다시 나온다. 높이를 바꾸지 않고 밀어 올리기만 해서 읽던 자리가 튀지 않는다 */
+#day .top{transition:transform .22s ease}
+#day .top.tuck{transform:translateY(calc(-1 * var(--tuck,0px)))}
+@media(prefers-reduced-motion:reduce){#day .top{transition:none}}
 @media(prefers-reduced-motion:reduce){.jump button{transition:none}}
+
+/* ⭐ 10/14 ‹ 날짜 › — 브리핑·퀀트 위 막대 · 가운데 날짜를 누르면 달력 */
+.dnav{display:flex;align-items:stretch;flex:none}
+.dnav .tbtn{border-radius:0;padding:7px 10px}
+.dnav .dprev{border-radius:8px 0 0 8px}
+.dnav .dnext{border-radius:0 8px 8px 0}
+.dnav .dnow{border-left:0;border-right:0;background:#fff;font-weight:700;font-feature-settings:'tnum'}
+.dnav .dnow .now{margin:0;font-size:13.5px}
+.dnav .tbtn[disabled]{opacity:.35}
+@media(max-width:380px){#day .dnav .wd{display:none}}
+@media(max-width:430px){.dnav .tbtn{padding:7px 6px}.dnav .dnow .now{font-size:12.5px}#day .top .in{gap:5px}#day .tback{padding:7px 10px}#day .seg button{padding:7px 6px}#day .fs button{padding:7px 7px}}
 
 /* 형식 전환. 누른 쪽이 눌린 티가 나야 한다. */
 .seg{display:flex;border:1px solid #d5cec0;border-radius:8px;overflow:hidden;
@@ -385,7 +405,19 @@ SITE_JS = """<script>
  }
  // 목차 (2026-10-14) · 보이는 세로 상세의 [data-toc] 머리로 단추를 만든다
  var tocHeads=[];
- function topH(){var t=document.querySelector('#day .top'); return t?t.offsetHeight:0}
+ function topH(){var t=document.querySelector('#day .top'); return t?Math.max(0,t.getBoundingClientRect().bottom):0}
+ // 읽는 동안 위 막대 접기 (10/14) · 세로 상세에서만 · 목차가 있을 때만
+ var lastY=0;
+ function tuck(){
+   var t=document.querySelector('#day .top'); if(!t) return;
+   var on=(fmt==='scroll'&&tocHeads.length&&!document.getElementById('day').hidden);
+   var y=window.pageYOffset||0;
+   if(!on||y<120){t.classList.remove('tuck'); lastY=y; return;}
+   var row=t.querySelector('.in'); if(row) t.style.setProperty('--tuck',row.offsetHeight+'px');
+   if(y>lastY+6){t.classList.add('tuck'); lastY=y;}
+   else if(y<lastY-6){t.classList.remove('tuck'); lastY=y;}
+ }
+ window.addEventListener('scroll',tuck,{passive:true});
  function buildToc(){
    var toc=document.querySelector('#day .jump'); if(!toc) return;
    var w=document.querySelector('.scrollwrap[data-on="true"]');
@@ -419,7 +451,13 @@ SITE_JS = """<script>
  var cur=null;
  function openDay(d){
    cur=d;
-   $('.now').textContent=d.replace(/-/g,'.')+' ('+WD[new Date(d+'T00:00:00').getDay()]+')';
+   var _nw=document.querySelector('#day .now')||$('.now');
+   _nw.innerHTML=d.slice(5).replace('-','.')+'<span class="wd">('+WD[new Date(d+'T00:00:00').getDay()]+')</span>';
+   // 10/14 ‹ 날짜 › — 실린 날 사이를 하루씩
+   var _ds=Array.prototype.map.call(document.querySelectorAll('.scrollwrap'),function(s){return s.dataset.d}).sort();
+   var _i=_ds.indexOf(d), _p=document.querySelector('#day .dprev'), _n=document.querySelector('#day .dnext');
+   if(_p){_p.disabled=(_i<=0); _p.dataset.go=_i>0?_ds[_i-1]:'';}
+   if(_n){_n.disabled=(_i<0||_i>=_ds.length-1); _n.dataset.go=(_i>=0&&_i<_ds.length-1)?_ds[_i+1]:'';}
    document.querySelectorAll('.scrollwrap').forEach(function(s){s.dataset.on=String(s.dataset.d===d)});
    document.querySelectorAll('.scrollwrap').forEach(function(s){
      s.style.display=(s.dataset.d===d)?'':'none'});
@@ -433,9 +471,28 @@ SITE_JS = """<script>
  window.__site={openDay:openDay,show:show};
 
  $('#btn-today').addEventListener('click',function(){openDay(this.dataset.d)});
- $('#btn-past').addEventListener('click',function(){show('cal')});
+ document.querySelectorAll('#day .dprev,#day .dnext').forEach(function(b){
+   b.addEventListener('click',function(){ if(this.dataset.go){ openDay(this.dataset.go); window.scrollTo(0,0);} })});
+ var _bp=$('#btn-past'); if(_bp) _bp.addEventListener('click',function(){show('cal')});   // 10/14 첫 화면에서 뺐다 · 지난 날은 ‹ 날짜 › 로
  var _pf=$('#btn-pf'); if(_pf) _pf.addEventListener('click',function(){show('pf')});
- var _qt=$('#btn-qt'); if(_qt) _qt.addEventListener('click',function(){show('qt')});
+ var _qt=$('#btn-qt'); if(_qt) _qt.addEventListener('click',function(){qDay('');show('qt')});
+ // 10/14 퀀트 ‹ 날짜 › — 오늘이면 카드, 지난 날이면 그날 표(.qpast)
+ function qDay(d){
+   var s=$('#qt'); if(!s) return;
+   var days=(s.dataset.days||'').split(',').filter(Boolean), today=s.dataset.today||'';
+   if(!d) d=today;
+   var i=days.indexOf(d), past=(d!==today);
+   s.classList.toggle('past',past);
+   s.querySelectorAll('.qpast').forEach(function(p){p.hidden=(p.dataset.d!==d)});
+   var nw=s.querySelector('.qnow');
+   if(nw) nw.textContent=d?(d.slice(5).replace('-','.')+'('+WD[new Date(d+'T00:00:00').getDay()]+')'):'퀀트 후보';
+   var p=s.querySelector('.qprev'), n=s.querySelector('.qnext');
+   if(p){p.disabled=(i<=0); p.dataset.go=i>0?days[i-1]:'';}
+   if(n){n.disabled=(i<0||i>=days.length-1); n.dataset.go=(i>=0&&i<days.length-1)?days[i+1]:'';}
+   if(!past&&window.__cards&&window.__cards.fit){try{window.__cards.fit()}catch(e){}}
+ }
+ document.querySelectorAll('#qt .qprev,#qt .qnext').forEach(function(b){
+   b.addEventListener('click',function(){ if(this.dataset.go){ qDay(this.dataset.go); window.scrollTo(0,0);} })});
  document.querySelectorAll('[data-home]').forEach(function(b){
    b.addEventListener('click',function(){show('home')})});
  document.querySelectorAll('[data-back]').forEach(function(b){
@@ -779,7 +836,7 @@ def quant_view(q):
                 _줄들.append(json.loads(_x))
     except Exception:  # noqa: BLE001
         _줄들 = []
-    return quant_cards.quant_view(q, 보유=_보유(_줄들))
+    return quant_cards.quant_view(q, 보유=_보유(_줄들), 줄들=_줄들)   # 10/14 줄들 = 지난 날 표
 
 
 def _month_grid(year, month, have, have_all, oldest_kept, today):
@@ -1070,6 +1127,140 @@ def _밤사이지수():
     return '<div class="idxw">' + "".join(_칸) + '</div>'
 
 
+# ══ 2026-10-14 첫 화면 「시장 날씨」 (사용자 10/14 「1번이 제일 괜찮다」 · 「그대로 반영하자」) ══
+#    큰 숫자 = 지난 거래일 코스피 · 화면 위쪽 색이 그 등락을 따라간다(빠지면 파랑 · 오르면 빨강 · 잔잔하면 회색)
+#    아래 한 줄 = 브리핑 로그의 시장 구간(market_regime) · 작은 칸 셋 = 나스닥100 · 필라델피아 반도체 · 지금 나스닥 선물
+#    ⚠️ 값은 **수집한 숫자만** 쓴다. 브리핑 본문 글에서 숫자를 끌어오지 않는다
+#       (시안 때 본문의 「필라델피아 −2.67%」 를 옮겼는데 실제 10/13 종가는 −0.23% 였다)
+#    ⚠️ 못 읽은 칸은 **그리지 않는다** — 빈 자리가 틀린 숫자보다 낫다 (_밤사이지수 와 같은 원칙)
+def _날씨색(c):
+    r"""코스피 등락률 → 위쪽 바탕 두 색 (위·아래). 한국식: 오르면 빨강 · 빠지면 파랑"""
+    if c is None:
+        return ("#3C4250", "#5A6272")
+    if c <= -3:
+        return ("#0F2A55", "#1E4A8C")
+    if c <= -1:
+        return ("#24467A", "#3A66A8")
+    if c < 1:
+        return ("#3C4250", "#5A6272")
+    if c < 3:
+        return ("#7A2A26", "#A8443A")
+    return ("#5E1612", "#8E2A22")
+
+
+def _부호(c, 자리=2):
+    return ("+" if c > 0 else ("−" if c < 0 else "")) + f"{abs(c):.{자리}f}%"
+
+
+def _시장날씨(o):
+    r"""첫 화면 위쪽 덩어리 HTML 과 바탕 두 색을 돌려준다. 코스피를 못 읽으면 (None, 회색)"""
+    import glob as _g
+    _k = _코스피()
+    _날 = None
+    try:
+        _f = sorted(_g.glob(os.path.join(_DATA, "index-daily", "*.json")))
+        _날 = datetime.strptime(os.path.basename(_f[-1])[:8], "%Y%m%d") if _f else None
+    except Exception:  # noqa: BLE001
+        _날 = None
+    try:
+        _c = float(_k["등락률"]) if _k and _k.get("등락률") is not None else None
+        _v = float(_k["종가"]) if _k and _k.get("종가") is not None else None
+    except (TypeError, ValueError):
+        _c = _v = None
+    if _c is None or _v is None:
+        return None, _날씨색(None)
+    _라 = (f"코스피 · {_날.month}/{_날.day}({WEEKDAY[_날.weekday()]}) 마감" if _날 else "지난 거래일 코스피")
+    # 시장 구간 — 브리핑 로그가 정한 이름 그대로 (예: 「깊은 눌림(-5%↓)」 → 「깊은 눌림」)
+    _구 = ""
+    _mr = (o or {}).get("market_regime") or {}
+    _band = str(_mr.get("band") or "").split("(")[0].strip()
+    _pct = _mr.get("kospi_vs_sma20_pct")
+    if _band:
+        _말 = ""
+        try:
+            _p = float(_pct)
+            _말 = f"20일 평균선보다 {abs(_p):.2f}% {'아래' if _p < 0 else '위'}"
+        except (TypeError, ValueError):
+            pass
+        _구 = (f'<div class="say"><span class="pill">{_esc(_band)}</span>{_esc(_말)}</div>')
+    # 작은 칸 셋
+    _칸 = []
+    try:
+        _us = sorted(_g.glob(os.path.join(_DATA, "snapshots", "*", "fetch_us.json")))
+        _j = json.load(io.open(_us[-1], encoding="utf-8-sig")) if _us else {}
+    except Exception:  # noqa: BLE001
+        _j = {}
+    _지 = _j.get("지수") or {}
+    _선 = _j.get("선물원자재") or {}
+    # ⭐ 10/14 필라델피아 반도체 → **코스닥** (사용자 「퀀트 후보에는 거의 반도체 종목이 안 나올텐데 … 아이러니」)
+    #    퀀트가 사는 시총 300억~2,000억 소형주 분위기에 가장 가까운 숫자 · index-daily 에 이미 있다
+    _닥 = None
+    try:
+        _ff = sorted(_g.glob(os.path.join(_DATA, "index-daily", "*.json")))
+        _닥 = (json.load(io.open(_ff[-1], encoding="utf-8-sig")).get("지수") or {}).get("코스닥") if _ff else None
+    except Exception:  # noqa: BLE001
+        _닥 = None
+    # ⭐ 10/14 저녁 — 사용자 「코스닥 빼고, 원래대로 있던 필라델피아 반도체 지수로 하고 웹게시하자」 → 필라델피아 반도체로 되돌림
+    #    (fetch_us 에 ^SOX 를 10/14 에 더했다 · 그 전 날 스냅숏엔 없어서 그날은 칸 둘만 나온다)
+    for _이름, _때, _src, _지금 in (("나스닥100", "어젯밤", _지.get("나스닥100"), False),
+                                 ("필라델피아 반도체", "어젯밤", _지.get("필라델피아반도체"), False),
+                                 ("나스닥 선물", "지금", _선.get("나스닥100 선물"), True)):
+        try:
+            _r = float((_src or {}).get("등락률"))
+        except (TypeError, ValueError):
+            continue
+        _칸.append(f'<div class="{"now" if _지금 else ""}"><span>{_이름} · {_때}</span>'
+                   f'<b>{_부호(_r)}</b></div>')
+    _칸글 = (f'<div class="row3" style="grid-template-columns:repeat({len(_칸)},1fr)">' + "".join(_칸) + "</div>") if _칸 else ""
+    html = (f'<div class="lab">{_esc(_라)}</div>'
+            f'<div class="big"><span>'
+            + (f'<span class="sg">{"+" if _c > 0 else chr(0x2212)}</span>' if _c else "")
+            + f'{abs(_c):.2f}%</span><small>{_v:,.2f}</small></div>'
+            + _구 + _칸글)
+    return html, _날씨색(_c)
+
+
+WX_CSS = """<style>
+/* ── 2026-10-14 첫 화면 「시장 날씨」 · 옛 확정안 규칙을 이 블록이 덮는다 ── */
+#home.wx2{padding:0;gap:0;background:#EEF2F7;color:#1A2333;min-height:100dvh;max-width:430px}
+#home.wx2 .sky{padding:26px 20px 22px;color:#F3F6FB;background:linear-gradient(180deg,var(--c1),var(--c2))}
+#home.wx2 .brand{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+#home.wx2 .brand b{font-family:'Yeon Sung','Pretendard Variable',system-ui,sans-serif;font-weight:400;
+  font-size:24px;color:#fff;white-space:nowrap}
+#home.wx2 .brand span{font-size:12.5px;color:rgba(243,246,251,.75);white-space:nowrap;font-feature-settings:'tnum'}
+#home.wx2 .lab{margin-top:24px;font-size:13.5px;color:rgba(243,246,251,.78)}
+#home.wx2 .big{font-weight:800;font-size:60px;letter-spacing:-.045em;line-height:1;margin-top:6px;display:flex;flex-wrap:wrap;align-items:baseline;column-gap:8px;row-gap:4px;
+  font-feature-settings:'tnum';white-space:nowrap}
+#home.wx2 .big small{font-size:20px;font-weight:600;letter-spacing:-.01em;color:rgba(243,246,251,.85)}
+@media(max-width:360px){#home.wx2 .big{font-size:50px}}
+#home.wx2 .big .sg{margin-left:-.16em;margin-right:.02em}
+#home.wx2 .say{font-size:15px;font-weight:500;margin-top:12px;line-height:1.5}
+#home.wx2 .say .pill{display:inline-block;background:rgba(255,255,255,.16);border-radius:999px;
+  padding:1px 10px;margin-right:7px;font-size:13.5px;font-weight:700}
+#home.wx2 .row3{display:grid;gap:8px;margin-top:18px}
+#home.wx2 .row3 div{background:rgba(255,255,255,.11);border-radius:12px;padding:8px 10px;min-width:0}
+#home.wx2 .row3 div.now{background:rgba(255,255,255,.2)}
+#home.wx2 .row3 span{display:block;font-size:11px;line-height:1.3;color:rgba(243,246,251,.78)}
+#home.wx2 .row3 b{display:block;font-size:17px;margin-top:3px;font-feature-settings:'tnum'}
+#home.wx2 .menu{padding:18px 14px 8px;display:flex;flex-direction:column;gap:10px}
+#home.wx2 .m{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;
+  background:#fff;border:0;border-radius:14px;padding:15px 16px;text-align:left;cursor:pointer;
+  font-family:inherit;color:#1A2333;box-shadow:0 1px 0 rgba(15,42,85,.08);transition:transform .12s}
+#home.wx2 .m:active{transform:scale(.99)}
+#home.wx2 .m:focus-visible{outline:2px solid #1A2333;outline-offset:2px}
+#home.wx2 .m b{display:block;font-size:16.5px;letter-spacing:-.03em}
+#home.wx2 .m span{display:block;font-size:12.5px;color:#5B6678;margin-top:2px}
+#home.wx2 .m em{font-style:normal;font-size:12px;font-weight:700;color:#2E5FB8;text-align:right;
+  white-space:nowrap;line-height:1.4;font-feature-settings:'tnum'}
+#home.wx2 .m.hot{background:#1A2333;color:#fff}
+#home.wx2 .m.hot span{color:#AEB8C8}#home.wx2 .m.hot em{color:#9FC0FF}
+#home.wx2 .legal{padding:8px 18px 22px;font-size:12px;color:#5B6678;line-height:1.6}
+#home.wx2 .legal .pconly{display:none}
+@media(min-width:560px){#home.wx2{min-height:auto;margin-top:24px;border-radius:22px;overflow:hidden}}
+@media(prefers-reduced-motion:reduce){#home.wx2 .m{transition:none}}
+</style>"""
+
+
 def build(out, days=DEFAULT_DAYS):
     # ⭐⭐ **카드 예산을 먼저 맞춘다** (2026-09-11).
     #    사이트는  을 읽는 게 아니라  로
@@ -1184,50 +1375,43 @@ def build(out, days=DEFAULT_DAYS):
     #    명세: design-share/reference/HOME-FINAL.md · 어긋나면 정본이 이긴다
     #    블록 순서: 머리 → 지수 → 메뉴 네 칸 → 주의 문구
     #    ⚠️ 393px 에서 **세로 스크롤 0** 이어야 한다 — 높이를 먹는 건 지수 블록뿐이다
-    _머리시각 = dt.strftime("%m.%d") + " " + (_브리핑시각 or dt.strftime("%H:%M"))
+    # ⭐ 10/14 머리 시각 — 날짜와 요일까지 (사용자 「갱신 시간 뿐만 아니라, 갱신 날짜도 나와야해」)
+    _머리시각 = f"{dt.month}/{dt.day}({WEEKDAY[dt.weekday()]}) " + (_브리핑시각 or dt.strftime("%H:%M"))
 
-    # ⭐ 메뉴 네 칸 — 명세 4절 표 순서. 자료가 없으면 그 칸을 빼고 번호를 다시 맨다
+    # ⭐ 10/14 메뉴 셋 — 「지난 브리핑」 칸은 뺐다. 지난 날은 **각 화면 위 날짜(‹ 날짜 ›)** 로 간다
+    #    (사용자 10/14 「지난 브리핑 보기가 오늘 브리핑만 볼 수 있고, 퀀트 후보의 과거는 못 보잖아」)
+    def _두줄(s):
+        s = (s or "").replace(" 갱신", "").strip()
+        return s.replace(") ", ")<br>", 1) if ") " in s else s
     _메뉴 = []
-    _메뉴.append(("btn-today", f'data-d="{latest}"', "오늘 브리핑 보기",
-                  "뉴스·공시·수급으로 읽는 시장", _브리핑갱신 or ""))
+    _메뉴.append(("btn-today", f'data-d="{latest}"', "오늘 브리핑",
+                  "뉴스·공시·수급으로 읽는 시장", _두줄(_브리핑갱신), True))
     if _quant():
-        _메뉴.append(("btn-qt", "", "퀀트 후보",
-                      "재무제표와 주가만 보는 기계 규칙", _퀀트갱신 or ""))
+        # 오늘 지정가 주문 수 (08:55 확정 뒤에만 · 확정 전이나 0개면 이름만)
+        _qq = _quant() or {}
+        _n주 = sum(1 for _x in (_qq.get("후보") or []) if _x.get("오늘산다"))
+        _q확 = (_qq.get("동시호가") or {}).get("예상시장갭") is not None
+        _메뉴.append(("btn-qt", "", "퀀트 후보" + (f" · 지정가 {_n주}" if (_q확 and _n주) else ""),
+                      "재무제표와 주가만 보는 기계 규칙", _두줄(_퀀트갱신), False))
     if _portfolio():
         _메뉴.append(("btn-pf", "", "깜댕의 포트폴리오",
-                      "섹터별 비중으로 쏠림을 봅니다", _포트폴리오갱신 or ""))
-    _메뉴.append(("btn-past", "", "지난 브리핑 보기",
-                  "달력에서 날짜를 골라 봅니다",
-                  f"{_요일표시(latest)}까지"))
-    _칸들 = ""
-    for _i, (_id, _attr, _t, _sub, _up) in enumerate(_메뉴, 1):
-        _칸들 += (f'<button class="big c{_i}" id="{_id}" type="button"{" " + _attr if _attr else ""}>'
-                  f'<span class="n">{_i:02d}</span>'
-                  f'<span class="lab">'
-                  f'<span class="t1">{_t}</span>'
-                  f'<i class="sub">{_sub}</i></span>'
-                  f'<i class="up">{_up}</i></button>')
+                      "섹터별 비중으로 쏠림을 봅니다", _두줄(_포트폴리오갱신), False))
+    _칸들 = "".join(
+        f'<button class="m{" hot" if _hot else ""}" id="{_id}" type="button"{" " + _attr if _attr else ""}>'
+        f'<span><b>{_t}</b><span>{_sub}</span></span><em>{_up}</em></button>'
+        for _id, _attr, _t, _sub, _up, _hot in _메뉴)
+    _하늘, (_c1, _c2) = _시장날씨(kept[-1])
 
     home = (
-        f'<section class="view" id="home">'
-        # ── 2절 머리 — 한 줄 ──
-        f'<div class="hd">'
-        f'<span class="bn">{BRAND}</span>'
-        f'<span class="st">{_머리시각}</span>'
-        f'</div>'
-        # ── 3절 지수 — 세 줄 표 (남는 높이를 여기서 흡수한다) ──
-        + _밤사이지수()
-        # ── 4절 메뉴 — 네 칸 세로 ──
-        + f'<div class="btns">{_칸들}</div>'
-        # ── 5절 주의 문구 — 두 줄 · 가운데 ──
-        f'<div class="note">'
-        f'<span>매수 추천이 아닙니다.</span>'
-        f'<span>판단과 책임은 본인에게 있습니다.</span>'
-        # ⚠️ 수록 기간·생성 시각은 **폰에서 안 보인다**(확정안에 없다).
-        #    그래도 없애지는 않는다 — 카톡 인앱처럼 캐시가 센 데서 옛 화면인지
-        #    가려내는 유일한 단서다 (2026-08-27)
-        f'<span class="pconly">수록 {len(kept)}일 '
-        f'({oldest_kept} ~ {latest}) · 화면 생성 {built}</span>'
+        f'<section class="view wx2" id="home" style="--c1:{_c1};--c2:{_c2}">'
+        f'<div class="sky">'
+        f'<div class="brand"><b>{BRAND}</b><span>{_머리시각}</span></div>'
+        + (_하늘 or "")
+        + '</div>'
+        + f'<div class="menu">{_칸들}</div>'
+        f'<div class="legal">매수 추천이 아닙니다. 판단과 책임은 본인에게 있습니다.'
+        # ⚠️ 수록 기간·생성 시각은 폰에서 안 보인다. 그래도 없애지 않는다 — 캐시가 센 데서 옛 화면인지 가려내는 단서 (2026-08-27)
+        f'<span class="pconly"> · 수록 {len(kept)}일 ({oldest_kept} ~ {latest}) · 화면 생성 {built}</span>'
         f'</div>'
         f'</section>')
 
@@ -1255,9 +1439,14 @@ def build(out, days=DEFAULT_DAYS):
     day = (
         f'<section class="view" id="day" hidden>'
         f'<div class="top"><div class="in">'
-        f'<button class="tbtn" data-home type="button">← 처음</button>'
-        f'<button class="tbtn" data-back type="button">달력</button>'
-        f'<span class="now"></span>'
+        # 10/14 좁은 폰에서 위 막대를 한 줄로 두려고 「← 처음」 → 「←」 (글은 aria-label 로)
+        f'<button class="tbtn tback" data-home type="button" aria-label="처음으로">←</button>'
+        # ⭐ 10/14 「달력」 단추와 날짜 글자를 ‹ 날짜 › 하나로 (줄을 늘리지 않는다 · 날짜를 누르면 달력)
+        f'<span class="dnav">'
+        f'<button class="tbtn dprev" type="button" aria-label="전날">‹</button>'
+        f'<button class="tbtn dnow" data-back type="button" aria-label="달력 열기"><span class="now"></span></button>'
+        f'<button class="tbtn dnext" type="button" aria-label="다음 날">›</button>'
+        f'</span>'
         # ⚠️ 글씨 크기 조절 — **세로 상세에서만** 쓴다. 가로 카드는 배율로 그려서
         #    글자만 키우면 카드 밖으로 넘친다(2026-08-28 요청).
         f'<span class="fs"><button data-fs="-" type="button" aria-label="글씨 작게">'
@@ -1289,7 +1478,7 @@ def build(out, days=DEFAULT_DAYS):
             # ⚠️ **판 번호.** 아래 자기 점검이 이 값을 새로 받아온 것과 비교한다.
             f'<meta name="build" content="{stamp}">'
             + FONTS + "\n" + css + "</style>"
-            + SITE_CSS.replace("__MONO__", SANS)
+            + SITE_CSS.replace("__MONO__", SANS) + WX_CSS
             + home + cal + day + js + SITE_JS)
 # ⚠️⚠️ **화면 글의 `—`(em dash)를 `·` 로 바꾼다** (2026-09-11 지시).
     #    서술 파일(`card-copy`)에서 들어오는 문장에 섞여 있어 **소스만 고쳐서는

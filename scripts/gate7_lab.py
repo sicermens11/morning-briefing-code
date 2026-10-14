@@ -8518,7 +8518,7 @@ def main():
                         if not (재무통과(x) and 대금통과(x)):
                             return False
                         _s들 = _산섹.get(_산업.get(x["code"])) or set()
-                        if x["code"] in _사슬섹터:
+                        if x["code"] in _사슬섹터 and _사슬섹터[x["code"]] in R.섹터규칙:   # 10/14 규칙 없는 섹터(의료기기 등)는 빼야 한다 · KeyError 로 두 번 멈췄다
                             _s들 = _s들 | {_사슬섹터[x["code"]]}
                         for s in _s들:
                             bw, bt, nw, nt = R.섹터규칙[s]
