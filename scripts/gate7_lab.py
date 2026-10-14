@@ -8126,7 +8126,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8420,7 +8420,7 @@ def main():
             # ⭐ 2026-10-12 BRANCH — **지금 규칙 갈래 하나씩**: 혼자 · 빼면 (사용자 「기본 규칙부터 갈래/업종 등 모든 규칙 하나하나 …
             #    끝자산, 기회, 승률, 수익율, 낙폭 등등을 보여주고 … 기본 규칙에 얹어진 규칙인지, 단독 규칙인지」)
             #    갈래 판정은 _H 와 똑같이 나눈다(업종은 10/12 고친 _H 의 OR) · 운용(자리·비중·악재·종가평가)은 DDCTRL 그대로
-            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK"):
+            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG"):
                 def _섹B(x):
                     return bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x) and (R.섹터규칙_큰회사 or 크기통과(x))
 
@@ -8503,6 +8503,130 @@ def main():
                     globals()["_비용"] = _옛비용
                     print("     읽기: 어느 설정·비용에서도 순위가 같으면 줄이는 안이 자리·비용 탓이 아니다 · 해마다는 BRANCH2(BRANCHCHK) 표")
                     print("  [대조] CAUSECHK 끝")
+                # ⭐ 10/14 ALLSIG — **돈 제한 없이 규칙이 낸 신호를 전부 채점** (사용자 10/14 「반영을 안하더라도 돈 제한 없이, 규칙이 낸 신호를 전부 채점해는 건 필요할 것 같은데!」)
+                #    웹 후보 합격선(사용자 10/14 「1년 10번 이상 … 괜찮아. 더 많으면 좋긴하지만」): ① 아무 날보다 잘 범 ② 이익 절반이어도 ① ③ 1년 10번↑
+                #    + 「몇 번째 후보까지 좋은가」(화면 자리 수 · 사용자 「돈 제한이 없다면 자리수도 다시 생각」) · 「보완 규칙이 지금 규칙보다 강할 수도」(사용자) → 규칙마다 강도
+                #    업종 갈래는 IND_FORCE_ON=1 로 이 판에서만 켠다(실전은 꺼짐 · 사용자 10/13 결정)
+                if "ALLSIG" in _ONLY.split("+") or _ONLY == "ALLSIG":
+                    import statistics as _stS
+                    _기, _섹, _시, _변, _업 = (f for _, f in _갈들)
+                    _표S = _표본갭.get("실전표본") or {}
+                    _앞S = [x for x in 사건 if str(x.get("해") or "9999") <= "2020" and 재무통과(x) and 대금통과(x)]
+                    _회값S = sorted(z for z in (x.get("회전율") for x in _앞S) if z is not None)
+                    _회위S = _회값S[len(_회값S) * 4 // 5] if _회값S else 9e9
+                    _선값S = sorted(z for z in (_선물19(x) for x in _앞S if (x.get("회전율") or -1) >= _회위S) if z is not None)
+                    _선문S = _선값S[len(_선값S) // 5] if _선값S else -9e9
+
+                    def _대형S(x):
+                        return (x.get("시총억") or 0) >= 10000 and 재무통과(x) and 대금통과(x) and x.get("낙40") is not None and x["낙40"] <= -30
+
+                    def _중형S(x):
+                        return (2000 <= (x.get("시총억") or 0) < 10000 and 재무통과(x) and 대금통과(x)
+                                and x.get("시장낙폭") is not None and x["시장낙폭"] <= -15)
+
+                    def _회선S(x):
+                        _f = _선물19(x)
+                        return (재무통과(x) and 대금통과(x) and (x.get("회전율") or -1) >= _회위S and _f is not None and _f <= _선문S)
+                    # (이름, 신호, 아무 날 무리, 상대갭 문턱)
+                    _규S = [("크게 빠짐", _기, 문통과, R.상대갭문턱), ("섹터 6업종", _섹, lambda x: bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x), R.상대갭문턱),
+                           ("시장 급락", _시, 문통과, R.상대갭문턱), ("변동성·자사주", _변, 문통과, R.상대갭문턱),
+                           ("업종 3개(꺼둠)", _업, lambda x: bool(업종갈래맞나(x)), R.업종전용상대갭 if R.업종전용상대갭 is not None else R.상대갭문턱),
+                           ("대형 1조↑(남김)", _대형S, lambda x: (x.get("시총억") or 0) >= 10000 and 재무통과(x) and 대금통과(x), -1.0),
+                           ("중형(탈락)", _중형S, lambda x: 2000 <= (x.get("시총억") or 0) < 10000 and 재무통과(x) and 대금통과(x), -1.0),
+                           ("회전율·선물20(탈락)", _회선S, lambda x: 재무통과(x) and 대금통과(x), R.상대갭문턱)]
+
+                    def _상S(x):
+                        _t = _표S.get(x["인"])
+                        return (x["갭"] - _stS.median(_t)) if _t else None
+
+                    def _수S(x):
+                        _r = 0.0
+                        for 몫 in R.몫들:
+                            _rr, _ = 결과(x, 몫[1], 몫[2], 몫[3] if len(몫) > 3 else None, None, "악재")
+                            if _rr is None:
+                                return None
+                            _r += 몫[0] * _rr
+                        return _r
+
+                    def _통S(rs, 해수):
+                        rs = [z for z in rs if z is not None]
+                        if not rs:
+                            return None
+                        _반 = [(z / 2 if z > 0 else z) for z in rs]
+                        return {"n": len(rs), "1년": len(rs) / 해수, "승": sum(1 for z in rs if z > 0) / len(rs) * 100,
+                                "평": _stS.mean(rs), "중": _stS.median(rs), "최악": min(rs), "−12↓": sum(1 for z in rs if z <= -12) / len(rs) * 100,
+                                "반평": _stS.mean(_반)}
+                    _rndS = __import__("random").Random(14)
+                    for _창라, _시, _끝, _해수 in (("2016~", "2016", "9999", 10.8), ("~2020", "2016", "2020", 5.0), ("2021~", "2021", "9999", 5.8)):
+                        print(f"\n  ── ALLSIG [{_창라}] 돈 제한 없이 신호 전부 (상대갭 통과 · 40% +15/D+40 · 60% +40/D+90 · 비용 포함 · 악재 매도) ──")
+                        print(f"     {'규칙':<20}{'신호':>7}{'1년':>7}{'승%':>6}{'평균':>8}{'중앙':>8}{'최악':>8}{'−12↓%':>7}{'이익반':>8}  │{'아무날 평균':>10}{'아무날 승%':>10}{'아무날 이익반':>12}  합격")
+                        for _이S, _신S, _무S, _문S in _규S:
+                            _안 = [x for x in 사건 if _시 <= str(x.get("해") or "0") <= _끝]
+                            _sig = []
+                            for x in _안:
+                                try:
+                                    if not _신S(x):
+                                        continue
+                                except Exception:  # noqa: BLE001
+                                    continue
+                                _v = _상S(x)
+                                if _v is not None and _v <= _문S:
+                                    _sig.append(_수S(x))
+                            _바탕 = [x for x in _안 if _무S(x)]
+                            if len(_바탕) > 40000:
+                                _바탕 = _rndS.sample(_바탕, 40000)
+                            a, b = _통S(_sig, _해수), _통S([_수S(x) for x in _바탕], _해수)
+                            if not a or not b:
+                                print(f"     {_이S:<20} (신호 없음)")
+                                continue
+                            _합 = (a["평"] > b["평"]) and (a["반평"] > b["평"]) and (a["1년"] >= 10)
+                            print(f"     {_이S:<20}{a['n']:>7,}{a['1년']:>7.1f}{a['승']:>6.0f}{a['평']:>+8.2f}{a['중']:>+8.2f}{a['최악']:>+8.1f}{a['−12↓']:>7.1f}{a['반평']:>+8.2f}"
+                                  f"  │{b['평']:>+10.2f}{b['승']:>10.0f}{b['반평']:>+12.2f}  {'✅' if _합 else '❌'}", flush=True)
+                    # 몇 번째 후보까지 좋은가 — 지금 규칙(갈래 넷 · 업종 뺌) 하루 후보를 상대갭 깊은 순으로
+                    print("\n  ── ALLSIG · 하루 후보를 신호 강한 순(상대갭 깊은 순)으로 세웠을 때 — 몇 번째까지 좋은가 (지금 규칙 · 2016~) ──")
+                    _지금S = _또([_기, _섹, _시, _변])
+                    _날별 = {}
+                    for x in 사건:
+                        if str(x.get("해") or "0") < "2016":
+                            continue
+                        try:
+                            if not _지금S(x):
+                                continue
+                        except Exception:  # noqa: BLE001
+                            continue
+                        _v = _상S(x)
+                        if _v is not None and _v <= R.상대갭문턱:
+                            _날별.setdefault(x["인"], []).append((_v, x))
+                    _순 = {}
+                    for _인, _들 in _날별.items():
+                        for k, (_v, x) in enumerate(sorted(_들, key=lambda z: z[0]), 1):
+                            _순.setdefault(min(k, 13), []).append(_수S(x))
+                    print(f"     {'몇 번째':<8}{'건수':>7}{'승%':>6}{'평균':>8}{'이익반':>8}")
+                    for k in sorted(_순):
+                        a = _통S(_순[k], 10.8)
+                        if a:
+                            print(f"     {(str(k) if k < 13 else '13↓'):<8}{a['n']:>7,}{a['승']:>6.0f}{a['평']:>+8.2f}{a['반평']:>+8.2f}")
+                    print(f"     하루에 후보가 있던 날 {len(_날별):,}일 · 하루 평균 {sum(len(v) for v in _날별.values()) / max(1, len(_날별)):.1f}개")
+                    # 빈 날 보완 — 지금 규칙 후보가 0 인 날, 보완 규칙 신호의 성적
+                    print("\n  ── ALLSIG · 지금 규칙 후보가 없는 날에만 낸 보완 규칙 신호 (2016~) ──")
+                    _있는날 = set(_날별)
+                    for _이S, _신S, _무S, _문S in _규S[4:]:
+                        _sig = []
+                        for x in 사건:
+                            if str(x.get("해") or "0") < "2016" or x["인"] in _있는날:
+                                continue
+                            try:
+                                if not _신S(x):
+                                    continue
+                            except Exception:  # noqa: BLE001
+                                continue
+                            _v = _상S(x)
+                            if _v is not None and _v <= _문S:
+                                _sig.append(_수S(x))
+                        a = _통S(_sig, 10.8)
+                        print(f"     {_이S:<20}" + (f"신호 {a['n']:,} · 1년 {a['1년']:.1f} · 승 {a['승']:.0f}% · 평균 {a['평']:+.2f}% · 이익반 {a['반평']:+.2f}% · 최악 {a['최악']:+.1f}%" if a else "신호 없음"), flush=True)
+                    print("     ⚠️ 사건 그물은 낙폭 조건으로 모은다 — 안 빠지고 사는 변동성·자사주는 일부만 잡힌다(LIVECMP · ② 에서 고침)")
+                    print("  [대조] ALLSIG 끝")
                 # ⭐ 10/12 BRANCHCHK — BRANCH 결과(업종 빼면 168% · 크게 빠짐 혼자가 전체보다 많음)를 **해마다·조합마다** 확인
                 if "BRANCHCHK" in _ONLY.split("+") or _ONLY == "BRANCHCHK":
                     _기, _섹, _시, _변, _업 = (f for _, f in _갈들)
