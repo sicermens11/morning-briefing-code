@@ -8126,7 +8126,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8420,7 +8420,7 @@ def main():
             # ⭐ 2026-10-12 BRANCH — **지금 규칙 갈래 하나씩**: 혼자 · 빼면 (사용자 「기본 규칙부터 갈래/업종 등 모든 규칙 하나하나 …
             #    끝자산, 기회, 승률, 수익율, 낙폭 등등을 보여주고 … 기본 규칙에 얹어진 규칙인지, 단독 규칙인지」)
             #    갈래 판정은 _H 와 똑같이 나눈다(업종은 10/12 고친 _H 의 OR) · 운용(자리·비중·악재·종가평가)은 DDCTRL 그대로
-            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS"):
+            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND"):
                 def _섹B(x):
                     return bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x) and (R.섹터규칙_큰회사 or 크기통과(x))
 
@@ -8503,6 +8503,37 @@ def main():
                     globals()["_비용"] = _옛비용
                     print("     읽기: 어느 설정·비용에서도 순위가 같으면 줄이는 안이 자리·비용 탓이 아니다 · 해마다는 BRANCH2(BRANCHCHK) 표")
                     print("  [대조] CAUSECHK 끝")
+                # ⭐ 10/14 MINCAND (②-2 헛점) — 시뮬은 하루 후보가 3개 미만이면 그날을 **건너뛴다**(최소후보 3) · 실전(record_pick)엔 그런 규칙이 없다
+                #    ① 최소후보 3 vs 1 로 지금 규칙(갈래 넷)의 끝 자산·산 횟수 ② 중형 신호 날 지금 규칙 후보가 120 을 넘어 중형이 잘렸나
+                if "MINCAND" in _ONLY.split("+") or _ONLY == "MINCAND":
+                    _기, _섹, _시, _변, _업 = (f for _, f in _갈들)
+                    _지금M = _또([_기, _섹, _시, _변])
+                    print("  ── MINCAND · 하루 후보 3개 미만인 날을 건너뛰나(시뮬 기본) vs 사나(실전) — 지금 규칙(갈래 넷) ──")
+                    for _라창, _시창 in (("2016~", None), ("~2020", None), ("2021~", "2021"), ("2024~", "2024")):
+                        _끝창 = "2020" if _라창 == "~2020" else None
+                        _a = 시뮬(_c(_지금M, **_옵C()), 시작년=_시창, 끝년=_끝창)
+                        _o1 = _옵C()
+                        _o1["최소후보"] = 1
+                        _b = 시뮬(_c(_지금M, **_o1), 시작년=_시창, 끝년=_끝창)
+                        if _a and _b:
+                            print(f"     {_라창:<7} 3개↑만(시뮬): {_a['끝']:>14,.0f} · {_a['낙']:.1f}% · 산 {_a['산']}  │  1개↑(실전): {_b['끝']:>14,.0f} · {_b['낙']:.1f}% · 산 {_b['산']}  │  실전÷시뮬 {_b['끝'] / _a['끝'] * 100:.0f}%", flush=True)
+                    # ② 중형 신호 날 — 지금 규칙 후보 수 · 중형이 120 안에 드나
+                    _중M = [x for x in 사건 if 2000 <= (x.get("시총억") or 0) < 10000 and 재무통과(x) and 대금통과(x)
+                           and x.get("시장낙폭") is not None and x["시장낙폭"] <= -15 and str(x.get("해") or "0") >= "2016"]
+                    _날중 = {}
+                    for x in _중M:
+                        _날중.setdefault(x["인"], []).append(x)
+                    _잘림, _듦, _날수 = 0, 0, 0
+                    for _인, _들 in _날중.items():
+                        _칸 = [x for x in 묶.get(_인, []) if _바탕c["시총하한"] <= x["시총억"] < _바탕c["시총상한"] and x["대금억"] >= _바탕c["대금하한"]]
+                        _후 = [x for x in _칸 if (_지금M(x) or x in _들)]
+                        _순 = sorted(_후, key=_기본자르기)[:_밑후보수]
+                        _안 = {id(x) for x in _순}
+                        _듦 += sum(1 for x in _들 if id(x) in _안)
+                        _잘림 += sum(1 for x in _들 if id(x) not in _안)
+                        _날수 += 1
+                    print(f"     중형 신호 날 {_날수}일 · 중형 신호 {len(_중M):,}건 → 후보 {_밑후보수}개 자르기 안에 든 것 {_듦:,} · 잘린 것 {_잘림:,}")
+                    print("  [대조] MINCAND 끝")
                 # ⭐ 10/14 SECBIAS (②-0) — 섹터 종목 목록(value-chain-map · 2026년에 만들고 고침)이 과거 성적을 부풀렸나
                 #    같은 섹터 조건(볼린저·낙폭 창과 문턱)을 **목록 밖 · 같은 표준산업분류** 회사에 걸어 신호 하나하나 성적을 견준다
                 #    차이가 크면 그 몫이 「지금 잘 알려진 회사만 골라 담은」 부풀림 · 크기는 맞추지 않았다(재무·대금 문은 같게)
