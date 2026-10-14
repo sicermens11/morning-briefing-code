@@ -8126,7 +8126,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8420,7 +8420,7 @@ def main():
             # ⭐ 2026-10-12 BRANCH — **지금 규칙 갈래 하나씩**: 혼자 · 빼면 (사용자 「기본 규칙부터 갈래/업종 등 모든 규칙 하나하나 …
             #    끝자산, 기회, 승률, 수익율, 낙폭 등등을 보여주고 … 기본 규칙에 얹어진 규칙인지, 단독 규칙인지」)
             #    갈래 판정은 _H 와 똑같이 나눈다(업종은 10/12 고친 _H 의 OR) · 운용(자리·비중·악재·종가평가)은 DDCTRL 그대로
-            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND"):
+            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE"):
                 def _섹B(x):
                     return bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x) and (R.섹터규칙_큰회사 or 크기통과(x))
 
@@ -8503,6 +8503,95 @@ def main():
                     globals()["_비용"] = _옛비용
                     print("     읽기: 어느 설정·비용에서도 순위가 같으면 줄이는 안이 자리·비용 탓이 아니다 · 해마다는 BRANCH2(BRANCHCHK) 표")
                     print("  [대조] CAUSECHK 끝")
+                # ⭐ 10/14 SECWIDE — 섹터 조건을 **목록 밖 같은 표준산업분류 회사까지** 넓히면 (SECBIAS: 밖 2,085번 94% +24.3 · 2021~ 81% +16.5)
+                #    다섯 관문(사용자 10/13 「철저히 검토 후에」): ⓐ 기간 넷 ⓑ 해마다 ⓒ 자리(6+2 · 6+0) ⓓ 비용 0.5·1.0 ⓔ 기회 · + 신호 하나하나(이익 절반 vs 아무 날)
+                if "SECWIDE" in _ONLY.split("+") or _ONLY == "SECWIDE":
+                    import statistics as _stW
+                    _기, _섹, _시, _변, _업 = (f for _, f in _갈들)
+                    _산섹 = {}
+                    for c, s in _사슬섹터.items():
+                        _i = _산업.get(c)
+                        if _i and s in R.섹터규칙:
+                            _산섹.setdefault(_i, set()).add(s)
+
+                    def _섹넓(x):
+                        if not (재무통과(x) and 대금통과(x)):
+                            return False
+                        _s들 = _산섹.get(_산업.get(x["code"])) or set()
+                        if x["code"] in _사슬섹터:
+                            _s들 = _s들 | {_사슬섹터[x["code"]]}
+                        for s in _s들:
+                            bw, bt, nw, nt = R.섹터규칙[s]
+                            b, n = x.get(f"볼{bw}"), x.get(f"낙{nw}")
+                            if b is not None and n is not None and b <= bt and n <= nt:
+                                return True
+                        return False
+                    _지금W = _또([_기, _섹, _시, _변])
+                    _넓W = _또([_기, _섹넓, _시, _변])
+
+                    def _옵W(섹자=None):
+                        o = _옵C()
+                        o["무리자리"] = [(_섹넓, "섹터", R.섹터전용자리 if 섹자 is None else 섹자)] if (섹자 is None or 섹자) else []
+                        return o
+                    print(f"  ── SECWIDE · 섹터 조건을 같은 산업 전체로 · 산업 {len(_산섹)}개 ──")
+                    print(f"     {'기간':<8}{'지금 규칙 끝':>16}{'낙폭':>7}{'산':>5}  │{'넓힘 끝':>16}{'지금의%':>8}{'낙폭':>7}{'산':>5}")
+                    for _라창, _시창, _끝창 in (("2016~", None, None), ("2019~", "2019", None), ("2021~", "2021", None), ("2024~", "2024", None)):
+                        _a = 시뮬(_c(_지금W, **_옵C()), 시작년=_시창, 끝년=_끝창)
+                        _b = 시뮬(_c(_넓W, **_옵W()), 시작년=_시창, 끝년=_끝창)
+                        if _a and _b:
+                            print(f"     {_라창:<8}{_a['끝']:>16,.0f}{_a['낙']:>6.1f}%{_a['산']:>5}  │{_b['끝']:>16,.0f}{_b['끝'] / _a['끝'] * 100:>7.0f}%{_b['낙']:>6.1f}%{_b['산']:>5}", flush=True)
+                    _이김 = 0
+                    _줄 = []
+                    for _해 in range(2016, 2027):
+                        _a = 시뮬(_c(_지금W, **_옵C()), 시작년=str(_해), 끝년=str(_해))
+                        _b = 시뮬(_c(_넓W, **_옵W()), 시작년=str(_해), 끝년=str(_해))
+                        if _a and _b:
+                            _이김 += 1 if _b["끝"] > _a["끝"] + 1 else 0
+                            _줄.append(f"{_해} {_b['끝'] / _a['끝'] * 100:.0f}%")
+                    print(f"     해마다(그해 500만): 넓힘이 이긴 해 {_이김}/{len(_줄)} · " + " · ".join(_줄), flush=True)
+                    for _섹자 in (0, 4):
+                        _a = 시뮬(_c(_지금W, **_옵C()))
+                        _b = 시뮬(_c(_넓W, **_옵W(_섹자)))
+                        if _a and _b:
+                            print(f"     섹터 자리 {_섹자}: 넓힘 {_b['끝'] / _a['끝'] * 100:.0f}% · 낙폭 {_b['낙']:.1f}% · 산 {_b['산']}", flush=True)
+                    _옛비 = globals()["_비용"]
+                    for _새비 in (0.5, 1.0):
+                        globals()["_비용"] = _새비
+                        _a = 시뮬(_c(_지금W, **_옵C()))
+                        _b = 시뮬(_c(_넓W, **_옵W()))
+                        if _a and _b:
+                            print(f"     비용 {_새비}%: 넓힘 {_b['끝'] / _a['끝'] * 100:.0f}% · 낙폭 {_b['낙']:.1f}%", flush=True)
+                    globals()["_비용"] = _옛비
+                    # 신호 하나하나 — 넓힘으로 새로 생긴 신호(목록 밖)만 · 이익 절반 vs 아무 날(같은 산업)
+                    _표W = _표본갭.get("실전표본") or {}
+
+                    def _수W(x):
+                        _r = 0.0
+                        for 몫 in R.몫들:
+                            _rr, _ = 결과(x, 몫[1], 몫[2], 몫[3] if len(몫) > 3 else None, None, "악재")
+                            if _rr is None:
+                                return None
+                            _r += 몫[0] * _rr
+                        return _r
+                    for _창라, _시, _끝 in (("2016~", "2016", "9999"), ("2021~", "2021", "9999")):
+                        _새, _바 = [], []
+                        for x in 사건:
+                            _h = str(x.get("해") or "0")
+                            if not (_시 <= _h <= _끝) or x["code"] in _사슬섹터:
+                                continue
+                            if _산업.get(x["code"]) not in _산섹 or not (재무통과(x) and 대금통과(x)):
+                                continue
+                            _바.append(x)
+                            if _섹넓(x):
+                                _t = _표W.get(x["인"])
+                                if _t and (x["갭"] - _stW.median(_t)) <= R.상대갭문턱:
+                                    _새.append(_수W(x))
+                        _새 = [z for z in _새 if z is not None]
+                        _바r = [z for z in (_수W(x) for x in _바[::max(1, len(_바) // 40000)]) if z is not None]
+                        if _새 and _바r:
+                            _반 = _stW.mean([(z / 2 if z > 0 else z) for z in _새])
+                            print(f"     새 신호(목록 밖) {_창라}: {len(_새):,}번 · 승 {sum(1 for z in _새 if z > 0) / len(_새) * 100:.0f}% · 평균 {_stW.mean(_새):+.2f}% · 이익반 {_반:+.2f}% │ 아무 날(같은 산업) 평균 {_stW.mean(_바r):+.2f}% → {'✅' if _반 > _stW.mean(_바r) else '❌'}", flush=True)
+                    print("  [대조] SECWIDE 끝")
                 # ⭐ 10/14 MINCAND (②-2 헛점) — 시뮬은 하루 후보가 3개 미만이면 그날을 **건너뛴다**(최소후보 3) · 실전(record_pick)엔 그런 규칙이 없다
                 #    ① 최소후보 3 vs 1 로 지금 규칙(갈래 넷)의 끝 자산·산 횟수 ② 중형 신호 날 지금 규칙 후보가 120 을 넘어 중형이 잘렸나
                 if "MINCAND" in _ONLY.split("+") or _ONLY == "MINCAND":
