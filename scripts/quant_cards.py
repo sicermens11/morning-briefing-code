@@ -339,7 +339,7 @@ def _머리(킥커, 쪽, 제목, 크기=64, 부제=None, 배지=None, 배지색=
     # ⭐ ANSWER-0929-4 — 여러 장을 **같은 높이로** 맞출 때 제목 줄 높이를 고정한다
     #    (1장 68px · 2장 64px 이라 그대로면 머리가 약 5px 다르다)
     if 제목높이:
-        제 = (f'<div style="height:{제목높이}px;display:flex;flex-direction:column;'
+        제 = (f'<div class="qtitleh" style="height:{제목높이}px;display:flex;flex-direction:column;'
               f'justify-content:flex-end">{제}</div>')
     부 = (f'<span style="font-size:35px;line-height:1.5;color:{C["보"]}">{부제}</span>'
           if 부제 else "")
@@ -1325,6 +1325,8 @@ _폰CSS = (
     "#qt .qmob .qtbl>div>span:nth-child(3){grid-column:2}"
     "#qt .qmob .qtbl>div>span:nth-child(4){grid-column:3}"
     "#qt .qmob .qtbl>div>span:nth-child(5){grid-column:4}"
+    # 10/14 제목 줄 높이 고정(두 장 머리 맞춤용)은 폰에서 풀어 준다 · 두 줄이 되면 위 줄을 덮었다
+    "#qt .qmob .qtitleh{height:auto!important}"
     "#qt .qmob *{max-width:100%}"
     "}"
     # 아주 좁은 폰(아이폰 SE 320)은 종목 이름 칸이 37px 뿐이다 → 이름을 날짜 아래 제 줄로
