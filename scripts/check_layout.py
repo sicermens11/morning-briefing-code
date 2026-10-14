@@ -110,6 +110,7 @@ setTimeout(function(){
  setTimeout(function(){
   var out=[];
   document.querySelectorAll("section[data-label]").forEach(function(s){
+   if(s.closest(".qmob")) return;   /* 10/14 퀀트 폰 사본은 같은 카드의 사본 · 넓은 화면에선 숨어 있어 재면 0 으로 나온다 */
    var sr=s.getBoundingClientRect(),W=sr.width,H=sr.height;
    var t=1e9,b=-1e9,l=1e9,r=-1e9,bad=[],cut=0,cutTxt="";
    /* ⚠️⚠️ **글자 마디(text node)를 직접 잰다** (2026-09-11).

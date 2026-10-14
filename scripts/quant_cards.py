@@ -451,13 +451,17 @@ def _행(라1, 값1, 라2, 값2, 색1=None, 색2=None):
     # ⭐ QUANT-FIX-0929-2 ③ 실측 — 왼쪽 라벨을 180 으로 넓히니 pre 의 「42,350~42,700원」이
     #    왼쪽 값 칸(245px)을 **11px 넘었다.** 오른쪽 값 칸을 190px 로 두어 왼쪽 값이
     #    나머지(약 300px)를 다 쓴다. ⚠️ 정본은 두 값 칸이 flex:1 — 다른 자리라 디자인에 알렸다
+    # ⭐ 10/14 핸드폰 판 — 칸 둘을 `qpair` 로 묶는다. 넓은 화면은 전과 같은 배치(왼쪽 묶음 flex:1 · 오른쪽 고정 폭)이고,
+    #    핸드폰(.qmob)에서는 묶음이 안 들어가면 **다음 줄로 넘어간다** (값이 잘리지 않게)
     def _칸(라, 값, 색, 폭, 값폭=None):
         _vs = (f"flex:none;width:{값폭}px" if 값폭 else "flex:1;min-width:0")
-        return (f'<span style="flex:none;width:{폭}px;font-size:25px;font-weight:700;'
+        _묶 = "flex:none" if 값폭 else "flex:1;min-width:0"
+        return (f'<span class="qpair" style="{_묶};display:flex;align-items:baseline;gap:12px">'
+                f'<span class="qlab" style="flex:none;width:{폭}px;font-size:25px;font-weight:700;'
                 f'color:{C["금진"]}">{라}</span>'
-                f'<span style="{_vs};font-size:30px;font-weight:800;'
-                f'letter-spacing:-.02em;color:{색 or C["먹"]}">{값}</span>')
-    return (f'<div style="display:flex;align-items:baseline;gap:12px;'
+                f'<span class="qval" style="{_vs};font-size:30px;font-weight:800;'
+                f'letter-spacing:-.02em;color:{색 or C["먹"]}">{값}</span></span>')
+    return (f'<div class="qrow" style="display:flex;align-items:baseline;gap:12px;'
             f'white-space:nowrap;padding:6px 0;border-top:1px solid {C["줄선"]}">'   # 0929-2 ③ 8→6
             + _칸(라1, 값1, 색1, 180) + _칸(라2, 값2, 색2, 130, 190) + '</div>')
 
@@ -485,7 +489,7 @@ def _종목블록(x, 업종, 상태, 확정):
         _칩들 += (f'<span style="flex:none;font-size:24px;font-weight:700;'
                   f'color:{C["금"]};background:{C["딱"]};border-radius:6px;'
                   f'padding:3px 12px">{_esc(_딱)}</span>')
-    _1행 = (f'<div style="display:flex;align-items:center;gap:14px;white-space:nowrap;'
+    _1행 = (f'<div class="qhead1" style="display:flex;align-items:center;gap:14px;white-space:nowrap;'
             f'padding-bottom:8px">'     # 0929-2 ③ 10→8
             f'<span style="font-size:38px;font-weight:800;letter-spacing:-.03em">'
             f'{_esc(x.get("이름", ""))}</span>'
@@ -525,7 +529,7 @@ def _종목블록(x, 업종, 상태, 확정):
         _라4, _값4 = "문턱가", (f"{_문:,}원" if _문 else ("문턱 없음(B)" if x.get("B전용") else "—"))
     _잉, _부 = x.get("잉여금비율"), x.get("부채비율")
     _재 = " · ".join(f"{v:.0f}%" for v in (_잉, _부) if v is not None) or ("B 규칙은 안 봄" if x.get("B전용") else "—")
-    _4행 = _행(_라4, _esc(_값4), "이익 · 빚", _esc(_재), C["금진"], None)
+    _4행 = _행(_라4, _esc(_값4).replace("~", "~<wbr>"), "이익 · 빚", _esc(_재), C["금진"], None)
 
     return (f'<div data-block="1" style="background:{C["블록"]};'
             f'border:1px solid {C["선"]};border-radius:16px;padding:13px 24px;'   # 0929-2 ③ 16→13
@@ -1190,7 +1194,7 @@ def _장4():
                + 셀(_음(결, 1) if 결 is not None else "—", 130, 31, _수익색(결), 굵=800, 오른=True)
                + 셀(f'{r.get("며칠")}일' if r.get("며칠") is not None else "—", 90, 26, C["보"], 오른=True)
                + '</div>')
-    표 = f'<div style="display:flex;flex-direction:column">{머리행}{행들}</div>'
+    표 = f'<div class="qtbl" style="display:flex;flex-direction:column">{머리행}{행들}</div>'   # 10/14 qtbl — 폰 판에서 칸 폭을 글에 맞춘다
 
     # 가장 좋았던 셋 — 코드가 채운다 (6절 1). 자료에 없으면 지어내지 않는다
     최고 = s.get("최고") or []
@@ -1276,17 +1280,73 @@ def _묵은종가(q):
             f'</div>')
 
 
+# ⭐⭐ 2026-10-14 핸드폰 판 (사용자 「퀀트 A안 해도 되는데」)
+#    카드는 1080 폭으로 그려 화면 폭에 맞춰 줄인다 → 393~430 폭 폰에서 **0.4배**라 숫자 12px · 항목 이름 10px 이었다.
+#    폰에서는 **같은 카드 HTML** 의 px 값만 0.56 배로 바꾼 사본을 줄이지 않고(배율 1) 위아래로 잇는다.
+#    ⚠️ 글을 두 벌로 적지 않는다 — 같은 함수가 낸 HTML 을 숫자만 바꾼다 (build_scroll._scale_px 와 같은 생각)
+#    ⚠️ 카드 높이(1600) 고정·overflow:hidden 을 폰에서는 푼다 → **잘리는 내용이 없다**
+_폰배 = 0.56
+_폰폭 = 600     # 이 폭 이하에서 폰 판을 쓴다
+
+
+def _폰사본(html_):
+    r"""인라인 `Npx` 를 _폰배 만큼 줄인다. 1px 선은 1px 로 둔다"""
+    def _바(m):
+        v = float(m.group(1))
+        if v <= 1:
+            return m.group(0)
+        n = round(v * _폰배, 1)
+        return f"{n:g}px"
+    return re.sub(r"(?<![\w.])(\d+(?:\.\d+)?)px", _바, html_)
+
+
+_폰CSS = (
+    "<style>"
+    ".qmob{display:none}"
+    f"@media(max-width:{_폰폭}px){{"
+    "#qt .qrail,#qt .qhint{display:none!important}"
+    "#qt .qmob{display:flex;flex-direction:column;gap:14px;padding:12px 12px 32px;box-sizing:border-box;width:100%}"
+    "#qt .qmob section[data-label]{width:auto!important;height:auto!important;overflow:visible!important;"
+    "padding:24px 18px!important;border-radius:16px!important}"
+    "#qt .qmob [data-body]{flex:none!important;min-height:0;padding-left:0!important;padding-right:0!important}"
+    "#qt .qmob [data-block]{max-height:none!important;flex:none!important;padding:12px 14px!important}"
+    # 줄바꿈 금지로 묶은 긴 글(괄호 설명 등)은 폰 폭을 넘는다 → 폰에서만 풀어 준다 (숫자 칸·표는 아래에서 다시 묶는다)
+    "#qt .qmob [style*='white-space:nowrap']{white-space:normal!important}"
+    "#qt .qmob .qrow{flex-wrap:nowrap;column-gap:14px;white-space:normal;padding:8px 0!important}"
+    "#qt .qmob .qpair{flex:1 1 0!important;min-width:0;flex-direction:column;align-items:flex-start!important;gap:2px!important}"
+    "#qt .qmob .qlab{width:auto!important;white-space:normal}"
+    "#qt .qmob .qval{flex:1 1 auto!important;width:auto!important;white-space:normal!important;word-break:keep-all}"
+    "#qt .qmob .qhead1{flex-wrap:wrap;row-gap:6px;white-space:normal}"
+    "#qt .qmob .qhead1>span[style*='flex:1']{display:none}"
+    "#qt .qmob .qtbl>div{display:grid!important;grid-template-columns:minmax(0,1fr) 76px 72px 36px;column-gap:8px!important;row-gap:2px!important;align-items:baseline}"
+    "#qt .qmob .qtbl>div>span:first-child{grid-column:1/-1}"
+    "#qt .qmob .qtbl span{flex:0 0 auto!important;width:auto!important;min-width:0!important;white-space:nowrap!important}"
+    "#qt .qmob .qtbl span:nth-child(2){white-space:normal!important}"
+    "#qt .qmob .qtbl>div>span:nth-child(3){grid-column:2}"
+    "#qt .qmob .qtbl>div>span:nth-child(4){grid-column:3}"
+    "#qt .qmob .qtbl>div>span:nth-child(5){grid-column:4}"
+    "#qt .qmob *{max-width:100%}"
+    "}"
+    # 아주 좁은 폰(아이폰 SE 320)은 종목 이름 칸이 37px 뿐이다 → 이름을 날짜 아래 제 줄로
+    "@media(max-width:360px){#qt .qmob .qtbl>div>span:nth-child(2){grid-column:1/-1}}"
+    "</style>")
+
+
 def quant_view(q, 보유=None):
     """`build_site.quant_view` 가 여기로 넘긴다. `q` 는 forward-log 마지막 줄, `보유` 는 `_보유()`."""
     보유 = 보유 or []
+    # ⭐ 2026-09-29 — _장1 이 **여러 장**을 돌려준다. 쪽 번호를 전체에 맞춰 다시 매긴다
+    _덱 = _쪽번호매기기(_장1(q, 보유) + _장2() + _장3() + [_장4()])
     return (f'<section class="view" id="qt" hidden>'
-            f'<div class="top"><div class="in">'
+            + _폰CSS
+            + f'<div class="top"><div class="in">'
             f'<button class="tbtn" data-home type="button">← 처음</button>'
             f'<span class="now">퀀트 후보</span></div></div>'
             + _묵은종가(q)
             + f'<div class="rail qrail" data-active="true">'
-            # ⭐ 2026-09-29 — _장1 이 **여러 장**을 돌려준다. 쪽 번호를 전체에 맞춰 다시 매긴다
-            + _쪽번호매기기(_장1(q, 보유) + _장2() + _장3() + [_장4()])
+            + _덱
             + '</div>'
-            f'<div style="text-align:center;font-size:13px;color:{C["보"]};padding:0 0 30px">'
+            # ⭐ 10/14 핸드폰 판 — 같은 카드의 px 만 줄인 사본 · 위아래로 잇는다 (.qrail 은 폰에서 숨김)
+            + f'<div class="qmob">{_폰사본(_덱)}</div>'
+            f'<div class="qhint" style="text-align:center;font-size:13px;color:{C["보"]};padding:0 0 30px">'
             f'← 옆으로 넘겨서 보세요 →</div></section>')
