@@ -1304,10 +1304,17 @@ _폰CSS = (
     "<style>"
     ".qmob{display:none}"
     f"@media(max-width:{_폰폭}px){{"
-    "#qt .qrail,#qt .qhint{display:none!important}"
-    "#qt .qmob{display:flex;flex-direction:column;gap:14px;padding:12px 12px 32px;box-sizing:border-box;width:100%}"
-    "#qt .qmob section[data-label]{width:auto!important;height:auto!important;overflow:visible!important;"
+    "#qt .qrail{display:none!important}"
+    # ⭐ 10/14 저녁 — **가로 넘김으로 되돌림** (사용자 「퀀트 후보 가로 페이지였는데 세로 넘김으로 바꿔놨네. 가로 바꿔!」)
+    #    글자 크기(0.56배 사본)는 그대로 · 한 장씩 옆으로 넘기고 제자리에 멈춘다(scroll-snap) · 장마다 높이는 제 내용만큼
+    "#qt .qmob{display:flex;flex-direction:row;align-items:flex-start;gap:12px;padding:12px 16px 14px;box-sizing:border-box;width:100%;"
+    "overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x pan-y}"
+    "#qt .qmob::-webkit-scrollbar{display:none}"
+    "#qt .qmob section[data-label]{flex:0 0 100%!important;scroll-snap-align:center;scroll-snap-stop:always;"
+    "width:auto!important;height:auto!important;overflow:visible!important;"
     "padding:24px 18px!important;border-radius:16px!important}"
+    "#qt .qhint{display:block!important;padding:4px 0 26px!important}"
+    "#qt .qmob section [style*='letter-spacing:.1em']{flex:0 1 auto!important;min-width:0}"   # 10/14 영문 머리글이 320 폭에서 쪽 번호를 밀어냈다
     "#qt .qmob [data-body]{flex:none!important;min-height:0;padding-left:0!important;padding-right:0!important}"
     "#qt .qmob [data-block]{max-height:none!important;flex:none!important;padding:12px 14px!important}"
     # 줄바꿈 금지로 묶은 긴 글(괄호 설명 등)은 폰 폭을 넘는다 → 폰에서만 풀어 준다 (숫자 칸·표는 아래에서 다시 묶는다)
