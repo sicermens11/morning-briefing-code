@@ -617,12 +617,13 @@ def main():
         #    예약 넷(FetchAntc·KrxFetch·NightlyNews·Overnight)도 점검에 넣는다
         _ps2 = (
             "Get-ScheduledTask | Where-Object { $_.TaskName -match "
-            "'AutoSearch|Capital|Weekend|Forward|SelfCheck|Morning|Evening|Antc|KrxFetch|NightlyNews|Overnight'"
+            "'AutoSearch|Capital|Weekend|Forward|SelfCheck|Morning|Evening|Antc|KrxFetch|NightlyNews|Overnight|EntryCheck0905|DataGapFill|Weekly|ValueChain'"
             " } | ForEach-Object { $i=$_ | Get-ScheduledTaskInfo; "
             "$l = if ($i.LastRunTime) { $i.LastRunTime.ToString('yyyy-MM-ddTHH:mm') } else { '' }; "
             "\"$($_.TaskName)`t$($i.LastTaskResult)`t$l`t$($_.State)\" }"
         )
-        _매일 = ("MorningSectorBriefing", "EveningDataCollect", "ForwardRecord", "FetchAntc0850",
+        # ⭐ 10/16 주말 점검 — EntryCheck0905·ForwardRecordDaily·DataGapFill 이 「안 돌았나」 감시 밖이었다
+        _매일 = ("MorningSectorBriefing", "EveningDataCollect", "ForwardRecord", "FetchAntc0850", "EntryCheck0905", "ForwardRecordDaily", "DataGapFill",
                  "KrxFetchBeforeBriefing", "NightlyNews", "OvernightDataCollect")
         _r2 = subprocess.run(
             ["powershell", "-NoProfile", "-Command", _ps2],
@@ -736,6 +737,15 @@ def main():
             print(f"     … 외 {len(경고)-12}개")
     if not 문제 and not 경고:
         print("  ⭐ **모두 정상**")
+    # ⭐ 10/16 주말 점검 — 결과를 **파일로 남긴다.** 예약은 출력을 어디에도 안 돌려 두어,
+    #    하루 세 번 「1(문제 있음)」 로 끝나도 아무도 못 읽었다(상대갭 칸이 사흘간 「못 찾음」 이었다).
+    #    아침 브리핑 로그·사람이 이 파일을 본다. 쓰다 실패해도 점검 결과는 그대로
+    try:
+        _줄 = [f"{dt.datetime.now():%Y-%m-%d %H:%M} selfcheck · 고칠 것 {len(문제)} · 살펴볼 것 {len(경고)}"]
+        _줄 += [f"❌ {s}" for s in 문제] + [f"⚠️ {s}" for s in 경고]
+        io.open(os.path.join(_BASE, "data", "_selfcheck_last.txt"), "w", encoding="utf-8").write("\n".join(_줄) + "\n")
+    except Exception:  # noqa: BLE001
+        pass
     return 1 if 문제 else 0
 
 

@@ -196,12 +196,51 @@ def 산출물검사():
          (lambda m: _분(m.group(1)) if m else None)(
              re.search(r"(\d\d:\d\d)에 5분, 여기서 살지", 맨))),
     ]
+    # ⭐⭐ 2026-10-16 주말 점검 — 화면에 나오는데 대조 목록에 없던 값 + **PC·핸드폰 두 곳 모두** 같은지
+    #    (rule_align 은 첫 번째 일치만 봤다 → 10/16 생긴 핸드폰 4:5 카드는 문구가 달라 아예 안 걸렸다)
+    #    패턴은 PC(「30% 이상 · 벌어서」)와 폰(「30% 이상벌어서」 — 태그를 벗기면 붙는다)을 둘 다 받는다
+    _폰있음 = 'data-m45="1"' in html
+    def _모두(pat, 바꿈=None):
+        vs = []
+        for m in re.finditer(pat, 민):
+            try:
+                v = float(m.group(1))
+            except (TypeError, ValueError):
+                continue
+            vs.append(바꿈(v) if 바꿈 else v)
+        return vs
+    둘다 = [
+        ("화면 · 잉여금 하한", R.잉여금하한, _모두(r"(\d+(?:\.\d+)?)% 이상 ?·? ?벌어서 쌓은 이익")),
+        ("화면 · 부채 상한", R.부채상한, _모두(r"(\d+(?:\.\d+)?)% 이하 ?·? ?빚")),
+        ("화면 · 거래대금 하한", R.대금하한억, _모두(r"(\d+(?:\.\d+)?)억 이상 ?·? ?하루 거래")),
+        ("화면 · 상장 거래일", float(R.상장최소거래일), _모두(r"(\d+)거래일 이상 ?·? ?상장한 지")),
+        ("화면 · 시장 갈래 종목 볼린저", R.시장볼문턱, _모두(r"조금만 빠져도 걸린다 \(볼린저 −([\d.]+)σ", lambda v: -v)),
+        ("화면 · 시장 갈래 종목 20일", R.시장낙20문턱, _모두(r"볼린저 −[\d.]+σ · 20일 −([\d.]+)%", lambda v: -v)),
+        ("화면 · 시장 갈래 종목 60일", R.시장낙60문턱, _모두(r"볼린저 −[\d.]+σ · 20일 −[\d.]+% · 60일 −([\d.]+)%", lambda v: -v)),
+        ("화면 · 변동성 문턱", R.시장변동성문턱, _모두(r"20일 변동성 ([\d.]+)% 이상")),
+        ("화면 · 자사주 창", float(R.자사주창일), _모두(r"(\d+)거래일 안에 자사주 매입")),
+        ("화면 · 섹터 자리", float(R.섹터전용자리), _모두(r"섹터 규칙 종목은 (\d+)종목까지 더")),
+    ]
+    for 이름, 있어야, vs in 둘다:
+        if not vs:
+            잴것.append((이름, 있어야, None))
+            continue
+        다른 = [v for v in vs if abs(v - 있어야) > 1e-9]
+        잴것.append((이름, 있어야, 다른[0] if 다른 else vs[0]))
+        if _폰있음 and len(vs) < 2:
+            나쁨.append(f"{이름}: PC·핸드폰 중 **한 곳에서만** 찾았다({len(vs)}곳) — 다른 쪽 문구가 바뀌어 검사 밖으로 빠졌다")
     try:
         rc = json.load(io.open(os.path.join(_BASE, "data", "rule-cases.json"),
                                encoding="utf-8-sig"))
         # 0 = 같다 · 1 = 다르다
         잴것.append(("성적표 · 규칙 문구", 0.0,
                      0.0 if rc.get("규칙") == R.한줄() else 1.0))
+        # ⭐ 10/16 — 화면 성적표 **숫자**가 원본(rule-cases.json)과 같은가 (전에는 규칙 문구만 봤다)
+        #    사이트를 다시 안 만들면 원본만 새 값이 되어 화면이 옛 숫자로 남는다 — 그걸 잡는다
+        잴것.append(("성적표 · 산 횟수", float(rc.get("전체건수") or 0),
+                     _수(민, r"모두 (\d+)번 샀고")))
+        잴것.append(("성적표 · 수익 비율", float(rc.get("승률") or 0),
+                     _수(민, r"그중 ([\d.]+)%가 수익")))
     except Exception:  # noqa: BLE001
         나쁨.append("성적표: rule-cases.json 을 못 읽었다")
     # ⭐ 빈도도 같은 규칙으로 세었는가 (2026-09-11 오후)
@@ -221,9 +260,26 @@ def 산출물검사():
                         f"`rule_align` 이 안 따라왔다. 이대로 두면 "
                         f"그 칸은 **영영 검사되지 않는다**")
         elif not ok:
-            나쁨.append(f"{이름}: rule_def 는 {있어야:g} 인데 "
-                        f"**{실제:g}** 로 나갔다")
+            _원 = ("원본(rule-cases.json)은" if 이름.startswith("성적표 · ") and "문구" not in 이름 else "rule_def 는")
+            나쁨.append(f"{이름}: {_원} {있어야:g} 인데 화면에는 "
+                        f"**{실제:g}** 로 나갔다"
+                        + (" — 사이트를 다시 만들어야 맞춰진다" if _원.startswith("원본") else ""))
     return 나쁨, 표
+
+
+def _갈래시험경고():
+    r"""③ 규칙이 바뀐 뒤 갈래 하나씩 빼 보기를 다시 쟀나 — 안 쟀으면 경고 글, 쟀으면 빈 글 (10/16 · selfcheck 도 보게 함수로 뺐다)"""
+    import glob as _g
+    import os as _os
+    import datetime as _dt
+    _규 = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "rule_def.py")
+    _갈 = sorted(_g.glob(_os.path.join(_BASE, "data", "_labs", "*_BRANCH*.txt")), key=_os.path.getmtime)
+    _규때, _갈때 = _os.path.getmtime(_규), (_os.path.getmtime(_갈[-1]) if _갈 else 0)
+    if _갈때 < _규때:
+        return (f"rule_def.py 가 바뀐 때({_dt.datetime.fromtimestamp(_규때):%m-%d %H:%M}) 뒤에 갈래 시험이 없다"
+                f" (마지막 {(_dt.datetime.fromtimestamp(_갈때).strftime('%m-%d %H:%M') if _갈 else '없음')})"
+                " — gate7 ONLY=BRANCH+BRANCHCHK 를 걸어라")
+    return ""
 
 
 def 보기():
@@ -231,7 +287,8 @@ def 보기():
     나1 = 소스검사()
     나2, 표 = 산출물검사()
     줄 = [(이름, [있어야, 실제], ok) for 이름, 있어야, 실제, ok in 표]
-    return ["rule_def", "실제"], 줄, 나1 + 나2
+    _경 = _갈래시험경고()
+    return ["rule_def", "실제"], 줄, 나1 + 나2 + ([f"⚠️ {_경}"] if _경 else [])
 
 
 def main():
