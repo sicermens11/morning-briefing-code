@@ -2700,6 +2700,13 @@ def main():
     #    ⇒ 기준값 흔들기에서 시장 문턱을 ±20% 바꿔도 결과가 「정확히 100%」 였다(안 읽으니까)
     #    _시장[\"실전\"] 이 참이면 실전 문턱을 쓴다. 기본값은 MKT_LIVE 환경값(MKTFIX 판이 둘을 견준다)
     _시장 = {"실전": os.environ.get("MKT_LIVE") == "1"}
+    # ⭐ 10/16 MKTGRID 뒤 — 후보 문턱을 MKTFIX 로 다시 재려고 R 값을 환경값으로 바꿀 수 있게 (실전 rule_def 는 안 건드린다)
+    if os.environ.get("MKT20"):
+        R.지수낙20문턱 = float(os.environ["MKT20"])
+    if os.environ.get("MKT60"):
+        R.지수낙60문턱 = float(os.environ["MKT60"])
+    if os.environ.get("MKT20") or os.environ.get("MKT60"):
+        print(f"  ⭐ 시장 문턱 바꿈(이 판만): 20일 {R.지수낙20문턱:g} · 60일 {R.지수낙60문턱:g}")
 
     def _시장갈래(x):
         if _시장["실전"]:
@@ -8139,7 +8146,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8433,7 +8440,7 @@ def main():
             # ⭐ 2026-10-12 BRANCH — **지금 규칙 갈래 하나씩**: 혼자 · 빼면 (사용자 「기본 규칙부터 갈래/업종 등 모든 규칙 하나하나 …
             #    끝자산, 기회, 승률, 수익율, 낙폭 등등을 보여주고 … 기본 규칙에 얹어진 규칙인지, 단독 규칙인지」)
             #    갈래 판정은 _H 와 똑같이 나눈다(업종은 10/12 고친 _H 의 OR) · 운용(자리·비중·악재·종가평가)은 DDCTRL 그대로
-            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST"):
+            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID"):
                 def _섹B(x):
                     return bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x) and (R.섹터규칙_큰회사 or 크기통과(x))
 
@@ -8729,7 +8736,7 @@ def main():
                             _z.pop("_겹친", None)   # 고르는 순서 값은 갈래 정의에 매여 있다 — 바꾸면 다시 잰다
                     _기, _섹, _시, _변, _업 = (f for _, f in _갈들)
                     _지금M = _또([_기, _섹, _시, _변])
-                    print("  ── MKTFIX ① 지금 규칙 · 시장 갈래 옛 문턱(시험: 20일 −7 · 60일 −10) vs 실전 문턱(20일 −5 · 60일 −13) ──")
+                    print(f"  ── MKTFIX ① 지금 규칙 · 시장 갈래 옛 문턱(시험: 20일 −7 · 60일 −10) vs 「실전」 칸 문턱(20일 {R.지수낙20문턱:g} · 60일 {R.지수낙60문턱:g}) ──")
                     _옛, _새 = {}, {}
                     for _라창, _시창, _끝창 in (("2016~", None, None), ("~2020", None, "2020"), ("2021~", "2021", None), ("2024~", "2024", None)):
                         _켬M(False)
@@ -8777,6 +8784,43 @@ def main():
                     for _z in 사건:
                         _z.pop("_겹친", None)
                     print("  [대조] MKTFIX 끝")
+                # ⭐ 10/16 MKTGRID — MKTFIX 에서 실전 문턱(−5·−13)이 옛 문턱(−7·−10)보다 돈 90% · 낙폭 −42 vs −30 로 나빴다.
+                #    옛 값이 「안정된 자리」인지 「한 점 운」인지 보려고 20일 × 60일 문턱을 격자로 잰다.
+                #    실전 모드에서 R 값만 바꾼다 — (−7, −10) 칸은 옛 모드와 같은 식이다(_시7 · _시낙(60, −10))
+                if "MKTGRID" in _ONLY.split("+") or _ONLY == "MKTGRID":
+                    _시장["실전"] = True
+                    _기, _섹, _시, _변, _업 = (f for _, f in _갈들)
+                    _지금G = _또([_기, _섹, _시, _변])
+                    _원20, _원60 = R.지수낙20문턱, R.지수낙60문턱
+                    _창G = (("2016~", None, None), ("~2020", None, "2020"), ("2021~", "2021", None))
+                    _표G = {}
+                    try:
+                        for _v20 in (-4.0, -5.0, -6.0, -7.0, -8.0):
+                            for _v60 in (-8.0, -10.0, -12.0, -13.0, -15.0):
+                                R.지수낙20문턱, R.지수낙60문턱 = _v20, _v60
+                                for _z in 사건:
+                                    _z.pop("_겹친", None)
+                                _표G[(_v20, _v60)] = {_라: _한판(_지금G, _s, _e) for _라, _s, _e in _창G}
+                                _r = _표G[(_v20, _v60)]
+                                print(f"     격자 20일 {_v20:g} · 60일 {_v60:g} 끝 — " + " · ".join(
+                                    f"{_라} {_r[_라]['끝']:,.0f} {_r[_라]['낙']:.1f}% 산 {_r[_라]['산']}" for _라, _, _ in _창G if _r[_라]), flush=True)
+                    finally:
+                        R.지수낙20문턱, R.지수낙60문턱 = _원20, _원60
+                        for _z in 사건:
+                            _z.pop("_겹친", None)
+                    _기준G = _표G.get((-7.0, -10.0))
+                    print("\n  ── MKTGRID 시장 갈래 문턱 격자 · 옛 문턱(20일 −7 · 60일 −10)의 % · 낙폭(종가) · 산 횟수 ──")
+                    for _라, _, _ in _창G:
+                        print(f"\n   [{_라}]  (−7,−10) = {_기준G[_라]['끝']:,.0f}원 · 낙폭 {_기준G[_라]['낙']:.1f}% · 산 {_기준G[_라]['산']}")
+                        print("     20일\\60일 " + "".join(f"{_v60:>22g}" for _v60 in (-8.0, -10.0, -12.0, -13.0, -15.0)))
+                        for _v20 in (-4.0, -5.0, -6.0, -7.0, -8.0):
+                            _칸 = []
+                            for _v60 in (-8.0, -10.0, -12.0, -13.0, -15.0):
+                                _r = _표G[(_v20, _v60)][_라]
+                                _칸.append(f"{_r['끝'] / _기준G[_라]['끝'] * 100:>5.0f}% {_r['낙']:>6.1f}% {_r['산']:>4}" if _r else f"{'—':>22}")
+                            print(f"     {_v20:>8g}  " + "  ".join(f"{z:>20}" for z in _칸), flush=True)
+                    print("     ⚠️ (−5,−13) = 지금 실전 · (−7,−10) = 시험이 9/21 이후 써 온 값 · 이웃 칸이 고르게 좋아야 「안정」")
+                    print("  [대조] MKTGRID 끝")
                 # ⭐ 10/14 MINCAND (②-2 헛점) — 시뮬은 하루 후보가 3개 미만이면 그날을 **건너뛴다**(최소후보 3) · 실전(record_pick)엔 그런 규칙이 없다
                 #    ① 최소후보 3 vs 1 로 지금 규칙(갈래 넷)의 끝 자산·산 횟수 ② 중형 신호 날 지금 규칙 후보가 120 을 넘어 중형이 잘렸나
                 if "MINCAND" in _ONLY.split("+") or _ONLY == "MINCAND":
