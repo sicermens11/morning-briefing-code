@@ -97,6 +97,40 @@ def _전거래일코스피():
         return None
 
 
+_코스닥업종 = ("음식료·담배", "섬유·의류", "종이·목재", "화학", "제약", "비금속", "금속", "기계·장비", "전기전자",
+           "의료·정밀기기", "운송장비·부품", "유통", "건설", "운송·창고", "통신", "금융", "일반서비스", "오락·문화",
+           "IT 서비스", "출판·매체복제", "기타제조")
+
+
+def _krx업종순위(n=3):
+    r"""직전 거래일 KRX 지수에서 업종 등락률 상위 n — 「코스피 200 ○○」 섹터 + 코스닥 업종 (10/16). 못 읽으면 []"""
+    import io as _io
+    import os as _os
+    try:
+        _here = _os.path.dirname(_os.path.abspath(__file__))
+        sys.path.insert(0, _here)
+        from krx_calendar import 직전거래일
+        d0 = 직전거래일()
+        p = _os.path.join(_os.path.dirname(_here), "data", "index-daily", f"{d0:%Y%m%d}.json")
+        표 = json.load(_io.open(p, encoding="utf-8-sig")).get("지수") or {}
+        후 = []
+        for 이름, v in 표.items():
+            률 = v.get("등락률")
+            if 률 is None:
+                continue
+            if 이름.startswith("코스피 200 ") and v.get("시장") == "KOSPI" and not any(
+                    z in 이름 for z in ("비중상한", "25/50", "TOP", "중소형", "초대형", "경기방어")):
+                # ⚠️ 시장 꼬리표를 안 붙인다 — 카드 칸(34px · 3칸)이 말줄임으로 이름을 자른다(조판이 내용을 깎으면 안 된다)
+                후.append((float(률), 이름.replace("코스피 200 ", "")))
+            elif 이름 in _코스닥업종 and v.get("시장") == "KOSDAQ":
+                후.append((float(률), 이름))
+        후.sort(reverse=True)
+        return [{"순위": str(i + 1), "이름": nm, "등락률": f"{r:.2f}", "출처": f"KRX {d0:%m/%d} 종가"}
+                for i, (r, nm) in enumerate(후[:n])]
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def fetch(url: str, timeout: int = 15):
     req = urllib.request.Request(url, headers=HEADERS)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -187,6 +221,25 @@ def summarize(items: dict) -> dict:
 
         out["업종랭킹"] = top(data.get("upjongRankList"))
         out["테마랭킹"] = top(data.get("themeRankList"))
+
+    # ⭐⭐ 2026-10-16 주말 점검 — **이 칸이 5주 동안 조용히 틀렸다.**
+    #    08:05 는 장 전이라 네이버 등락률이 전부 0 → 9/14~10/8 거의 매일 1위가 「제약 0.0% (0/0)」 ·
+    #    10/13~15 빈 목록 · 10/16 주소 404. 브리핑은 빈 목록이면 칸을 통째로 안 그려 아무도 몰랐다.
+    #    ⇒ 네이버가 비었거나 등락률이 전부 0 이면 **KRX 공식 지수(직전 거래일 종가)** 로 채운다.
+    #    ⚠️ index-daily 는 지수 이름이 열쇠라 코스피·코스닥 같은 이름 업종(화학·제약…)은 코스닥 값만 남아 있다
+    #       → 이름이 안 겹치는 「코스피 200 ○○」 섹터 11개 + 코스닥 업종 20개만 쓴다
+    def _다0(rows):
+        try:
+            return all(abs(float(r.get("등락률") or 0)) < 1e-9 for r in rows)
+        except (TypeError, ValueError):
+            return False
+    if out.get("테마랭킹") and _다0(out["테마랭킹"]):
+        out["테마랭킹"] = []          # 장 전 0% 테마가 KRX 업종 옆에 섞이지 않게
+    if not out.get("업종랭킹") or _다0(out["업종랭킹"]):
+        _대 = _krx업종순위()
+        if _대:
+            out["업종랭킹"] = _대
+            out["업종랭킹_출처"] = "KRX 공식 지수 · 직전 거래일 종가 (네이버 순위가 비었거나 0% 라 대신)"
 
     # --- 외국인 순매수 랭킹 -------------------------------------------------
     if _g(items, "foreign_rank", "ok"):
