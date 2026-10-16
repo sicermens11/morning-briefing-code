@@ -8148,7 +8148,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8442,7 +8442,7 @@ def main():
             # ⭐ 2026-10-12 BRANCH — **지금 규칙 갈래 하나씩**: 혼자 · 빼면 (사용자 「기본 규칙부터 갈래/업종 등 모든 규칙 하나하나 …
             #    끝자산, 기회, 승률, 수익율, 낙폭 등등을 보여주고 … 기본 규칙에 얹어진 규칙인지, 단독 규칙인지」)
             #    갈래 판정은 _H 와 똑같이 나눈다(업종은 10/12 고친 _H 의 OR) · 운용(자리·비중·악재·종가평가)은 DDCTRL 그대로
-            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID"):
+            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP"):
                 def _섹B(x):
                     return bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x) and (R.섹터규칙_큰회사 or 크기통과(x))
 
@@ -8823,6 +8823,38 @@ def main():
                             print(f"     {_v20:>8g}  " + "  ".join(f"{z:>20}" for z in _칸), flush=True)
                     print("     ⚠️ (−5,−13) = 지금 실전 · (−7,−10) = 시험이 9/21 이후 써 온 값 · 이웃 칸이 고르게 좋아야 「안정」")
                     print("  [대조] MKTGRID 끝")
+                # ⭐ 10/16 밤 DAYCAP — 시장 문턱 −7 로 바꾼 뒤 「하루 6 + 섹터 2」 가 그대로 맞나 (주말 확인 · 반영은 월요일 사용자 결정)
+                #    사용자 10/16 「주말은 테스트만 하고 반영은 월요일날 출근해서 결정하는걸로 할게.」
+                if "DAYCAP" in _ONLY.split("+") or _ONLY == "DAYCAP":
+                    _시장["실전"] = True
+                    _기, _섹, _시, _변, _업 = (f for _, f in _갈들)
+                    _지금D = _또([_기, _섹, _시, _변])
+
+                    def _판D(하루, 섹자리, 시=None, 끝=None):
+                        o = _옵C()
+                        o["하루상한"] = (lambda 골, n=하루: n)
+                        o["무리자리"] = [(_섹C, "섹터", 섹자리)] if 섹자리 else []
+                        return 시뮬(_c(_지금D, **o), 시작년=시, 끝년=끝)
+                    print(f"  ── DAYCAP · 하루 사는 개수 × 섹터 자리 (시장 문턱 20일 {R.지수낙20문턱:g} · 60일 {R.지수낙60문턱:g} · 지금 = 하루 {R.하루최대종목} + 섹터 {R.섹터전용자리}) ──")
+                    _기준D = {k: _판D(R.하루최대종목, R.섹터전용자리, s, e) for k, s, e in (("2016~", None, None), ("~2020", None, "2020"), ("2021~", "2021", None))}
+                    for _하 in (4, 5, 6, 7, 8):
+                        for _섹자 in (0, 2):
+                            _줄 = []
+                            for k, s, e in (("2016~", None, None), ("~2020", None, "2020"), ("2021~", "2021", None)):
+                                r = _판D(_하, _섹자, s, e)
+                                b = _기준D[k]
+                                _줄.append(f"{k} {r['끝'] / b['끝'] * 100:>4.0f}% 낙 {r['낙']:.1f}% 산 {r['산']}" if (r and b) else f"{k} 못 잼")
+                            print(f"     하루 {_하} + 섹터 {_섹자}: " + " │ ".join(_줄), flush=True)
+                    _이D, _줄D = 0, []
+                    for _해 in range(2016, 2027):
+                        _a = _판D(R.하루최대종목, R.섹터전용자리, str(_해), str(_해))
+                        _b = _판D(8, R.섹터전용자리, str(_해), str(_해))
+                        if _a and _b:
+                            _이D += 1 if _b["끝"] > _a["끝"] + 1 else 0
+                            _줄D.append(f"{_해} {_b['끝'] / _a['끝'] * 100:.0f}%")
+                    print(f"     해마다(하루 8 + 섹터 {R.섹터전용자리} ÷ 지금): 이긴 해 {_이D}/{len(_줄D)} · " + " · ".join(_줄D), flush=True)
+                    print("     「%」 = 지금(하루 6 + 섹터 2) 대비 · 같은 기간 500만 시작 · 낙폭은 매일 종가")
+                    print("  [대조] DAYCAP 끝")
                 # ⭐ 10/14 MINCAND (②-2 헛점) — 시뮬은 하루 후보가 3개 미만이면 그날을 **건너뛴다**(최소후보 3) · 실전(record_pick)엔 그런 규칙이 없다
                 #    ① 최소후보 3 vs 1 로 지금 규칙(갈래 넷)의 끝 자산·산 횟수 ② 중형 신호 날 지금 규칙 후보가 120 을 넘어 중형이 잘렸나
                 if "MINCAND" in _ONLY.split("+") or _ONLY == "MINCAND":
