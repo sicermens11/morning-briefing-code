@@ -1137,7 +1137,7 @@ def main():
                 or (bb.get("증권구분") not in (None, "주권"))):
             continue
         kk = (자리.get(code) or {}).get(기준일)
-        if kk is None or kk < 250:
+        if kk is None or kk < R.상장최소거래일:
             continue
         sq = 종계[code]
         s20 = st.mean(sq[kk - 19:kk + 1])

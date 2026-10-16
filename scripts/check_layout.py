@@ -394,6 +394,34 @@ document.getElementById("f").onload=function(){
 """
 
 
+# ── 퀀트 핸드폰 4:5 카드 (2026-10-16 신설) ─────────────────────
+# ⚠️ 위 좁은 화면 검사는 「오늘 브리핑」 단추만 누른다 — 퀀트 화면(#qt)은 열어 본 적이 없다.
+#    10/16 핸드폰 퀀트를 4:5 고정 카드(.qm45 .c4)로 바꿨다. 넘치면 카드 아래가 잘린다(overflow:hidden).
+#    퀀트 단추를 눌러 카드마다 「넘침 · 눌린 상자 · 옆으로 넘침」 을 센다. 경고로만 올린다(조판은 게시를 막지 않는다)
+QT45_HOST = r"""
+<style>html,body{margin:0}iframe{border:0;display:block}</style>
+<iframe id="f" src="__SRC__" width="__W__" height="860"></iframe>
+<script>
+document.getElementById("f").onload=function(){
+ var d=this.contentDocument;
+ setTimeout(function(){
+  var btn=d.getElementById("btn-qt"); if(btn) btn.click();
+  setTimeout(function(){
+   var cs=d.querySelectorAll("#qt .qm45 .c4"), bad=[];
+   var boxes=".s,.br,.warn,.list,.tl2,.hp,.stat div,.notes,.nt,.ct,.rt";
+   cs.forEach(function(c,i){
+     var o=c.scrollHeight-c.clientHeight, w=c.scrollWidth-c.clientWidth, sq=0;
+     c.querySelectorAll(boxes).forEach(function(b){ if(b.scrollHeight>b.clientHeight+1) sq++; });
+     if(o>1||w>4||sq) bad.push((i+1)+"장 아래 "+o+" · 옆 "+w+" · 눌린 상자 "+sq);
+   });
+   document.title="Q::"+cs.length+"|"+bad.length+"|"+bad.slice(0,4).join(" / ");
+  },900);
+ },1700);
+};
+</script>
+"""
+
+
 def _chrome():
     for p in CHROME:
         if os.path.exists(p):
@@ -867,6 +895,18 @@ def check(cards_path, site_path=None):
                 fails.append(f"{w}px: 페이지가 {doc_w}px로 넘친다 — 좌우로 밀린다 ({who})")
             elif int(n_over or 0):
                 fails.append(f"{w}px: 화면 밖으로 나간 요소 {n_over}개 ({who})")
+        # 4-2. 퀀트 핸드폰 4:5 카드 (10/16) — 경고만 · 「px:」 를 쓰지 않는다(치명 낱말이다)
+        for w in (320, 375, 393, 430):
+            host = QT45_HOST.replace("__SRC__", src).replace("__W__", str(w))
+            raw, err = _run(exe, host, 900, 900, "Q::")
+            if err or not raw:
+                notes.append(f"퀀트 핸드폰 카드 {w}폭 측정값을 못 읽었다" + (f" ({err})" if err else ""))
+                continue
+            n_c, n_bad, who = (raw.split("|") + ["", "", ""])[:3]
+            if not int(n_c or 0):
+                notes.append(f"퀀트 핸드폰 카드 {w}폭: 카드를 하나도 못 찾았다(옛 핸드폰 판으로 돌았나?)")
+            elif int(n_bad or 0):
+                fails.append(f"🔴 퀀트 핸드폰 카드 {w}폭에서 잘렸다 — {n_bad}장 ({who})")
 
     # ⚠️⚠️ **모든 실패가 같은 무게는 아니다** (2026-08-28 분리).
     #    좌우가 안 잠기거나 스크립트가 죽으면 **페이지를 못 쓴다** — 올리면 안 된다.

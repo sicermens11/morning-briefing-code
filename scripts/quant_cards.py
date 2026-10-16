@@ -466,6 +466,30 @@ def _행(라1, 값1, 라2, 값2, 색1=None, 색2=None):
             + _칸(라1, 값1, 색1, 180) + _칸(라2, 값2, 색2, 130, 190) + '</div>')
 
 
+def _종목값(x, 업종, 상태):
+    r"""종목 상자에 들어가는 **값 글자** — PC 카드(_종목블록)와 핸드폰 카드(_폰종목)가 같이 쓴다 (10/16 · 글을 두 벌로 안 적는다)"""
+    _낙 = x.get("20일낙폭")
+    _낙글 = _음(_낙, 1) if _낙 is not None else ("B 규칙은 안 봄" if x.get("B전용") else "—")   # 10/12 B 전용 종목
+    _낙색 = None if _낙 is None else (C["빨"] if _낙 >= 0 else C["파"])
+    # ⚠️ 10/8 독립 검사 — 「20일 낙폭 +23.4%」 처럼 오른 값에 「빠진 폭」 이름이 붙었다(섹터·업종 갈래는 안 빠져도 후보가 된다)
+    _낙라 = "20일 낙폭" if (_낙 is None or _낙 < 0) else "20일 등락"
+    _갭있음 = x.get("상대갭") is not None
+    # 08:00 후보 때는 상대갭이 아직 없다 (08:55 에 정해진다)
+    _갭글 = _음(x["상대갭"], 2, "%p") if _갭있음 else f"{R.판정시각} 확정 뒤"
+    if 상태 == "pre":
+        _a, _b = R.매수범위(x.get("어제종가", 0) or 0)
+        _라4, _값4 = "매수 적정 범위", f"{_a:,}~{_b:,}원"
+    else:
+        _문 = x.get("문턱가")
+        _라4, _값4 = "문턱가", (f"{_문:,}원" if _문 else ("문턱 없음(B)" if x.get("B전용") else "—"))
+    _잉, _부 = x.get("잉여금비율"), x.get("부채비율")
+    _재 = " · ".join(f"{z:.0f}%" for z in (_잉, _부) if z is not None) or ("B 규칙은 안 봄" if x.get("B전용") else "—")
+    return {"이름": x.get("이름", ""), "업종": 업종 or "", "코드": x.get("종목코드", ""), "딱지": _딱지(x),
+            "낙라": _낙라, "낙글": _낙글, "낙색": _낙색, "갭있음": _갭있음, "갭글": _갭글,
+            "종가": f'{x.get("어제종가", 0):,}원', "시총": f'{x.get("시총억", 0):,}억',
+            "라4": _라4, "값4": _값4, "재": _재}
+
+
 def _종목블록(x, 업종, 상태, 확정):
     r"""종목 상자 — **4행 표형** (QUANT-ANSWER-0929 ★).
 
@@ -478,6 +502,7 @@ def _종목블록(x, 업종, 상태, 확정):
        내용이 하나 사라지는 것이지만 둘 다 같은 말이라 그대로 따랐다
     ⚠️ 낙폭에 **색이 다시 들어온다** — 정본이 음수 파랑·양수 빨강이다
     """
+    v = _종목값(x, 업종, 상태)
     # ── 1행 — 종목명 · 업종 ……… (사는 날) 지정가 주문 칩 · 딱지 ──
     _칩들 = ""
     if 상태 == "buy":
@@ -502,34 +527,16 @@ def _종목블록(x, 업종, 상태, 확정):
                f'{_esc(x.get("종목코드", ""))}</span>' if x.get("종목코드") else "")
             + '<span style="flex:1"></span>' + _칩들 + '</div>')
 
-    # ── 2행 — 20일 낙폭 │ 상대갭 ──
-    _낙 = x.get("20일낙폭")
-    _낙글 = _esc(_음(_낙, 1)) if _낙 is not None else ("B 규칙은 안 봄" if x.get("B전용") else "—")   # 10/12 B 전용 종목
-    _낙색 = None if _낙 is None else (C["빨"] if _낙 >= 0 else C["파"])
-    if x.get("상대갭") is not None:
-        _갭글, _갭색 = _esc(_음(x["상대갭"], 2, "%p")), None
-    else:
-        # 08:00 후보 때는 상대갭이 아직 없다 (08:55 에 정해진다)
-        _갭글 = (f'<span style="font-size:24px;font-weight:700;color:{C["보"]}">'
-                 f'{_esc(R.판정시각)} 확정 뒤</span>')
-        _갭색 = None
-    # ⚠️ 10/8 독립 검사 — 「20일 낙폭 +23.4%」 처럼 오른 값에 「빠진 폭」 이름이 붙었다(섹터·업종 갈래는 안 빠져도 후보가 된다)
-    _2행 = _행("20일 낙폭" if (_낙 is None or _낙 < 0) else "20일 등락", _낙글, "상대갭", _갭글, _낙색, _갭색)
+    # ── 2행 — 20일 낙폭 │ 상대갭 ──  (값은 _종목값 — 핸드폰 카드와 같이 쓴다)
+    _갭글 = (_esc(v["갭글"]) if v["갭있음"] else
+             f'<span style="font-size:24px;font-weight:700;color:{C["보"]}">{_esc(v["갭글"])}</span>')
+    _2행 = _행(v["낙라"], _esc(v["낙글"]), "상대갭", _갭글, v["낙색"], None)
 
     # ── 3행 — 전날 종가 │ 시가총액 ──
-    _3행 = _행("전날 종가", f'{x.get("어제종가", 0):,}원',
-               "시가총액", f'{x.get("시총억", 0):,}억')
+    _3행 = _행("전날 종가", v["종가"], "시가총액", v["시총"])
 
     # ── 4행 — 문턱가(또는 매수 적정 범위) │ 이익 · 빚 ──
-    if 상태 == "pre":
-        _a, _b = R.매수범위(x.get("어제종가", 0) or 0)
-        _라4, _값4 = "매수 적정 범위", f"{_a:,}~{_b:,}원"
-    else:
-        _문 = x.get("문턱가")
-        _라4, _값4 = "문턱가", (f"{_문:,}원" if _문 else ("문턱 없음(B)" if x.get("B전용") else "—"))
-    _잉, _부 = x.get("잉여금비율"), x.get("부채비율")
-    _재 = " · ".join(f"{v:.0f}%" for v in (_잉, _부) if v is not None) or ("B 규칙은 안 봄" if x.get("B전용") else "—")
-    _4행 = _행(_라4, _esc(_값4).replace("~", "~<wbr>"), "이익 · 빚", _esc(_재), C["금진"], None)
+    _4행 = _행(v["라4"], _esc(v["값4"]).replace("~", "~<wbr>"), "이익 · 빚", _esc(v["재"]), C["금진"], None)
 
     return (f'<div data-block="1" style="background:{C["블록"]};'
             f'border:1px solid {C["선"]};border-radius:16px;padding:13px 24px;'   # 0929-2 ③ 16→13
@@ -598,6 +605,9 @@ def _악재줄():
     return (f'<div style="font-size:31px;line-height:1.5;color:{_색};'
             f'border-top:1px solid {C["선"]};padding-top:16px">'
             f'{_머}<br>' + "<br>".join(_글) + '</div>')
+
+
+_폰자료 = {}
 
 
 def _장1(q, 보유):
@@ -717,6 +727,10 @@ def _장1(q, 보유):
               f'color:{C["먹"]}">{" ".join(말)}</div>')
 
     부 = [알림] if 알림 else []
+    # ⭐ 10/16 핸드폰 4:5 카드(_폰덱)가 같은 값을 쓴다 — 여기서 정한 상태·목록·글을 넘긴다 (다시 계산하면 언젠가 갈라진다)
+    _폰자료.clear()
+    _폰자료.update(상태=상태, 목록=목록, 업=업, 킥=킥, 제=제, 배=배, 배색=배색, 리드=리드, 라벨=라벨,
+                  라벨색=라벨색, 각주=각주, 알림말=(말 if (팔것 or 뒤팔것) else []), 전체=전체, 보유=보유)
     if 리드:
         부.append(_본문(_esc(리드), 35))
     if 상태 == "none":
@@ -727,8 +741,9 @@ def _장1(q, 보유):
                  f'종목이 없습니다. 규칙상 이런 날은 열흘에 세 번쯤 있습니다. 고장이 아닙니다.'
                  f'</span></div>')
         for 글 in (f"후보가 되려면 먼저 이걸 모두 통과해야 합니다 · 쌓은 이익 {R.잉여금하한:g}% 이상 · "
-                  f"빚 {R.부채상한:g}% 이하 · 작년 순이익 흑자 · 시가총액 {R.시총하한억:,.0f}억~"
-                  f"{R.시총상한억:,.0f}억 · 하루 거래 {R.대금하한억:g}억 이상"
+                  f"빚 {R.부채상한:g}% 이하 · 작년 순이익 흑자 · 시가총액 {R.시총하한억:,.0f}억 이상 · "
+                  f"하루 거래 {R.대금하한억:g}억 이상 · 상장한 지 {R.상장최소거래일}거래일 이상 "
+                  f"({_뽑기글()['상한글']})"
                   + _문안내 + ".",
                   f"그 다음 {' · '.join(_갈래들)} {_갈래수} 중 하나에"
                   + " 걸려야 합니다. 오늘은 어느 것도 걸리지 않았습니다."
@@ -881,20 +896,26 @@ def _업종덩이들():
 
 
 # ── 3장 · 어떻게 뽑았나 (1단계 → 2단계) · 4장 · 업종마다 다른 문 ──────────
-def _장2():
-    # ⭐⭐⭐ 2026-09-29 밤 QUANT-PICK-0929 — 3장은 「어떤 순서로 거르나」 하나만,
-    #    4장은 표 대신 업종마다 한 덩이. 문구는 디자인 판 그대로 · 숫자는 규칙 파일에서.
-    #    ASK-QUANT-0929-5 에서 짚은 것: 「업종」→「섹터」(⑥) · 지수 숫자/종목 숫자 분리(⑦) ·
-    #    「섹터·업종 갈래는 시가총액 범위를 따로」(⑧) · 「없음」→「1단계 공통 문 그대로」(①)
-    # (옛 판의 이력: 2026-09-23 「회사 사정과 상관없이」 삭제 · 09-29 B137 재무 문 — 커밋 d39873f 이전 참고)
-    # ⭐ ANSWER-0929-7 답 2 — 「왜 빠졌는지(회사 사정)는 보지 않고」 되살림 (디자인: 「내 실수다」)
+def _뽑기글():
+    r"""「어떻게 뽑았나」 글 조각 — PC 3장(_장2)과 핸드폰 카드가 같이 쓴다 (10/16 · 글을 두 벌로 안 적는다).
+
+    ⭐ 10/16 사용자 「300억~2천억 시가총액 * 이거 맞아?」 — 아니었다. 「300억~2,000억」 을 1단계 공통 조건처럼 적어
+       섹터 종목도 2천억까지인 것처럼 읽혔다(실전: 300억↑ 공통 · 2,000억 미만은 크게 빠짐·시장·변동성 갈래만 · 섹터는 상한 없음).
+       또 실전 조건 「상장 250거래일↑」(record_pick)이 카드에 없었다 → 둘 다 고친다
+    """
     리드 = ("재무가 튼튼한 회사가 크게 빠진 날을 찾습니다. 왜 빠졌는지(회사 사정)는 보지 않고 "
           "재무제표와 주가만 보는 기계 규칙이라 브리핑과 종목이 다른 것이 정상입니다.")
     문들 = ([(f"{R.잉여금하한:g}%", "이상 · 벌어서 쌓은 이익"), (f"{R.부채상한:g}%", "이하 · 빚")]
           + ([("흑자", "· 작년 순이익")] if R.흑자필수 else [])
-          + [(f"{R.시총하한억:,.0f}억~{R.시총상한억:,.0f}억", "· 시가총액"),
-             (f"{R.대금하한억:g}억", "이상 · 하루 거래")])
+          + [(f"{R.시총하한억:,.0f}억", "이상 · 시가총액"),
+             (f"{R.대금하한억:g}억", "이상 · 하루 거래"),
+             (f"{R.상장최소거래일}거래일", "이상 · 상장한 지")])
     _업켬 = bool(R.업종규칙_켬 and R.업종규칙)
+    _갈래상한 = "크게 빠짐·시장" + ("·변동성" if R.변동성자사주_켬 else "")
+    상한글 = (f"시가총액 {R.시총상한억:,.0f}억 미만은 {_갈래상한} 갈래만"
+            + (" · 섹터 갈래는 상한이 없습니다" if R.섹터규칙_큰회사 else ""))
+    제외 = ("관리종목·우선주·스팩은 제외합니다 · " + 상한글
+          + (f" · 업종 갈래는 업종마다 범위가 다릅니다 ({_다음쪽}장)." if _업켬 else "."))
     규칙 = ((("낙폭", f"20거래일 동안 {abs(R.낙폭20문턱):g}% 넘게 빠졌고, 평소 움직이던 폭의 "
                      f"아래쪽(볼린저 −{abs(R.볼린저문턱):g}σ)에 있다"),
              # ⭐ 10/14 ②-0 — 섹터 종목 목록(value-chain-map)은 2026년에 만든 목록이라 그 뒤 사라진 회사가 빠져 있다 · 과거 성적이 좋게 나왔을 수 있다
@@ -908,6 +929,19 @@ def _장2():
                if R.변동성자사주_켬 else ())
             + ((("업종", "업종마다 따로 낸 기준 · 다음 장에 있다"),) if _업켬 else ()))
     _갈 = {3: "세", 4: "네", 5: "다섯", 6: "여섯"}.get(len(규칙), str(len(규칙)))
+    return {"리드": 리드, "문들": 문들, "제외": 제외, "상한글": 상한글, "규칙": 규칙, "업켬": _업켬, "갈": _갈,
+            "앞쪽": "여러 갈래에 걸린 종목이 앞쪽에 옵니다."}
+
+
+def _장2():
+    # ⭐⭐⭐ 2026-09-29 밤 QUANT-PICK-0929 — 3장은 「어떤 순서로 거르나」 하나만,
+    #    4장은 표 대신 업종마다 한 덩이. 문구는 디자인 판 그대로 · 숫자는 규칙 파일에서.
+    #    ASK-QUANT-0929-5 에서 짚은 것: 「업종」→「섹터」(⑥) · 지수 숫자/종목 숫자 분리(⑦) ·
+    #    「섹터·업종 갈래는 시가총액 범위를 따로」(⑧) · 「없음」→「1단계 공통 문 그대로」(①)
+    # (옛 판의 이력: 2026-09-23 「회사 사정과 상관없이」 삭제 · 09-29 B137 재무 문 — 커밋 d39873f 이전 참고)
+    # ⭐ ANSWER-0929-7 답 2 — 「왜 빠졌는지(회사 사정)는 보지 않고」 되살림 (디자인: 「내 실수다」)
+    g = _뽑기글()
+    리드, 문들, 규칙, _업켬, _갈 = g["리드"], g["문들"], g["규칙"], g["업켬"], g["갈"]
 
     def _단계(칩글, 제목, 속, 틈):
         return (f'<div style="display:flex;flex-direction:column;gap:{틈}px;'
@@ -927,10 +961,7 @@ def _장2():
                     f'{_점안끊김(_esc(k))}</span>' for v, k in 문들)
           + '</div>'
           # ⭐ ANSWER-0929-7 답 2·3 — 제외 셋 되살림 + 섹터·업종 범위를 **사실대로** (한 줄로 합침)
-          + _각주(_묶음(_esc("관리종목·우선주·스팩은 제외합니다"
-                          + (f" · 섹터 갈래는 시가총액 상한이 없고({R.시총하한억:,.0f}억 이상)"
-                             if R.섹터규칙_큰회사 else "")
-                          + (f", 업종 갈래는 업종마다 범위가 다릅니다 ({_다음쪽}장)." if _업켬 else ".")))))
+          + _각주(_묶음(_esc(g["제외"]))))
     # ⚠️ 「(4장)」을 손으로 적지 않는다 — 종목 장 수가 날마다 달라 업종 장이 3~4쪽을 오간다
     줄들 = "".join(
         f'<div style="display:flex;align-items:flex-start;gap:18px">'
@@ -1014,6 +1045,24 @@ def _가정금액말():
         return ""
 
 
+def _또사기문(묶):
+    r"""「또 사기」 가정 문장(HTML) — PC 6장과 핸드폰 가정 카드가 같이 쓴다. `묶` = 숫자를 굵게 묶는 함수. 자료가 없으면 빈 글"""
+    try:
+        cp = json.load(io.open(os.path.join(_DATA, "rule-capital.json"), encoding="utf-8-sig"))
+        g = cp.get("또사기금지") or {}
+        덜, 끝, 낙 = g.get("덜번비율"), g.get("끝자산"), g.get("계좌낙폭")
+        낙 = (cp.get("종가") or {}).get("또사기금지_계좌낙폭", 낙)
+    except Exception:  # noqa: BLE001
+        return ""
+    if 덜 is None or 끝 is None or 낙 is None:
+        return ""
+    낙글 = f"{낙:g}%".replace("-", "−")
+    return (_esc("이미 들고 있는 종목이 다시 후보에 뜨면 또 산다고 가정한 성적입니다. "
+                 "다시 뜨는 것은 산 뒤 더 빠졌다는 뜻이라, 더 사지 않았다면 이보다 약 ")
+            + 묶(f"{덜:.0f}%") + _esc(" 낮았습니다(같은 기간 ") + 묶(_억만(끝))
+            + _esc(" · 계좌 낙폭" + ("(매일 종가)" if _종가기준() else "") + " ") + 묶(낙글 + ")."))
+
+
 def _또사기가정():
     r"""6장 비교 줄 아래 「또 사기」 가정 문구 (QUANT-ASSUME-1001 · 2026-10-01).
 
@@ -1044,12 +1093,7 @@ def _또사기가정():
 
     def 묶(v):
         return f'<b style="font-weight:800;color:{C["먹"]};white-space:nowrap">{_esc(v)}</b>'
-    낙글 = f"{낙:g}%".replace("-", "−")
-    본 = (_esc(_설명 + "이미 들고 있는 종목이 다시 후보에 뜨면 또 산다고 가정한 성적입니다. "
-               "다시 뜨는 것은 산 뒤 더 빠졌다는 뜻이라, 더 사지 않았다면 이보다 약 ")
-          + 묶(f"{덜:.0f}%") + _esc(" 낮았습니다(같은 기간 ") + 묶(_억만(끝))
-          + _esc(" · 계좌 낙폭" + ("(매일 종가)" if _종가기준() else "") + " ") + 묶(낙글 + ").")
-          )
+    본 = _esc(_설명) + _또사기문(묶)
     return (f'<div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid {C["선"]};'
             f'padding-top:18px">'
             f'<span style="font-size:26px;font-weight:700;color:{C["금"]}">'
@@ -1059,55 +1103,70 @@ def _또사기가정():
 
 
 # ── 3장 · 어떻게 사고 파나 (라벨 2열형) ──────────────────────────
-def _장3():
+def _사고팔기글():
+    r"""「어떻게 사고 파나」 글 조각 — PC 5장(_장3)은 이어 붙이고 핸드폰 카드는 시간순 칸에 나눠 쓴다 (10/16 · 글은 여기 한 곳)"""
     옛낙, 새낙 = _계좌낙폭()
     앞, 뒤 = R.몫들[0], R.몫들[1]
+    g = {"앞": 앞, "뒤": 뒤}
+    g["머리말"] = "규칙이 정하는 것은 언제 사고 언제 파는지 둘뿐입니다. 얼마를 넣을지는 정하지 않습니다."
+    # ⭐ 2026-10-13 — 「후보들의 예상체결가 중앙값보다 빠진 것만 산다」 는 옛 말이었다(9/14 부터 시장 표본 30종목) ·
+    #    또 예상가는 튄다 → **문턱가 지정가 · 9시 시가가 닿아야 산다** (사용자 「응」) · 업종 갈래는 10/13 뺐다
+    g["판정제목"] = "5분, 여기서 살지 정해진다"
+    g["문턱"] = (f"시장 대표 30종목의 예상 시작 갭(중앙값)보다 "
+               f"{abs(R.상대갭문턱):g}%p 더 싸게 시작하는 값(문턱가)을 종목마다 내고, 그 값에 지정가를 겁니다"
+               + (f"(업종 규칙 종목은 {abs(R.업종전용상대갭):g}%p"
+                  # ⭐ 2026-09-30 — 원전 기자재
+                  + "".join(f" · {n} 종목은 {abs(v['상대갭']):g}%p" for n, v in getattr(R, "바구니전용", {}).items())
+                  + ")"
+                  if (getattr(R, "업종전용상대갭", None) is not None and getattr(R, "업종규칙_켬", False)) else ""))
+    g["시가"] = "9시 시가가 문턱가 이하일 때만 사고, 더 높게 시작하면 사지 않습니다"
+    g["시가제목"], g["시가본"] = "9시 시가가 문턱가 이하일 때만 삽니다", "더 높게 시작하면 사지 않습니다."
+    g["예상"] = "예상체결가는 주문이 얇아 자주 튀어서 판단에 쓰지 않습니다"
+    g["자리"] = (f"하루 최대 {R.오늘최대종목(None)}종목"
+               + (f"이고, 섹터 규칙 종목은 {R.섹터전용자리}종목"
+                  + "".join(f", {n} 종목은 {v['자리']}종목" for n, v in getattr(R, "바구니전용", {}).items())
+                  + "까지 더 삽니다."
+                  if getattr(R, "섹터전용자리", 0) else "입니다.")
+               + (f" 지수가 20일에 {abs(R.빠지는장문턱):g}% 넘게 빠진 날은 "
+                  f"{R.빠지는장최대종목}종목까지 삽니다." if R.빠지는장_켬 else ""))
+    g["갭하한"] = (f"예상체결가가 전날보다 {abs(R.예상갭하한):g}% 넘게 빠진 종목은 사지 않습니다. 호가가 얇아 나온 가짜 값이거나 "
+                f"진짜 폭락이거나, 둘 다 살 이유가 아닙니다.")
+    g["취소"], g["없음"] = "체결 안 된 주문은 반드시 취소하세요", "맞는 게 없으면 아무것도 사지 않습니다."
     # ⭐ 몫 이름과 조사는 `_몫말` 이 정한다 — 50:50 「반은/나머지 반은」, 그 밖엔 「30%는/나머지 70%는」
+    g["나눔"] = (f"한 종목을 사면 주문을 둘로 나눠 겁니다. 산 주식의 {_몫말(앞[0])} +{앞[1]:g}%에 팔아 이익을 "
+               f"일찍 챙기고, {_몫말(뒤[0], 뒤=True)} +{뒤[1]:g}%까지 기다립니다.")
+    # ⭐ 2026-09-28 — **문장이 효과를 과장하고 있었다.** 옛 값(9.0→6.2)은 2026-09-14 에
+    #    손으로 적은 것이고, 지금 규칙으로 다시 재니 11.3% → 11.0% 로 **거의 안 줄었다**.
+    #    나눠 팔기의 진짜 값은 낙폭이 아니라 **돈**이다 (11년 성적 1.25배).
+    #    ⓘ 이 문장은 배수로 적는다 (9/28 표현 선택 · 10/7 사용자 확인: 「금액 안 씀」 원칙은 **실제 포트폴리오 금액**이다 — 시뮬 금액은 해당 없음)
+    # ⭐ 10/2 — 종가 기준으로 바뀌면 「줄었다」 가 사실이 아닐 수 있다 ⇒ 숫자 크기로 말을 고른다
+    g["배수"] = (f"나눠 팔면 11년 성적이 {_배수():.2f}배가 되고, 계좌 흔들림{'(매일 종가로 평가)은' if _종가기준() else '도'} "
+               f"{abs(옛낙):.1f}% → {abs(새낙):.1f}%"
+               + (("로 조금 줄었습니다." if abs(abs(옛낙) - abs(새낙)) < 3 else "로 줄었습니다.") if abs(새낙) < abs(옛낙) - 0.05 else
+                  (("로 조금 늘었습니다." if abs(abs(옛낙) - abs(새낙)) < 3 else "로 늘었습니다.") if abs(새낙) > abs(옛낙) + 0.05
+                   else "로 거의 같습니다."))
+               if _배수() else
+               f"나눠 팔면 계좌 흔들림이 {abs(옛낙):.1f}% → {abs(새낙):.1f}%"
+               + ("로 줄었습니다." if abs(새낙) < abs(옛낙) - 0.05 else "입니다."))
+    g["기한"] = (f"{_몫말(앞[0], 앞뒤=True)} {앞[2]}거래일, {_몫말(뒤[0], 뒤=True, 앞뒤=True)} {뒤[2]}거래일이 "
+               f"지나면 그날 값으로 정리합니다.")
+    g["손절"] = ("손절은 하지 않습니다. 값이 빠졌다는 이유로 중간에 팔지 않습니다."
+               # ⭐ 2026-09-29 밤 — 악재 매도(오늘 반영)가 화면에 없었다. 「중간에 팔지 않는다」만 보면 모른다
+               + (f" 다만 들고 있는 종목에 {'·'.join(_파는말())} 공시가 뜨면 다음 날 시가에 팝니다."
+                  if _파는말() else ""))
+    return g
+
+
+def _장3():
+    g = _사고팔기글()
+    앞, 뒤 = g["앞"], g["뒤"]
     블록 = (
         ("어떻게 사나",
-         # ⭐ 2026-10-13 — 「후보들의 예상체결가 중앙값보다 빠진 것만 산다」 는 옛 말이었다(9/14 부터 시장 표본 30종목) ·
-         #    또 예상가는 튄다 → **문턱가 지정가 · 9시 시가가 닿아야 산다** (사용자 「응」) · 업종 갈래는 10/13 뺐다
-         [f"{R.판정시각}에 5분, 여기서 살지 정해진다. 시장 대표 30종목의 예상 시작 갭(중앙값)보다 "
-          f"{abs(R.상대갭문턱):g}%p 더 싸게 시작하는 값(문턱가)을 종목마다 내고, 그 값에 지정가를 겁니다"
-          + (f"(업종 규칙 종목은 {abs(R.업종전용상대갭):g}%p"
-             # ⭐ 2026-09-30 — 원전 기자재
-             + "".join(f" · {n} 종목은 {abs(v['상대갭']):g}%p" for n, v in getattr(R, "바구니전용", {}).items())
-             + ")"
-             if (getattr(R, "업종전용상대갭", None) is not None and getattr(R, "업종규칙_켬", False)) else "")
-          + ". 9시 시가가 문턱가 이하일 때만 사고, 더 높게 시작하면 사지 않습니다. 예상체결가는 주문이 얇아 자주 튀어서 판단에 쓰지 않습니다"
-          + f". 하루 최대 {R.오늘최대종목(None)}종목"
-          + (f"이고, 섹터 규칙 종목은 {R.섹터전용자리}종목"
-             + "".join(f", {n} 종목은 {v['자리']}종목" for n, v in getattr(R, "바구니전용", {}).items())
-             + "까지 더 삽니다."
-             if getattr(R, "섹터전용자리", 0) else "입니다.")
-          + (f" 지수가 20일에 {abs(R.빠지는장문턱):g}% 넘게 빠진 날은 "
-             f"{R.빠지는장최대종목}종목까지 삽니다." if R.빠지는장_켬 else ""),
-          f"예상체결가가 전날보다 {abs(R.예상갭하한):g}% 넘게 빠진 종목은 사지 않습니다. 호가가 얇아 나온 가짜 값이거나 "
-          f"진짜 폭락이거나, 둘 다 살 이유가 아닙니다.",
-          "09:01에 체결 안 된 주문은 반드시 취소하세요. 맞는 게 없으면 아무것도 사지 않습니다."]),
-        ("목표에 닿으면 · 둘로 나눠 판다",
-         [f"한 종목을 사면 주문을 둘로 나눠 겁니다. 산 주식의 {_몫말(앞[0])} +{앞[1]:g}%에 팔아 이익을 "
-          f"일찍 챙기고, {_몫말(뒤[0], 뒤=True)} +{뒤[1]:g}%까지 기다립니다.",
-          # ⭐ 2026-09-28 — **문장이 효과를 과장하고 있었다.** 옛 값(9.0→6.2)은 2026-09-14 에
-          #    손으로 적은 것이고, 지금 규칙으로 다시 재니 11.3% → 11.0% 로 **거의 안 줄었다**.
-          #    나눠 팔기의 진짜 값은 낙폭이 아니라 **돈**이다 (11년 성적 1.25배).
-          #    ⓘ 이 문장은 배수로 적는다 (9/28 표현 선택 · 10/7 사용자 확인: 「금액 안 씀」 원칙은 **실제 포트폴리오 금액**이다 — 시뮬 금액은 해당 없음)
-          # ⭐ 10/2 — 종가 기준으로 바뀌면 「줄었다」 가 사실이 아닐 수 있다 ⇒ 숫자 크기로 말을 고른다
-          (f"나눠 팔면 11년 성적이 {_배수():.2f}배가 되고, 계좌 흔들림{'(매일 종가로 평가)은' if _종가기준() else '도'} "
-           f"{abs(옛낙):.1f}% → {abs(새낙):.1f}%"
-           + (("로 조금 줄었습니다." if abs(abs(옛낙) - abs(새낙)) < 3 else "로 줄었습니다.") if abs(새낙) < abs(옛낙) - 0.05 else
-              (("로 조금 늘었습니다." if abs(abs(옛낙) - abs(새낙)) < 3 else "로 늘었습니다.") if abs(새낙) > abs(옛낙) + 0.05
-               else "로 거의 같습니다."))
-           if _배수() else
-           f"나눠 팔면 계좌 흔들림이 {abs(옛낙):.1f}% → {abs(새낙):.1f}%"
-           + ("로 줄었습니다." if abs(새낙) < abs(옛낙) - 0.05 else "입니다."))]),
-        ("목표에 안 닿으면 · 날짜로 끝낸다",
-         [f"{_몫말(앞[0], 앞뒤=True)} {앞[2]}거래일, {_몫말(뒤[0], 뒤=True, 앞뒤=True)} {뒤[2]}거래일이 "
-          f"지나면 그날 값으로 정리합니다.",
-          "손절은 하지 않습니다. 값이 빠졌다는 이유로 중간에 팔지 않습니다."
-          # ⭐ 2026-09-29 밤 — 악재 매도(오늘 반영)가 화면에 없었다. 「중간에 팔지 않는다」만 보면 모른다
-          + (f" 다만 들고 있는 종목에 {'·'.join(_파는말())} 공시가 뜨면 다음 날 시가에 팝니다."
-             if _파는말() else "")]),
+         [f"{R.판정시각}에 {g['판정제목']}. {g['문턱']}. {g['시가']}. {g['예상']}. {g['자리']}",
+          g["갭하한"],
+          f"09:01에 {g['취소']}. {g['없음']}"]),
+        ("목표에 닿으면 · 둘로 나눠 판다", [g["나눔"], g["배수"]]),
+        ("목표에 안 닿으면 · 날짜로 끝낸다", [g["기한"], g["손절"]]),
     )
     def _행(라, 줄들):
         return (
@@ -1138,7 +1197,7 @@ def _장3():
     # ⭐ ANSWER-0929-7 답 1 — **나누는 선** = 첫 장에 두는 블록 수. 블록 경계마다 옮겨 재고
     #    두 장 아래 여백 차가 가장 작은 선을 골랐다 (비교 줄은 「목표에 안 닿으면」과 같은 장,
     #    각주는 둘째 장 맨 아래)
-    몸1 = (_본문(_esc("규칙이 정하는 것은 언제 사고 언제 파는지 둘뿐입니다. 얼마를 넣을지는 정하지 않습니다."), 35)
+    몸1 = (_본문(_esc(g["머리말"]), 35)
           + "".join(행들[:_5장선]))
     몸2 = ("".join(행들[_5장선:])
           + 비교
@@ -1154,6 +1213,11 @@ def _장3():
 # ── 4장 · 과거에 어땠나 ─────────────────────────────────────────
 def _수익색(v):
     return C["빨"] if (v or 0) >= 0 else C["파"]
+
+
+_성적머리말 = "이 규칙이 과거에 있었다면 이렇게 됐을 것입니다. 컴퓨터가 옛 주가로 계산한 것입니다."
+_성적주의 = ("위 숫자는 전부 과거 자료로 계산한 것입니다.", "「과거에 이랬다」이지 「앞으로 이럴 것」이 아닙니다.",
+          "실제로 산 기록은 오늘부터 쌓입니다.", "매수 추천이 아닙니다.", "판단과 책임은 본인에게 있습니다.")
 
 
 def _장4():
@@ -1216,10 +1280,8 @@ def _장4():
         나 += _본문(f'손실로 끝난 {강(f"{s["손실건수"]}건")}의 평균은 '
                   f'{강(_음(s["손실평균"], 1), C["파"])}였습니다.')
 
-    각주 = ("위 숫자는 전부 과거 자료로 계산한 것입니다. 「과거에 이랬다」이지 「앞으로 이럴 것」이 "
-          "아닙니다. 실제로 산 기록은 오늘부터 쌓입니다. 매수 추천이 아닙니다. 판단과 책임은 "
-          "본인에게 있습니다.")
-    몸 = (_본문(_esc("이 규칙이 과거에 있었다면 이렇게 됐을 것입니다. 컴퓨터가 옛 주가로 계산한 것입니다."), 31, 1.6)
+    각주 = " ".join(_성적주의)
+    몸 = (_본문(_esc(_성적머리말), 31, 1.6)
          + _블록("10년 남짓을 계산하면", 요약, 틈=10)
          + _블록("최근 3건", 표)
          + _블록("가장 좋았던 셋", 좋, 틈=10)
@@ -1360,7 +1422,7 @@ _지난CSS = (
     ".qpast .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:5px;padding:1px 6px;white-space:nowrap}"
     ".qpast .y{background:#1c1813;color:#fff}.qpast .n{background:#e8e3d8;color:#6b665c}.qpast .w{background:#fff;color:#8a7038;border:1px solid #d5cec0}"
     ".qpast .foot{font-size:12px;color:#7c766b;margin-top:12px;line-height:1.6}"
-    "#qt.past .qrail,#qt.past .qmob,#qt.past .qhint,#qt.past [role=alert]{display:none!important}"
+    "#qt.past .qrail,#qt.past .qmob,#qt.past .qm45,#qt.past .qhint,#qt.past [role=alert]{display:none!important}"
     "</style>")
 
 
@@ -1442,16 +1504,351 @@ def _지난들(줄들, 오늘):
     return 날들, html
 
 
+# ════════════════════════════════════════════════════════════════════
+# ⭐⭐⭐ 2026-10-16 핸드폰 4:5 카드 (사용자 「핸드폰 퀀트 화면, 둘다 너 권고대로 반영하고 바꾸자!」)
+#    시안 https://claude.ai/artifact/4HSDcSyGjwBswmCcb7V9ia 6판 그대로 · 폭 600 이하에서만 보인다(PC 는 .qrail 그대로)
+#    · 카드는 4:5 고정 · 카드 폭 361 에서 1em=16px 로 **그림처럼 통째로** 커지고 작아진다(cqw)
+#    · 글자 하한: 본문 약 13px · 라벨 11px · 숫자 15px — 넘치면 글자를 줄이지 않고 장을 나눈다(종목 장)
+#    · 글·숫자는 PC 카드와 **같은 함수**에서 (_폰자료 · _종목값 · _뽑기글 · _사고팔기글 · _선택지 · _또사기문 · _사례)
+#    · 상자 왼쪽 색 띠 금지 (사용자 10/16 「너무 클로드 같아」)
+#    · 넘긴 뒤 카드가 화면 끝에 붙던 것 = scroll-padding 없음 → 넣었다
+# ════════════════════════════════════════════════════════════════════
+def _e(s):
+    return _esc(str(s))
+
+
+def _폰카드(킥커, 몸, 덧=""):
+    return (f'<section class="c4{(" " + 덧) if 덧 else ""}" data-m45="1"><div class="k">'
+            f'<span>{킥커}</span><span class="pg">{_쪽표}</span></div>{몸}</section>')
+
+
+def _폰종목(x, 업종, 상태):
+    v = _종목값(x, 업종, 상태)
+    낙색 = (' style="color:%s"' % v["낙색"]) if v["낙색"] else ""
+    갭 = (f'<strong>{_e(v["갭글"])}</strong>' if v["갭있음"] else f'<strong class="w sub">{_e(v["갭글"])}</strong>')
+    값4 = _e(v["값4"]).replace("~", "~<wbr>")
+    머리 = (f'<div class="s"><div class="sh"><b>{_e(v["이름"])}</b>'
+            f'<i>{_e((v["업종"] + " · ") if v["업종"] else "")}{_e(v["코드"])}</i>'
+            + (f'<span class="tg">{_e(v["딱지"])}</span>' if v["딱지"] else "") + '</div>')
+    if 상태 == "pre":
+        # 08:00 후보 — 상대갭은 아직 없다(「08:55 확정 뒤」 는 표지 첫 줄이 말한다) · 매수 적정 범위가 길어 두 칸을 준다
+        return (머리 +
+                f'<div class="g3"><div><small>{_e(v["낙라"])}</small><strong{낙색}>{_e(v["낙글"])}</strong></div>'
+                f'<div><small>시가총액</small><strong>{_e(v["시총"])}</strong></div>'
+                f'<div><small>이익 · 빚</small><strong>{_e(v["재"])}</strong></div></div>'
+                f'<div class="g3"><div><small>전날 종가</small><strong>{_e(v["종가"])}</strong></div>'
+                f'<div class="span2"><small>{_e(v["라4"])}</small><strong class="gd">{값4}</strong></div></div></div>')
+    return (머리 +
+            f'<div class="g3"><div><small>{_e(v["낙라"])}</small><strong{낙색}>{_e(v["낙글"])}</strong></div>'
+            f'<div><small>상대갭</small>{갭}</div>'
+            f'<div><small>{_e(v["라4"])}</small><strong class="gd{" w" if 상태 == "pre" else ""}">{값4}</strong></div></div>'
+            f'<div class="g3"><div><small>전날 종가</small><strong>{_e(v["종가"])}</strong></div>'
+            f'<div><small>시가총액</small><strong>{_e(v["시총"])}</strong></div>'
+            f'<div><small>이익 · 빚</small><strong>{_e(v["재"])}</strong></div></div></div>')
+
+
+def _폰표지(d, bg글):
+    상태 = d.get("상태")
+    목록 = d.get("목록") or []
+    업 = d.get("업") or {}
+    배색 = d.get("배색") or C["보"]
+    몸 = (f'<p class="t">{_e(d.get("제", ""))}'
+          + (f' <span class="badge" style="background:{배색}">{_e(d.get("배"))}</span>' if d.get("배") else "")
+          + '</p>')
+    for 말 in d.get("알림말") or []:
+        몸 += f'<div class="alert">{_e(말)}</div>'
+    if d.get("리드"):
+        몸 += f'<p class="lead">{_e(d["리드"])}</p>'
+    if 상태 == "none":
+        g = _뽑기글()
+        몸 += ('<div class="zero"><b>0개</b><span>조건을 통과한 종목이 없습니다. 규칙상 이런 날은 열흘에 세 번쯤 '
+               '있습니다. 고장이 아닙니다.</span></div>')
+        몸 += (f'<p class="note">후보가 되려면 먼저 1단계를 모두 통과하고 ({" · ".join(f"{a} {b}" for a, b in g["문들"])}), '
+               f'{" · ".join(_갈래들)} {_갈래수} 중 하나에 걸려야 합니다. 오늘은 어느 것도 걸리지 않았습니다.'
+               + (f" 들고 있는 것 {len(d.get('보유') or [])}개에는 +{R.앞몫목표:g}% · +{R.뒷몫목표:g}% 지정가가 걸려 있습니다."
+                  if d.get("보유") else "") + '</p>')
+        악 = _악재줄()
+        if 악:
+            몸 += '<div class="alert">' + re.sub(r"<[^>]+>", " ", 악.replace("<br>", " · ")).strip() + '</div>'
+    elif 목록:
+        # 08:00 후보는 상대갭이 아직 없다 — 종목 · 매수 적정 범위 두 칸 (범위가 길다)
+        머리 = ("종목", "매수 적정 범위") if 상태 == "pre" else ("종목", "상대갭", "문턱가")
+        줄 = ""
+        for x in 목록:
+            v = _종목값(x, (업.get(x.get("종목코드", "")) or {}).get("업종명") or (x.get("섹터") or ""), 상태)
+            칸 = [v["값4"]] if 상태 == "pre" else [v["갭글"], v["값4"]]
+            줄 += (f'<tr><td>{_e(v["이름"])}' + (f'<i>{_e(v["업종"])}</i>' if v["업종"] else "") + '</td>'
+                   + "".join(f'<td{" class=th" if k == len(칸) - 1 else ""}>{_e(z)}</td>' for k, z in enumerate(칸))
+                   + '</tr>')
+        몸 += (f'<p class="lab" style="color:{d.get("라벨색") or C["보"]}">{_e(d.get("라벨", ""))}</p>'
+               f'<table class="ct"><thead><tr>{"".join(f"<th>{z}</th>" for z in 머리)}</tr></thead>'
+               f'<tbody>{줄}</tbody></table>')
+    각 = " ".join(z for z in (d.get("각주") or "", bg글 or "") if z)
+    if 각:
+        몸 += f'<p class="note mt">{_e(각)}</p>'
+    return _폰카드(_e(d.get("킥", "QUANT")), 몸, "dense" if len(목록) > 6 else "")
+
+
+def _폰종목장들(d):
+    목록 = d.get("목록") or []
+    상태 = d.get("상태")
+    if not 목록 or 상태 == "none":
+        return []
+    업 = d.get("업") or {}
+    # PC 와 같은 나눔 — 한 장에 최대 _한장에(4) · 고르게 (6→3+3 · 8→4+4 · 5→3+2)
+    n쪽 = max(1, -(-len(목록) // _한장에))
+    out, i0, 남 = [], 0, len(목록)
+    이름 = {"buy": "살 종목", "wait": "참고 종목", "pre": "볼 종목"}.get(상태, "종목")
+    for j in range(n쪽):
+        m = -(-남 // (n쪽 - j))
+        조각 = 목록[i0:i0 + m]
+        상자 = "".join(_폰종목(x, (업.get(x.get("종목코드", "")) or {}).get("업종명") or (x.get("섹터") or ""), 상태)
+                     for x in 조각)
+        out.append(_폰카드(f"{이름} · {i0 + 1}~{i0 + m}", f'<div class="stks">{상자}</div>',
+                         "dense" if m > 3 else ""))
+        i0 += m
+        남 -= m
+    return out
+
+
+def _폰뽑기():
+    g = _뽑기글()
+    def _칸(a, b):
+        # PC 의 (값, 「이상 · 설명」) 한 쌍 → 핸드폰 (「값 이상」, 설명)
+        for 앞말 in ("이상", "이하"):
+            if b.startswith(앞말 + " · "):
+                return f"{a} {앞말}", b[len(앞말) + 3:]
+        return a, b.lstrip("· ").strip()
+    줄 = ""
+    for a, b in g["문들"]:
+        값, 설명 = _칸(a, b)
+        줄 += (f'<div class="li"><b>{_e(값)}</b><span>{_e(설명)}'
+               + (f'<small>{_e(g["상한글"])}</small>' if 설명 == "시가총액" else "") + '</span></div>')
+    줄 += '<div class="li"><b>제외</b><span>관리종목 · 우선주 · 스팩</span></div>'
+    장1 = _폰카드("HOW THEY WERE PICKED",
+               '<p class="t">어떻게 뽑았나 <small>① 먼저 거르는 조건</small></p>'
+               f'<p class="lead">{_e(g["리드"])}</p>'
+               '<p class="sub"><small>1단계</small>이걸 모두 통과해야 후보가 됩니다</p>'
+               f'<div class="list">{줄}</div>')
+    상자 = "".join(f'<div class="br"><h4><i>{_e(태)}</i></h4><p>{_e(글)}</p></div>' for 태, 글 in g["규칙"])
+    장2 = _폰카드("HOW THEY WERE PICKED",
+               f'<p class="t">어떻게 뽑았나 <small>② {_e(g["갈"])} 갈래</small></p>'
+               f'<p class="sub"><small>2단계</small>하나에만 걸려도 후보<em>{_e(g["앞쪽"])}</em></p>'
+               f'<div class="fill">{상자}</div>')
+    return [장1, 장2]
+
+
+def _폰사고팔기():
+    g = _사고팔기글()
+    앞, 뒤 = g["앞"], g["뒤"]
+    사나 = _폰카드("HOW TO BUY",
+                '<p class="t">어떻게 사나</p>'
+                f'<p class="lead">{_e(g["머리말"])}</p>'
+                '<div class="tl2">'
+                f'<div class="t2"><b>{_e(R.판정시각)}</b><div><strong>{_e(g["판정제목"])}</strong>{_e(g["문턱"])}.</div></div>'
+                f'<div class="t2"><b>09:00</b><div><strong>{_e(g["시가제목"])}</strong>{_e(g["시가본"])} {_e(g["자리"])}</div></div>'
+                f'<div class="t2 red"><b>09:01</b><div><strong>{_e(g["취소"])}</strong>{_e(g["없음"])}</div></div>'
+                '</div>'
+                f'<div class="warn"><b>이럴 땐 안 삽니다</b> · {_e(g["예상"])}. {_e(g["갭하한"])}</div>')
+    비 = _선택지(앞, 뒤)
+    칸 = ""
+    for 말, _ in 비:
+        머, _, 나 = 말.partition(" · ")
+        칸 += f'<div><b>{_e(머)}</b>{_e(나)}</div>'
+    파나 = _폰카드("HOW TO SELL",
+                '<p class="t">어떻게 파나</p>'
+                f'<p class="lead">{_e(g["나눔"])}</p>'
+                '<div class="half">'
+                + "".join(f'<div class="hp"><span class="pct">{z[0] * 100:g}%</span><span class="tgt">+{z[1]:g}%에 팜</span>'
+                          f'<small>못 닿으면 {z[2]}거래일이 지난 날 그날 값으로 정리</small></div>' for z in (앞, 뒤))
+                + '</div>'
+                f'<div class="warn">{_e(g["손절"])}</div>'
+                f'<p class="note">{_e(g["배수"])}</p>'
+                + (f'<div class="cmp2">{칸}</div>' if 칸 else ""))
+    return [사나, 파나]
+
+
+def _폰성적():
+    s = _사례()
+    기간 = str(s.get("기간") or "")
+    년 = re.findall(r"(\d{4})-", 기간)
+    부제 = f"{년[0]}~{년[-1]}" if len(년) >= 2 else 기간
+    평균, 나쁨 = s.get("평균", 0) or 0, s.get("가장나쁨", 0) or 0
+    칸 = [("산 횟수", f'{s.get("전체건수", 0)}번', ""), ("수익으로 끝남", f'{s.get("승률", 0)}%', ""),
+          ("평균", _음(평균, 1), "pos"), ("평균 걸린 날", f'{s.get("평균보유", 0):.0f}일', ""),
+          ("최악", _음(나쁨, 1), "neg")]
+    if s.get("손실평균") is not None and s.get("손실건수"):
+        칸.append((f'손실 {s["손실건수"]}건 평균', _음(s["손실평균"], 1), "neg"))
+    표 = "".join(f'<tr><td>{_e(str(r.get("날짜", ""))[5:])} {_e(r.get("이름", ""))}</td>'
+                f'<td>{r.get("매수가", 0):,}원</td>'
+                f'<td class="{"pos" if (r.get("결과") or 0) >= 0 else "neg"}">'
+                f'{_e(_음(r.get("결과"), 1)) if r.get("결과") is not None else "—"}</td>'
+                f'<td>{_e(str(r.get("며칠")) + "일") if r.get("며칠") is not None else "—"}</td></tr>'
+                for r in (s.get("최근") or [])[:3])
+    좋 = " · ".join(f'{_e(r.get("이름", ""))} {_e(_음(r.get("결과", 0), 1))} ({r.get("며칠")}일)' for r in (s.get("최고") or [])[:3])
+    나 = " · ".join(f'{_e(r.get("이름", ""))} {_e(_음(r.get("결과", 0), 1))}' for r in (s.get("최악") or [])[:3])
+    성적 = _폰카드("TRACK RECORD",
+                f'<p class="t">과거에 어땠나 <small>{_e(부제)}</small></p>'
+                f'<p class="lead">{_e(_성적머리말)}</p>'
+                '<div class="stat">' + "".join(f'<div><small>{_e(a)}</small><strong class="{c}">{_e(b)}</strong></div>' for a, b, c in 칸) + '</div>'
+                + (f'<table class="rt"><thead><tr><th>최근 3건</th><th>산 값</th><th>수익률</th><th>며칠</th></tr></thead>'
+                   f'<tbody>{표}</tbody></table>' if 표 else "")
+                + '<div class="br bw">'
+                + (f'<p><b class="pos">가장 좋았던 셋</b> {좋}</p>' if 좋 else "")
+                + (f'<p><b class="neg">가장 나빴던 셋</b> {나}</p>' if 나 else "")
+                + '</div>')
+    또 = _또사기문(lambda z: f"<b>{_esc(z)}</b>")
+    금 = _가정금액말().strip()
+    줄 = []
+    if 금:
+        줄.append(("금액은 실제 돈이 아닙니다", _e(금)))
+    if 또:
+        줄.append(("또 사는 것도 가정했습니다", 또))
+    줄.append((_성적주의[1], _e(_성적주의[0] + " " + _성적주의[2])))
+    줄.append((_성적주의[3], _e(_성적주의[4])))
+    가정 = _폰카드("TRACK RECORD", '<p class="t">이 성적의 가정</p><div class="notes">'
+                 + "".join(f'<div class="nt"><b>{_e(a)}</b>{b}</div>' for a, b in 줄) + '</div>')
+    return [성적, 가정]
+
+
+def _폰덱(q, 보유):
+    r"""핸드폰 4:5 카드 전부 (HTML). _장1 이 먼저 돌아 _폰자료 를 채운 뒤에 부른다"""
+    d = dict(_폰자료)
+    장들 = [_폰표지(d, _B글(q))] + _폰종목장들(d) + _폰뽑기()
+    if _뽑기글()["업켬"]:
+        # 업종 갈래가 켜진 날은 PC 업종 장을 옛 핸드폰 꼴로 덧붙인다(지금은 꺼짐)
+        장들 += [f'<div class="qold">{_폰사본(h)}</div>' for h in _장2()[1:]]
+    장들 += _폰사고팔기() + _폰성적()
+    n = len(장들)
+    return "".join(h.replace(_쪽표, f"{i} / {n}") for i, h in enumerate(장들, 1))
+
+
+_폰45CSS = (
+    "<style>"
+    "#qt .qm45{display:none}"
+    f"@media(max-width:{_폰폭}px){{"
+    "#qt .qrail{display:none!important}"
+    "#qt .qm45{display:flex;gap:12px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-padding-inline:16px;"
+    "padding:12px 16px 10px;scrollbar-width:none;container-type:inline-size;-webkit-overflow-scrolling:touch;box-sizing:border-box;width:100%}"
+    "#qt .qm45::-webkit-scrollbar{display:none}"
+    "#qt .qhint{display:block!important;padding:4px 0 26px!important}"
+    "}"
+    # 카드 — 폭 361 에서 1em=16px · 4:5
+    f"#qt .qm45 .c4{{flex:0 0 100%;min-width:0;height:125cqw;scroll-snap-align:start;scroll-snap-stop:always;overflow:hidden;"
+    f"font-size:4.43vw;font-size:calc(100cqw / 22.5625);box-sizing:border-box;background:{C['카드']};color:{C['먹']};"
+    f"border-radius:1em;padding:.85em .95em .75em;display:flex;flex-direction:column;gap:.36em;line-height:1.36;"
+    f"word-break:keep-all;font-family:{SANS};font-feature-settings:'tnum';letter-spacing:-.01em}}"
+    "#qt .qm45 .c4 *{box-sizing:border-box}"
+    f"#qt .qm45 .k{{display:flex;align-items:center;gap:.5em;font-size:.75em;font-weight:700;letter-spacing:.06em;color:{C['금']}}}"
+    f"#qt .qm45 .k::after{{content:'';flex:1;height:1px;background:{C['선']};order:1}}"
+    "#qt .qm45 .k span:last-child{order:2;letter-spacing:0}"
+    "#qt .qm45 .t{margin:0;font-size:1.45em;font-weight:800;letter-spacing:-.035em;line-height:1.2;display:flex;align-items:center;gap:.35em;flex-wrap:wrap}"
+    f"#qt .qm45 .t small{{font-size:.55em;color:{C['보']};font-weight:700}}"
+    "#qt .qm45 .badge{font-size:.55em;font-weight:700;color:#fff;border-radius:.35em;padding:.2em .55em;letter-spacing:0}"
+    f"#qt .qm45 .lead{{margin:0;font-size:.84em;color:{C['본']};line-height:1.38}}"
+    f"#qt .qm45 .note{{margin:0;font-size:.76em;color:{C['보']};line-height:1.4}}"
+    "#qt .qm45 .note b{color:inherit}"
+    "#qt .qm45 .mt{margin-top:auto}"
+    f"#qt .qm45 .lab{{margin:0;font-size:.8em;font-weight:700}}"
+    f"#qt .qm45 .alert{{background:{C['경고']};color:{C['빨']};border-radius:.6em;padding:.45em .7em;font-size:.8em;line-height:1.4;font-weight:700}}"
+    f"#qt .qm45 .neg{{color:{C['파']}}}#qt .qm45 .pos{{color:{C['빨']}}}#qt .qm45 .gd{{color:{C['금진']}}}"
+    # 표지 표
+    f"#qt .qm45 .ct{{width:100%;border-collapse:collapse;background:{C['블록']};border-radius:.7em;overflow:hidden;font-size:.94em}}"
+    f"#qt .qm45 .ct th{{font-size:.8em;color:{C['금진']};font-weight:700;text-align:right;padding:.4em .7em .3em;border-bottom:1px solid {C['선']}}}"
+    "#qt .qm45 .ct th:first-child,#qt .qm45 .ct td:first-child{text-align:left}"
+    f"#qt .qm45 .ct td{{padding:.26em .7em;border-top:1px solid {C['줄선']};text-align:right;font-weight:700;white-space:nowrap}}"
+    f"#qt .qm45 .ct td:first-child i{{font-style:normal;font-weight:500;color:{C['보']};font-size:.8em;margin-left:.35em}}"
+    f"#qt .qm45 .ct td.th{{color:{C['금진']};font-weight:800}}"
+    "#qt .qm45 .c4.dense .ct td{padding:.17em .7em}#qt .qm45 .c4.dense .ct{font-size:.9em}#qt .qm45 .c4.dense{gap:.36em}"
+    # 0개
+    f"#qt .qm45 .zero{{display:flex;flex-direction:column;gap:.2em}}#qt .qm45 .zero b{{font-size:3.2em;font-weight:800;line-height:1.1;color:{C['금']}}}"
+    f"#qt .qm45 .zero span{{font-size:.86em;color:{C['본']}}}"
+    # 종목 상자
+    "#qt .qm45 .stks{display:flex;flex-direction:column;gap:.35em;flex:1;min-height:0}"
+    f"#qt .qm45 .s{{background:{C['블록']};border-radius:.7em;padding:.3em .7em .28em;display:flex;flex-direction:column;gap:.1em;flex:1 0 auto;justify-content:center;max-height:9.5em}}"
+    "#qt .qm45 .sh{display:flex;align-items:baseline;gap:.4em;min-width:0}"
+    "#qt .qm45 .sh b{font-size:1.06em;letter-spacing:-.03em;white-space:nowrap}"
+    f"#qt .qm45 .sh i{{font-style:normal;font-size:.75em;color:{C['보']};white-space:nowrap;overflow:hidden;min-width:0}}"
+    f"#qt .qm45 .sh .tg{{font-size:.72em;font-weight:700;color:{C['금']};background:{C['딱']};border-radius:.3em;padding:.05em .4em;margin-left:auto;white-space:nowrap}}"
+    f"#qt .qm45 .g3{{display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid {C['줄선']};padding-top:.1em}}"
+    "#qt .qm45 .g3 div{display:flex;flex-direction:column;min-width:0;line-height:1.2}"
+    f"#qt .qm45 .g3 div+div{{padding-left:.55em;border-left:1px solid {C['줄선']}}}"
+    f"#qt .qm45 .g3 small{{font-size:.72em;color:{C['금진']};font-weight:700;white-space:nowrap}}"
+    "#qt .qm45 .g3 strong{font-size:.98em;font-weight:800;letter-spacing:-.02em;white-space:nowrap}"
+    f"#qt .qm45 .g3 strong.w{{white-space:normal;font-size:.86em}}#qt .qm45 .g3 strong.sub{{color:{C['보']};font-weight:700}}"
+    "#qt .qm45 .g3 .span2{grid-column:span 2}"
+    "#qt .qm45 .ct td:first-child{white-space:normal;word-break:keep-all}"
+    "#qt .qm45 .c4.dense .s{padding:.18em .7em .14em;gap:0}#qt .qm45 .c4.dense .g3 div{line-height:1.12}#qt .qm45 .c4.dense .stks{gap:.28em}"
+    # 설명 장
+    "#qt .qm45 .sub{margin:0;font-size:.88em;font-weight:800;display:flex;gap:.45em;align-items:baseline}"
+    f"#qt .qm45 .sub small{{font-size:.86em;color:{C['금']}}}"
+    f"#qt .qm45 .sub em{{font-style:normal;font-weight:500;font-size:.8em;color:{C['보']};margin-left:auto;text-align:right}}"
+    "#qt .qm45 .fill{flex:1;display:flex;flex-direction:column;justify-content:space-between;gap:.3em;min-height:0}"
+    f"#qt .qm45 .list{{background:{C['블록']};border-radius:.75em;padding:.15em .8em;display:flex;flex-direction:column;flex:1;justify-content:space-around}}"
+    f"#qt .qm45 .li{{display:grid;grid-template-columns:5.6em 1fr;gap:.6em;align-items:baseline;padding:.32em 0;border-top:1px solid {C['줄선']}}}"
+    "#qt .qm45 .li:first-child{border-top:0}"
+    f"#qt .qm45 .li b{{font-size:.95em;color:{C['금진']};white-space:nowrap}}"
+    "#qt .qm45 .li span{font-size:.86em}"
+    f"#qt .qm45 .li span small{{display:block;font-size:.88em;color:{C['보']};line-height:1.35}}"
+    f"#qt .qm45 .br{{background:{C['블록']};border-radius:.75em;padding:.4em .7em;display:flex;flex-direction:column;gap:.08em;flex:1 0 auto;justify-content:center}}"
+    "#qt .qm45 .br h4{margin:0;font-size:.95em;display:flex;align-items:baseline;gap:.45em}"
+    f"#qt .qm45 .br h4 i{{font-style:normal;font-size:.82em;font-weight:700;color:{C['금']};background:{C['딱']};border-radius:.3em;padding:0 .4em}}"
+    f"#qt .qm45 .br p{{margin:0;font-size:.82em;color:{C['본']};line-height:1.38}}"
+    f"#qt .qm45 .br p b{{color:inherit}}#qt .qm45 .br.bw{{flex:1 1 auto;gap:.3em}}#qt .qm45 .br.bw b.pos{{color:{C['빨']}}}#qt .qm45 .br.bw b.neg{{color:{C['파']}}}"
+    f"#qt .qm45 .tl2{{background:{C['블록']};border-radius:.75em;padding:.2em .8em;display:flex;flex-direction:column;flex:1;justify-content:space-around}}"
+    f"#qt .qm45 .t2{{display:grid;grid-template-columns:3em 1fr;gap:.55em;padding:.28em 0;border-top:1px solid {C['줄선']};align-items:baseline}}"
+    "#qt .qm45 .t2:first-child{border-top:0}"
+    "#qt .qm45 .t2 b{font-size:1em;font-weight:800}"
+    "#qt .qm45 .t2 div{font-size:.82em;line-height:1.38}"
+    "#qt .qm45 .t2 div strong{display:block;font-size:1.04em}"
+    f"#qt .qm45 .t2.red b,#qt .qm45 .t2.red strong{{color:{C['빨']}}}"
+    f"#qt .qm45 .warn{{background:{C['블록']};border-radius:.75em;padding:.5em .75em;font-size:.82em;line-height:1.4;color:{C['본']}}}"
+    f"#qt .qm45 .warn b{{color:{C['먹']}}}"
+    "#qt .qm45 .half{display:grid;grid-template-columns:1fr 1fr;gap:.45em}"
+    f"#qt .qm45 .hp{{background:{C['블록']};border-radius:.75em;padding:.4em .7em;display:flex;flex-direction:column}}"
+    "#qt .qm45 .hp .pct{font-size:1.5em;font-weight:800;letter-spacing:-.03em;line-height:1.1}"
+    f"#qt .qm45 .hp .tgt{{font-size:1.05em;font-weight:800;color:{C['빨']}}}"
+    f"#qt .qm45 .hp small{{font-size:.8em;color:{C['본']};line-height:1.35}}"
+    "#qt .qm45 .cmp2{display:grid;grid-template-columns:1fr 1fr;gap:.45em}"
+    f"#qt .qm45 .cmp2 div{{background:{C['블록']};border-radius:.65em;padding:.35em .6em;font-size:.8em;line-height:1.35}}"
+    f"#qt .qm45 .cmp2 b{{display:block;font-size:.92em;color:{C['금진']}}}"
+    "#qt .qm45 .stat{display:grid;grid-template-columns:repeat(3,1fr);gap:.3em}"
+    f"#qt .qm45 .stat div{{background:{C['블록']};border-radius:.55em;padding:.3em .5em;display:flex;flex-direction:column;line-height:1.2}}"
+    f"#qt .qm45 .stat small{{font-size:.72em;color:{C['금진']};font-weight:700;white-space:nowrap}}"
+    "#qt .qm45 .stat strong{font-size:1.08em;font-weight:800;letter-spacing:-.02em;white-space:nowrap}"
+    f"#qt .qm45 .rt{{width:100%;border-collapse:collapse;background:{C['블록']};border-radius:.7em;overflow:hidden;font-size:.82em}}"
+    f"#qt .qm45 .rt th{{font-size:.9em;color:{C['금진']};text-align:right;font-weight:700;padding:.3em .55em .15em;border-bottom:1px solid {C['선']}}}"
+    "#qt .qm45 .rt th:first-child,#qt .qm45 .rt td:first-child{text-align:left}"
+    f"#qt .qm45 .rt td{{text-align:right;padding:.25em .55em;border-top:1px solid {C['줄선']};font-weight:700;white-space:nowrap}}"
+    f"#qt .qm45 .notes{{background:{C['블록']};border-radius:.75em;padding:.1em .8em;display:flex;flex-direction:column;flex:1}}"
+    f"#qt .qm45 .nt{{padding:.36em 0;border-top:1px solid {C['줄선']};font-size:.82em;line-height:1.4;color:{C['본']};flex:1;display:flex;flex-direction:column;justify-content:center}}"
+    "#qt .qm45 .nt:first-child{border-top:0}"
+    f"#qt .qm45 .nt b{{color:{C['먹']}}}#qt .qm45 .nt>b:first-child{{display:block;font-size:1.02em;margin-bottom:.1em}}"
+    "#qt .qm45 .qold{flex:0 0 100%;min-width:0;scroll-snap-align:start}"
+    "#qt .qm45 .qold section[data-label]{width:auto!important;height:auto!important;padding:24px 18px!important}"
+    "</style>")
+
+
 def quant_view(q, 보유=None, 줄들=None):
     """`build_site.quant_view` 가 여기로 넘긴다. `q` 는 forward-log 마지막 줄, `보유` 는 `_보유()`, `줄들` 은 forward-log 전체."""
     보유 = 보유 or []
     # ⭐ 2026-09-29 — _장1 이 **여러 장**을 돌려준다. 쪽 번호를 전체에 맞춰 다시 매긴다
     _덱 = _쪽번호매기기(_장1(q, 보유) + _장2() + _장3() + [_장4()])
+    # ⭐ 10/16 핸드폰 4:5 카드 — _장1 이 _폰자료 를 채운 **뒤에** 만든다
+    try:
+        _폰 = _폰덱(q, 보유)
+        _폰판 = f'<div class="qm45">{_폰}</div>'
+        _폰css = _폰45CSS
+    except Exception as _ex:  # noqa: BLE001
+        # 새 판이 터져도 쪽은 그려져야 한다 — 옛 핸드폰 판으로 돌아간다 (조판은 게시를 막지 않는다)
+        print(f"  ⚠️ 핸드폰 4:5 카드 실패 — 옛 핸드폰 판으로: {type(_ex).__name__}: {_ex}")
+        _폰판 = f'<div class="qmob">{_폰사본(_덱)}</div>'
+        _폰css = _폰CSS
     _오늘 = str(q.get("기록시각") or "")[:10]
     _날들, _지난html = _지난들(줄들, _오늘)
     _날값 = ",".join(_날들)
     return (f'<section class="view" id="qt" hidden data-today="{_오늘}" data-days="{_날값}">'
-            + _폰CSS + _지난CSS
+            + _폰css + _지난CSS
             + f'<div class="top"><div class="in">'
             f'<button class="tbtn" data-home type="button">← 처음</button>'
             # ⭐ 10/14 ‹ 날짜 › — 브리핑과 같은 자리 · 오늘이면 카드, 지난 날이면 표
@@ -1466,7 +1863,7 @@ def quant_view(q, 보유=None, 줄들=None):
             + f'<div class="rail qrail" data-active="true">'
             + _덱
             + '</div>'
-            # ⭐ 10/14 핸드폰 판 — 같은 카드의 px 만 줄인 사본 · 위아래로 잇는다 (.qrail 은 폰에서 숨김)
-            + f'<div class="qmob">{_폰사본(_덱)}</div>'
-            f'<div class="qhint" style="text-align:center;font-size:13px;color:{C["보"]};padding:0 0 30px">'
+            # ⭐ 10/16 핸드폰 판 — 4:5 카드 (.qrail 은 폰에서 숨김) · 실패하면 10/14 옛 사본
+            + _폰판
+            + f'<div class="qhint" style="text-align:center;font-size:13px;color:{C["보"]};padding:0 0 30px">'
             f'← 옆으로 넘겨서 보세요 →</div></section>')

@@ -490,6 +490,8 @@ SITE_JS = """<script>
    if(p){p.disabled=(i<=0); p.dataset.go=i>0?days[i-1]:'';}
    if(n){n.disabled=(i<0||i>=days.length-1); n.dataset.go=(i>=0&&i<days.length-1)?days[i+1]:'';}
    if(!past&&window.__cards&&window.__cards.fit){try{window.__cards.fit()}catch(e){}}
+   // 10/16 핸드폰 4:5 카드 — 퀀트 화면을 열 때마다 첫 장부터 (아이폰에서 첫 장이 밀려 보이던 것)
+   var m45=s.querySelector('.qm45'); if(m45&&!past){m45.scrollLeft=0;}
  }
  document.querySelectorAll('#qt .qprev,#qt .qnext').forEach(function(b){
    b.addEventListener('click',function(){ if(this.dataset.go){ qDay(this.dataset.go); window.scrollTo(0,0);} })});
