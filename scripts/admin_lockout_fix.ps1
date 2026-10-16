@@ -32,7 +32,8 @@ New-ItemProperty -Path $k -Name NoAutoRebootWithLoggedOnUsers -PropertyType DWor
 Write-Output "② 로그인해 있을 때 업데이트 자동 재시작: 막음"
 
 # 지금 계정이 잠겨 있는지
-$a = (net user $env:USERNAME | Select-String -Pattern 'Account active|계정 활성').ToString()
-Write-Output "지금 계정 상태: $a"
+# ⚠️ 10/16 관리자 창에서 이 줄이 null 오류를 냈다(①②는 이미 끝난 뒤 · 무해) → 못 찾아도 멈추지 않게
+$a = net user $env:USERNAME | Select-String -Pattern 'Account active|활성' | Select-Object -First 1
+Write-Output ("지금 계정 상태: " + $(if ($a) { $a.ToString().Trim() } else { "(못 읽음 · Claude 가 따로 확인)" }))
 Write-Output ""
 Write-Output "끝. 다음에 계정이 잠기면 Claude 가 보안 기록 4625 로 어느 기기가 틀렸는지 찾습니다."
