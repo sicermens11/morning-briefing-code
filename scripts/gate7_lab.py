@@ -8139,7 +8139,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8433,7 +8433,7 @@ def main():
             # ⭐ 2026-10-12 BRANCH — **지금 규칙 갈래 하나씩**: 혼자 · 빼면 (사용자 「기본 규칙부터 갈래/업종 등 모든 규칙 하나하나 …
             #    끝자산, 기회, 승률, 수익율, 낙폭 등등을 보여주고 … 기본 규칙에 얹어진 규칙인지, 단독 규칙인지」)
             #    갈래 판정은 _H 와 똑같이 나눈다(업종은 10/12 고친 _H 의 OR) · 운용(자리·비중·악재·종가평가)은 DDCTRL 그대로
-            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX"):
+            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST"):
                 def _섹B(x):
                     return bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x) and (R.섹터규칙_큰회사 or 크기통과(x))
 
@@ -8698,6 +8698,29 @@ def main():
                     print("     섹터 여섯 문턱 함께: " + " │ ".join(_줄S), flush=True)
                     print("     읽기: ±20% 에서 90~110% 안이면 주변도 비슷 = 운 좋은 한 점 아님 · 한쪽만 크게 떨어지면 그 문턱이 아슬아슬")
                     print("  [대조] ROBUST 끝")
+                # ⭐ 10/16 BIGWORST — 대형 1조↑(낙40 −30%) 신호 중 크게 잃은 거래 목록 (ALLSIG 최악 −86% 의 정체 · 사용자에게 약속)
+                if "BIGWORST" in _ONLY.split("+") or _ONLY == "BIGWORST":
+                    def _수BW(x):
+                        _r = 0.0
+                        for 몫 in R.몫들:
+                            _rr, _ = 결과(x, 몫[1], 몫[2], 몫[3] if len(몫) > 3 else None, None, "악재")
+                            if _rr is None:
+                                return None
+                            _r += 몫[0] * _rr
+                        return _r
+                    _대BW = [x for x in 사건 if (x.get("시총억") or 0) >= 10000 and 재무통과(x) and 대금통과(x)
+                            and x.get("낙40") is not None and x["낙40"] <= -30 and str(x.get("해") or "0") >= "2016"]
+                    _줄BW = []
+                    for x in _대BW:
+                        _r = _수BW(x)
+                        if _r is not None and _r <= -40:
+                            _줄BW.append((_r, x))
+                    _줄BW.sort(key=lambda z: z[0])
+                    print(f"  ── BIGWORST · 대형 1조↑ 신호 {len(_대BW):,}개 중 −40% 이하로 끝난 거래 {len(_줄BW)}개 (40/60 나눠 팔기 · 악재 다음 날 팔기 · 비용 포함) ──")
+                    for _r, x in _줄BW[:30]:
+                        _d = 날[x["인"]] if 0 <= x["인"] < len(날) else "?"
+                        print(f"     {_d}  {x['code']}  시총 {x.get('시총억', 0):,.0f}억  낙40 {x.get('낙40', 0):.1f}%  → {_r:+.1f}%  (사라짐 {'예' if x['code'] in _사라짐 else '아니오'})", flush=True)
+                    print("  [대조] BIGWORST 끝")
                 # ⭐ 10/16 MKTFIX (②-2 헛점) — 시험 「지금 규칙」 시장 갈래를 실전 문턱(−5 · −13)으로 바꾸면 무엇이 달라지나
                 if "MKTFIX" in _ONLY.split("+") or _ONLY == "MKTFIX":
                     def _켬M(v):
