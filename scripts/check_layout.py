@@ -412,7 +412,13 @@ document.getElementById("f").onload=function(){
    cs.forEach(function(c,i){
      var o=c.scrollHeight-c.clientHeight, w=c.scrollWidth-c.clientWidth, sq=0;
      c.querySelectorAll(boxes).forEach(function(b){ if(b.scrollHeight>b.clientHeight+1) sq++; });
-     if(o>1||w>4||sq) bad.push((i+1)+"장 아래 "+o+" · 옆 "+w+" · 눌린 상자 "+sq);
+     // 10/16 — 세로 flex 상자에 맨 글자(텍스트 노드)가 직접 섞이면 굵은 숫자마다 줄이 갈린다 (사용자 「줄바꿈 이상한데?」)
+     var cut=0;
+     c.querySelectorAll("*").forEach(function(e){
+       var s=getComputedStyle(e); if(s.display.indexOf("flex")<0||s.flexDirection.indexOf("column")<0) return;
+       for(var k=0;k<e.childNodes.length;k++){ var nd=e.childNodes[k]; if(nd.nodeType===3&&nd.textContent.trim()){ cut++; break; } }
+     });
+     if(o>1||w>4||sq||cut) bad.push((i+1)+"장 아래 "+o+" · 옆 "+w+" · 눌린 상자 "+sq+" · 줄 갈림 "+cut);
    });
    document.title="Q::"+cs.length+"|"+bad.length+"|"+bad.slice(0,4).join(" / ");
   },900);

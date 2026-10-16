@@ -1701,13 +1701,14 @@ def _폰성적():
     금 = _가정금액말().strip()
     줄 = []
     if 금:
-        줄.append(("금액은 실제 돈이 아닙니다", _e(금)))
+        줄.append(("시작 금액", _e(금)))
     if 또:
-        줄.append(("또 사는 것도 가정했습니다", 또))
+        줄.append(("또 사는 것도 가정", 또))
     줄.append((_성적주의[1], _e(_성적주의[0] + " " + _성적주의[2])))
     줄.append((_성적주의[3], _e(_성적주의[4])))
     가정 = _폰카드("TRACK RECORD", '<p class="t">이 성적의 가정</p><div class="notes">'
-                 + "".join(f'<div class="nt"><b>{_e(a)}</b>{b}</div>' for a, b in 줄) + '</div>')
+                 # ⚠️ 본문은 <span> 하나로 감싼다 — .nt 가 세로 flex 라 감싸지 않으면 굵은 숫자마다 줄이 갈렸다(10/16 사용자 「줄바꿈 이상한데?」)
+                 + "".join(f'<div class="nt"><b>{_e(a)}</b><span>{b}</span></div>' for a, b in 줄) + '</div>')
     return [성적, 가정]
 
 
