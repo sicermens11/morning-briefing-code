@@ -2694,6 +2694,19 @@ def main():
     def _시7(x):
         return x.get("시장낙폭") is not None and x["시장낙폭"] <= -7
 
+    # ⭐⭐ 2026-10-16 발견 (다지기 ①-2) — **시험의 「지금 규칙」 시장 갈래가 실전과 다른 문턱을 썼다.**
+    #    실전 record_pick: 지수 20일 ≤ R.지수낙20문턱(−5) OR 지수 60일 ≤ R.지수낙60문턱(−13)  (㉢ · rule_def)
+    #    시험 _H · _시B · _겹친수: _시7(지수 20일 ≤ −7) OR _밑끝갈래(지수 60일 ≤ −10) — 숫자가 박혀 있었다
+    #    ⇒ 기준값 흔들기에서 시장 문턱을 ±20% 바꿔도 결과가 「정확히 100%」 였다(안 읽으니까)
+    #    _시장[\"실전\"] 이 참이면 실전 문턱을 쓴다. 기본값은 MKT_LIVE 환경값(MKTFIX 판이 둘을 견준다)
+    _시장 = {"실전": os.environ.get("MKT_LIVE") == "1"}
+
+    def _시장갈래(x):
+        if _시장["실전"]:
+            return ((x.get("시장낙폭") is not None and x["시장낙폭"] <= R.지수낙20문턱)
+                    or _시낙(x, 60, R.지수낙60문턱))
+        return _시7(x) or bool(_밑끝갈래(x))
+
     def _빠짐(x):
         return x["낙폭20"] <= -5
 
@@ -2716,7 +2729,7 @@ def main():
                   # ⚠️ 2026-09-14 밤: 여기도 `_시낙(x,60,-10)` 이 박혀 있었다.
                   #    `_겹친` 은 **고르는 순서**(겹친 수 → 낙폭)를 정하는 값이라
                   #    갈래 정의가 어긋나면 **순서를 잘못 잰다**
-                  + (1 if (_시7(x) or _밑끝갈래(x)) else 0)))
+                  + (1 if _시장갈래(x) else 0)))   # 10/16 실전 문턱 스위치(_시장)
             x["_겹친"] = v  # [그날까지] 갈래 몇 개에 걸렸나 — 그날 값만 본다 (고르는 순서용)
         return v
 
@@ -2852,11 +2865,11 @@ def main():
                 and x["시장변동성"] >= R.시장변동성문턱 and _자사H(x) >= 1):
             return True
         # ⭐ BASE_RULE=G 면 마지막 갈래를 **120일선 −8%↓** 로 바꾼다 (2026-09-14 밤)
-        _끝갈래 = _밑끝갈래(x)
+        # ⭐ 10/16 — 시장 갈래는 _시장갈래 하나로 (실전 문턱 스위치 · 꺼져 있으면 옛 _시7 OR _밑끝갈래 그대로)
         return ((x["볼린저"] <= R.볼린저문턱
                  and x["낙폭20"] <= R.낙폭20문턱)
                 or 섹터맞나(x)
-                or _시7(x) or _끝갈래)
+                or _시장갈래(x))
 
     # ⚠️⚠️⚠️ 2026-10-12 발견 — **_H 에 업종 갈래가 없었다.** 실전 record_pick 은 「기존·섹터·시장·변동성 OR 업종」 인데
     #    _H 는 업종을 OR 로 안 받고, `무리갭`(업종 갈래 상대갭 −1.5)은 _H 를 통과한 사건의 문턱만 바꿨다.
@@ -8126,7 +8139,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8420,7 +8433,7 @@ def main():
             # ⭐ 2026-10-12 BRANCH — **지금 규칙 갈래 하나씩**: 혼자 · 빼면 (사용자 「기본 규칙부터 갈래/업종 등 모든 규칙 하나하나 …
             #    끝자산, 기회, 승률, 수익율, 낙폭 등등을 보여주고 … 기본 규칙에 얹어진 규칙인지, 단독 규칙인지」)
             #    갈래 판정은 _H 와 똑같이 나눈다(업종은 10/12 고친 _H 의 OR) · 운용(자리·비중·악재·종가평가)은 DDCTRL 그대로
-            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE"):
+            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX"):
                 def _섹B(x):
                     return bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x) and (R.섹터규칙_큰회사 or 크기통과(x))
 
@@ -8432,7 +8445,7 @@ def main():
                     return 문통과(x) and x["볼린저"] <= R.볼린저문턱 and x["낙폭20"] <= R.낙폭20문턱
 
                 def _시B(x):
-                    return 문통과(x) and (_시7(x) or bool(_밑끝갈래(x)))
+                    return 문통과(x) and _시장갈래(x)   # 10/16 실전 문턱 스위치
 
                 def _업B(x):
                     return bool(업종갈래맞나(x))
@@ -8627,6 +8640,120 @@ def main():
                         if _a and _b:
                             print(f"     비용 1.0%: 빈 날만 넓힘 {_b['끝'] / _a['끝'] * 100:.0f}% · 낙폭 {_b['낙']:.1f}%", flush=True)
                     print("  [대조] SECWIDE 끝")
+                # ⭐ 10/16 ROBUST — 다지기 ①-1 나누는 해 흔들기 · ①-2 기준값 흔들기 (사용자 10/13 「통과한 테스트를 견고하게」)
+                #    ①-1 지금 규칙(갈래 넷)을 앞/뒤로 나누는 해 2017·2019·2021·2023 마다 따로 500만에서 굴려 둘 다 버는지
+                #    ①-2 문턱을 ±20% 흔들어(볼린저·낙20·시장낙20·시장낙60·변동성·섹터 여섯) 주변 값도 성적이 비슷한지 = 운 좋은 한 점이 아닌지
+                if "ROBUST" in _ONLY.split("+") or _ONLY == "ROBUST":
+                    _기, _섹, _시, _변, _업 = (f for _, f in _갈들)
+                    _지금R = _또([_기, _섹, _시, _변])
+
+                    def _연R(r, 해수):
+                        try:
+                            return ((r["끝"] / 5_000_000) ** (1 / max(해수, 0.5)) - 1) * 100
+                        except Exception:  # noqa: BLE001
+                            return float("nan")
+                    print("  ── ROBUST ①-1 · 나누는 해 흔들기 (앞·뒤 따로 500만 · 종가 평가 · 비용 포함) ──")
+                    print(f"     {'나누는 해':<8}{'앞 끝 자산':>16}{'앞 연%':>8}{'앞 낙폭':>8}{'산':>5}  │{'뒤 끝 자산':>16}{'뒤 연%':>8}{'뒤 낙폭':>8}{'산':>5}  판정")
+                    for _해R in (2017, 2019, 2021, 2023):
+                        _a = 시뮬(_c(_지금R, **_옵C()), 끝년=str(_해R - 1))
+                        _b = 시뮬(_c(_지금R, **_옵C()), 시작년=str(_해R))
+                        if _a and _b:
+                            _앞해, _뒤해 = (_해R - 2016), (2026.8 - _해R)
+                            _판 = "✅ 둘 다 벎" if (_a["끝"] > 5_000_000 and _b["끝"] > 5_000_000) else "❌"
+                            print(f"     {_해R:<8}{_a['끝']:>16,.0f}{_연R(_a, _앞해):>7.1f}%{_a['낙']:>7.1f}%{_a['산']:>5}  │{_b['끝']:>16,.0f}{_연R(_b, _뒤해):>7.1f}%{_b['낙']:>7.1f}%{_b['산']:>5}  {_판}", flush=True)
+                    print("\n  ── ROBUST ①-2 · 기준값 ±20% 흔들기 (지금 규칙 = 100% · 2016~ / 2021~) ──")
+                    _기준a = 시뮬(_c(_지금R, **_옵C()))
+                    _기준b = 시뮬(_c(_지금R, **_옵C()), 시작년="2021")
+                    print(f"     지금 값: 2016~ {_기준a['끝']:,.0f} · {_기준a['낙']:.1f}% · 산 {_기준a['산']}  │  2021~ {_기준b['끝']:,.0f} · {_기준b['낙']:.1f}%")
+                    _손R = (("볼린저문턱", "크게 빠짐 볼린저"), ("낙폭20문턱", "크게 빠짐 20일 낙폭"),
+                           ("지수낙20문턱", "시장 급락 지수 20일"), ("지수낙60문턱", "시장 급락 지수 60일"), ("시장변동성문턱", "변동성 문턱"))
+                    for _이름R, _라R in _손R:
+                        _원 = getattr(R, _이름R, None)
+                        if _원 is None:
+                            print(f"     {_라R}: (rule_def 에 {_이름R} 없음 · 건너뜀)")
+                            continue
+                        _줄R = []
+                        for _배 in (0.8, 1.2):
+                            setattr(R, _이름R, _원 * _배)
+                            try:
+                                _a = 시뮬(_c(_지금R, **_옵C()))
+                                _b = 시뮬(_c(_지금R, **_옵C()), 시작년="2021")
+                                _줄R.append(f"×{_배:g}({_원 * _배:g}) {_a['끝'] / _기준a['끝'] * 100:.0f}% · {_b['끝'] / _기준b['끝'] * 100:.0f}% · 낙 {_a['낙']:.1f}%")
+                            finally:
+                                setattr(R, _이름R, _원)
+                        print(f"     {_라R} (지금 {_원:g}): " + " │ ".join(_줄R), flush=True)
+                    # 섹터 여섯 — 각자 볼린저·낙폭 문턱을 함께 ±20%
+                    _원섹 = dict(R.섹터규칙)
+                    _줄S = []
+                    for _배 in (0.8, 1.2):
+                        R.섹터규칙.clear()
+                        R.섹터규칙.update({k: (bw, bt * _배, nw, nt * _배) for k, (bw, bt, nw, nt) in _원섹.items()})
+                        try:
+                            _a = 시뮬(_c(_지금R, **_옵C()))
+                            _b = 시뮬(_c(_지금R, **_옵C()), 시작년="2021")
+                            _줄S.append(f"×{_배:g} {_a['끝'] / _기준a['끝'] * 100:.0f}% · {_b['끝'] / _기준b['끝'] * 100:.0f}% · 낙 {_a['낙']:.1f}%")
+                        finally:
+                            R.섹터규칙.clear()
+                            R.섹터규칙.update(_원섹)
+                    print("     섹터 여섯 문턱 함께: " + " │ ".join(_줄S), flush=True)
+                    print("     읽기: ±20% 에서 90~110% 안이면 주변도 비슷 = 운 좋은 한 점 아님 · 한쪽만 크게 떨어지면 그 문턱이 아슬아슬")
+                    print("  [대조] ROBUST 끝")
+                # ⭐ 10/16 MKTFIX (②-2 헛점) — 시험 「지금 규칙」 시장 갈래를 실전 문턱(−5 · −13)으로 바꾸면 무엇이 달라지나
+                if "MKTFIX" in _ONLY.split("+") or _ONLY == "MKTFIX":
+                    def _켬M(v):
+                        _시장["실전"] = v
+                        for _z in 사건:
+                            _z.pop("_겹친", None)   # 고르는 순서 값은 갈래 정의에 매여 있다 — 바꾸면 다시 잰다
+                    _기, _섹, _시, _변, _업 = (f for _, f in _갈들)
+                    _지금M = _또([_기, _섹, _시, _변])
+                    print("  ── MKTFIX ① 지금 규칙 · 시장 갈래 옛 문턱(시험: 20일 −7 · 60일 −10) vs 실전 문턱(20일 −5 · 60일 −13) ──")
+                    _옛, _새 = {}, {}
+                    for _라창, _시창, _끝창 in (("2016~", None, None), ("~2020", None, "2020"), ("2021~", "2021", None), ("2024~", "2024", None)):
+                        _켬M(False)
+                        _a = _한판(_지금M, _시창, _끝창)
+                        _켬M(True)
+                        _b = _한판(_지금M, _시창, _끝창)
+                        _옛[_라창], _새[_라창] = _a, _b
+                        if _a and _b:
+                            print(f"     {_라창:<7} 옛 {_a['끝']:>14,.0f} · {_a['낙']:.1f}% · 산 {_a['산']} · 승 {_a['승'] or 0:.0f}%  │  실전 {_b['끝']:>14,.0f} · {_b['낙']:.1f}% · 산 {_b['산']} · 승 {_b['승'] or 0:.0f}%  │  실전÷옛 {_b['끝'] / _a['끝'] * 100:.0f}%", flush=True)
+                    _켬M(True)
+                    _이M, _줄M = 0, []
+                    for _해 in range(2016, 2027):
+                        _켬M(False)
+                        _a = 시뮬(_c(_지금M, **_옵C()), 시작년=str(_해), 끝년=str(_해))
+                        _켬M(True)
+                        _b = 시뮬(_c(_지금M, **_옵C()), 시작년=str(_해), 끝년=str(_해))
+                        if _a and _b:
+                            _이M += 1 if _b["끝"] > _a["끝"] + 1 else 0
+                            _줄M.append(f"{_해} {_b['끝'] / _a['끝'] * 100:.0f}%")
+                    print(f"     해마다(실전÷옛): 실전 문턱이 이긴 해 {_이M}/{len(_줄M)} · " + " · ".join(_줄M), flush=True)
+                    _켬M(True)
+                    print("\n  ── MKTFIX ② 실전 문턱에서 갈래 하나씩 빼기 (지금의% · 2016~ / 2021~) ──")
+                    _바a, _바b = 시뮬(_c(_지금M, **_옵C())), 시뮬(_c(_지금M, **_옵C()), 시작년="2021")
+                    for _n, _뺌 in (("크게 빠짐", _또([_섹, _시, _변])), ("섹터 6업종", _또([_기, _시, _변])),
+                                   ("시장 급락", _또([_기, _섹, _변])), ("변동성·자사주", _또([_기, _섹, _시]))):
+                        _a = 시뮬(_c(_뺌, **_옵C()))
+                        _b = 시뮬(_c(_뺌, **_옵C()), 시작년="2021")
+                        if _a and _b:
+                            print(f"     {_n} 빼면: {_a['끝'] / _바a['끝'] * 100:.0f}% · {_b['끝'] / _바b['끝'] * 100:.0f}%  (100 밑이면 그 갈래가 돈을 보탬)", flush=True)
+                    print("\n  ── MKTFIX ③ 실전 문턱에서 시장 문턱 ±20% (지금의% · 2016~ / 2021~) ──")
+                    for _이름R, _라R in (("지수낙20문턱", "지수 20일"), ("지수낙60문턱", "지수 60일")):
+                        _원 = getattr(R, _이름R)
+                        _줄R = []
+                        for _배 in (0.8, 1.2):
+                            setattr(R, _이름R, _원 * _배)
+                            for _z in 사건:
+                                _z.pop("_겹친", None)
+                            try:
+                                _a = 시뮬(_c(_지금M, **_옵C()))
+                                _b = 시뮬(_c(_지금M, **_옵C()), 시작년="2021")
+                                _줄R.append(f"×{_배:g}({_원 * _배:g}) {_a['끝'] / _바a['끝'] * 100:.0f}% · {_b['끝'] / _바b['끝'] * 100:.0f}% · 낙 {_a['낙']:.1f}% · 산 {_a['산']}")
+                            finally:
+                                setattr(R, _이름R, _원)
+                        print(f"     {_라R} (지금 {_원:g}): " + " │ ".join(_줄R), flush=True)
+                    for _z in 사건:
+                        _z.pop("_겹친", None)
+                    print("  [대조] MKTFIX 끝")
                 # ⭐ 10/14 MINCAND (②-2 헛점) — 시뮬은 하루 후보가 3개 미만이면 그날을 **건너뛴다**(최소후보 3) · 실전(record_pick)엔 그런 규칙이 없다
                 #    ① 최소후보 3 vs 1 로 지금 규칙(갈래 넷)의 끝 자산·산 횟수 ② 중형 신호 날 지금 규칙 후보가 120 을 넘어 중형이 잘렸나
                 if "MINCAND" in _ONLY.split("+") or _ONLY == "MINCAND":

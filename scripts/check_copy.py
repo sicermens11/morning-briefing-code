@@ -220,6 +220,21 @@ def _코스피(date):
        전일픽 구간의 벤치마크다.
     """
     import re as _re
+    # ⭐⭐ 2026-10-16 — **KRX 지수 파일(index-daily)을 먼저 본다.**
+    #    이 검사는 오늘 로그 줄이 **저장되기 전에** 돈다 → 아래 「오늘 줄」 을 못 찾아 10/14·15·16 사흘 내리
+    #    「전일픽 판정을 대조 못 했다」 경고가 났다(브리핑 모델은 「로그 코스피값 문제」 로 짐작했다).
+    #    index-daily/YYYYMMDD.json 은 **그 거래일** 종가·등락률이다 → 오늘(date) 보다 앞선 가장 늦은 파일 = 전일픽 구간의 벤치마크
+    try:
+        import glob as _g
+        _오늘 = str(date).replace("-", "")
+        _fs = sorted(f for f in _g.glob(os.path.join(_BASE, "data", "index-daily", "*.json"))
+                     if os.path.basename(f)[:8] < _오늘)
+        if _fs:
+            _k = (json.load(io.open(_fs[-1], encoding="utf-8-sig")).get("지수") or {}).get("코스피") or {}
+            if _k.get("등락률") is not None:
+                return float(_k["등락률"])
+    except Exception:  # noqa: BLE001
+        pass
     # ⚠️ jsonl이 더 정확하다 — md 파싱보다 구조가 분명하다. 먼저 본다
     j = os.path.join(_BASE, "data", "briefing-daily-log.jsonl")
     try:

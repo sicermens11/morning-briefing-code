@@ -35,6 +35,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
+import io
+
+# ⭐ 10/16 KRX 공식 종가 (수급10일 의 종가·등락률을 이것으로) — 거래일마다 한 번만 읽는다
+_KRX폴더 = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "krx-daily")
+_KRX캐시 = {}
 
 KST = timezone(timedelta(hours=9))
 
@@ -487,17 +492,65 @@ def fetch_one(code: str) -> dict:
             base = c - d
             return round(d / base * 100, 2) if base else None
 
-        out["수급10일"] = [{
-            "거래일": r.get("bizdate"),
-            "외국인순매수수량": r.get("foreignerPureBuyQuant"),
-            "기관순매수수량": r.get("organPureBuyQuant"),
-            "개인순매수수량": r.get("individualPureBuyQuant"),
-            "외국인지분율": r.get("foreignerHoldRatio"),
-            "종가": r.get("closePrice"),
-            "등락": r.get("compareToPreviousClosePrice"),
-            "등락률pct": _chg_pct(r.get("closePrice"),
-                                  r.get("compareToPreviousClosePrice")),
-        } for r in rows[:10]]
+        # ⭐⭐ 2026-10-16 — **등락률은 앞뒤 날 종가로 계산한다.**
+        #    네이버 trend 의 `compareToPreviousClosePrice` 가 실제 앞날 종가 차이와 다르다
+        #    (실측 포스코퓨처엠 10/15: 종가 169,600 · 앞날 184,200 → −14,600(−7.93%) 인데 필드는 −15,800(−8.52%)).
+        #    브리핑 모델이 10/14·15·16 사흘 내리 「등락률 버그」 를 찾아 손으로 다시 계산했고, 10/14 엔 갭④ 점수가 뒤집혔다.
+        #    rows 는 최신이 앞 · i 번째의 앞날 = i+1 번째. 맨 끝 줄만(앞날이 없을 때) 옛 방식으로 둔다
+        def _종가(i):
+            try:
+                return _as_float(rows[i].get("closePrice"))
+            except (IndexError, AttributeError):
+                return None
+
+        def _등락률(i):
+            c, p = _종가(i), _종가(i + 1)
+            if c and p:
+                return round((c / p - 1) * 100, 2)
+            return _chg_pct(rows[i].get("closePrice"), rows[i].get("compareToPreviousClosePrice"))
+
+        def _등락(i):
+            c, p = _종가(i), _종가(i + 1)
+            if c and p:
+                return f"{c - p:,.0f}"
+            return rows[i].get("compareToPreviousClosePrice")
+
+        # ⭐⭐⭐ 2026-10-16 더 깊은 원인 — **네이버 trend 의 종가 자체가 KRX 공식 종가와 다르다.**
+        #    빅텍 10/15: KRX 2,730 · 네이버 2,675 / 포스코퓨처엠: KRX 173,000 · 네이버 169,600
+        #    (넥스트레이드 저녁 거래까지 합친 값으로 보인다 · 브리핑 모델은 네이버 종가를 「발굴가」 로 쓰기도 했다)
+        #    ⇒ data/krx-daily/<거래일>.json(KRX OpenAPI · 07:52 받음)이 있으면 **종가·등락·등락률을 KRX 값으로** 채운다.
+        #      네이버 값은 「네이버종가」 로 남겨 대조할 수 있게 둔다. KRX 파일이 없는 날만 네이버 앞뒤 종가로 계산한다
+        def _krx(날, c=code):
+            if 날 not in _KRX캐시:
+                try:
+                    _KRX캐시[날] = json.load(io.open(os.path.join(_KRX폴더, f"{날}.json"), encoding="utf-8-sig")).get("종목") or {}
+                except Exception:  # noqa: BLE001
+                    _KRX캐시[날] = {}
+            return _KRX캐시[날].get(c) or {}
+
+        def _줄(_i, r):
+            _k = _krx(str(r.get("bizdate") or ""))
+            _공식 = _k.get("종가") is not None and _k.get("등락률") is not None
+            _전 = None
+            if _공식:
+                try:
+                    _전 = float(_k["종가"]) / (1 + float(_k["등락률"]) / 100)
+                except (TypeError, ValueError, ZeroDivisionError):
+                    _전 = None
+            return {
+                "거래일": r.get("bizdate"),
+                "외국인순매수수량": r.get("foreignerPureBuyQuant"),
+                "기관순매수수량": r.get("organPureBuyQuant"),
+                "개인순매수수량": r.get("individualPureBuyQuant"),
+                "외국인지분율": r.get("foreignerHoldRatio"),
+                "종가": (f"{float(_k['종가']):,.0f}" if _공식 else r.get("closePrice")),
+                "등락": (f"{float(_k['종가']) - _전:,.0f}" if (_공식 and _전) else _등락(_i)),
+                "등락률pct": (round(float(_k["등락률"]), 2) if _공식 else _등락률(_i)),
+                "종가출처": ("KRX" if _공식 else "네이버"),
+                "네이버종가": r.get("closePrice"),
+            }
+
+        out["수급10일"] = [_줄(_i, r) for _i, r in enumerate(rows[:10])]
         # 외국인 지분율 10거래일 변화. (2026-08-26 신설)
         # ⚠️ 이 값은 **원래부터 오고 있었는데 규칙 어디에도 없어 안 쓰이고 있었다.**
         #    갭③은 **하루치 순매수**만 본다 — 그날 하루 우연히 산 것과 열흘째 꾸준히
