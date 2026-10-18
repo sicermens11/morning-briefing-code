@@ -48,6 +48,18 @@ def _시가표(d8):
     return {}
 
 
+def _종가표(d8):
+    r"""그날 krx-daily 종목 표(종가 포함) — 없으면 {}"""
+    p = os.path.join(KRX, f"{d8}.json")
+    if not os.path.exists(p):
+        return {}
+    j = json.load(io.open(p, encoding="utf-8-sig"))
+    for v in j.values():
+        if isinstance(v, dict) and any(isinstance(x, dict) and x.get("종가") for x in list(v.values())[:5]):
+            return v
+    return {}
+
+
 def main():
     보기만 = "--보기" in sys.argv
     if not os.path.exists(LOG):
@@ -69,10 +81,14 @@ def main():
         동 = r.get("동시호가") or {}
         잰 = str(동.get("잰시각") or "")
         # 표본(자동)이 없던 옛 줄은 실제시장갭을 못 내므로 「채움 표시」로 다시 안 건드린다 (멱등)
-        if not 잰 or 동.get("실제시장갭") is not None or 동.get("실제채움"):
+        # ⭐ (월요일 제안 B) --다시 — 「채움」 표시만 붙고 실제시장갭이 None 인 줄(10/1~10/15)을 한 번 더 본다
+        _다시 = "--다시" in sys.argv and 동.get("실제시장갭") is None
+        if not 잰 or 동.get("실제시장갭") is not None or (동.get("실제채움") and not _다시):
             새줄.append(z)
             continue
-        d8 = 잰[:10].replace("-", "")
+        # ⭐ (월요일 제안 B) 날짜는 **매수일**로 — 잰시각을 쓰면 10/2 줄이 10/6 시가로 채워졌다(잰 날 ≠ 매수일 · 10/16 주말 점검)
+        _매 = str(r.get("매수일") or "").replace("-", "")
+        d8 = _매 if (len(_매) == 8 and _매.isdigit()) else 잰[:10].replace("-", "")
         표 = _시가표(d8)
         if not 표:
             남음.append(d8)
@@ -98,10 +114,35 @@ def main():
             전 = v.get("전일종가") or v.get("어제종가")
             if k and 전:
                 갭들.append((k["시가"] / 전 - 1) * 100)
+        # ⭐ (월요일 제안 B) 10/1 부터 「자동」 표본이 비어 실제시장갭이 2주째 None 이었다 →
+        #    08:55 판정과 같은 **시장 대표 30종목**(auto_0850._시장표본)의 전날 종가 → 그날 시가로 낸다
+        if not 갭들:
+            try:
+                sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                from auto_0850 import _시장표본
+                from krx_calendar import 직전거래일
+                import datetime as _dt
+                _전날 = 직전거래일(_dt.date(int(d8[:4]), int(d8[4:6]), int(d8[6:8])))
+                _어제 = _종가표(f"{_전날:%Y%m%d}") if _전날 else {}
+                for code in _시장표본:
+                    k, 전 = 표.get(code), (_어제.get(code) or {}).get("종가")
+                    try:
+                        전 = float(str(전).replace(",", "")) if 전 else None
+                    except ValueError:
+                        전 = None
+                    if k and 전:
+                        갭들.append((k["시가"] / 전 - 1) * 100)
+                if 갭들:
+                    동["실제표본출처"] = "시장 대표 30종목(전날 종가 → 시가)"
+            except Exception as _e:  # noqa: BLE001
+                print(f"  ⚠️ {d8} 시장 대표 표본으로 못 냄: {type(_e).__name__}: {_e}")
         if 갭들:
             동["실제시장갭"] = round(st.median(갭들), 2)
             동["실제표본수"] = len(갭들)
-        동["실제채움"] = d8
+            동["실제채움"] = d8
+        elif n종:
+            # 시장 갭을 못 냈으면 「채움」 표시를 붙이지 않는다 — 붙이면 다시 안 본다(10/1~10/15 열 줄이 그렇게 묻혔다)
+            동["실제종목채움"] = d8
         r["동시호가"] = 동
         새줄.append(json.dumps(r, ensure_ascii=False))
         바뀜 += 1

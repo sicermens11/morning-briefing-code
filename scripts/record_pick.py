@@ -1134,7 +1134,10 @@ def main():
         bb = 기본.get(code) or {}
         부 = str(bb.get("업종") or "")
         if (("관리종목" in 부) or ("SPAC" in 부)
-                or (bb.get("증권구분") not in (None, "주권"))):
+                or (bb.get("증권구분") not in (None, "주권"))
+                # ⭐ (월요일 제안 A) 우선주·종류주를 직접 뺀다 — 화면은 「우선주 제외」 라고 말하는데
+                #    지금까지는 재무 자료가 없어(0/114) 재무 문에서 우연히 걸러졌을 뿐이다 (10/16 주말 점검)
+                or (bb.get("종류") not in (None, "보통주"))):
             continue
         kk = (자리.get(code) or {}).get(기준일)
         if kk is None or kk < R.상장최소거래일:
