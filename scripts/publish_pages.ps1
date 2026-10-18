@@ -96,8 +96,25 @@ try {
         $cj.실패 | ForEach-Object { Write-Output "    · $_" }
         exit 1
     }
+    # ⭐ (월요일 제안 E) `_안내`(측정 못 함 · 크롬 없음 · 퀀트 폰 카드 못 찾음)가 전에는 아무 데도 안 찍혔다 (10/16 주말 점검)
+    if ($cj._안내) {
+        Write-Output "🔴 레이아웃 검사가 **못 잰 것** — 통과가 아니라 안 잰 것이다:"
+        $cj._안내 | ForEach-Object { Write-Output "    · $_" }
+    }
     Say "레이아웃 검사 통과"
-} catch { Say "레이아웃 검사 결과를 못 읽었다($chk) — 그대로 진행한다" }
+} catch { Write-Output "🔴 레이아웃 검사 결과를 못 읽었다 — **검사 없이** 올린다 ($chk)" }
+
+# --- 규칙 대조 (게시는 막지 않는다) ---------------------------------------------
+# ⭐ (월요일 제안 E) rule_align 이 게시 경로에 없었다 — 문구를 바꿔 게시해도 규칙 숫자 대조가 안 돌았다
+#    (10/13 상대갭 칸이 사흘간 「못 찾음」 · 10/16 화면 성적표가 원본과 다른 채로 있었다)
+try {
+    $ra = & (Join-Path $PSScriptRoot 'run-py.ps1') -Script 'rule_align.py' -Args @('--json')
+    $rj = ($ra | Select-Object -Last 1) | ConvertFrom-Json
+    if ($rj.어긋남) {
+        Write-Output "🔴 규칙 대조 — 화면·성적표가 rule_def 와 다른 곳 (올리되 고칠 것):"
+        $rj.어긋남 | ForEach-Object { Write-Output "    · $_" }
+    } else { Say "규칙 대조 통과" }
+} catch { Write-Output "🔴 규칙 대조를 못 돌렸다 — 확인 필요" }
 
 # --- 올리기 ------------------------------------------------------------------
 # 여기서부터는 파이썬이 GitHub API로 직접 올린다. `index.html` `robots.txt` `.nojekyll`
