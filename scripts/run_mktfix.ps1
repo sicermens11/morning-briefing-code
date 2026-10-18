@@ -64,6 +64,7 @@ function gate7($이름, $only, $밖, $대조, $걸림분) {
 # ── 낮 예측 기록(12:30 forward_daily)에 길을 비켜 준다 — 12:30 이 지났고 오늘 「예측 기록 끝」 이 없으면 기다린다
 function 예측기록차례인가 {
     $n = Get-Date
+    if ([int]$n.DayOfWeek -eq 0 -or [int]$n.DayOfWeek -eq 6) { return $false }   # 10/18 — 주말엔 낮 예측 기록이 안 돈다
     if ($n.Hour * 60 + $n.Minute -lt 750) { return $false }
     $fl = "run-logs\forward_daily_$(Get-Date -f yyyyMMdd).log"
     $cal = Get-Content "data\_holiday_today.txt" -ErrorAction SilentlyContinue
