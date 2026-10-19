@@ -377,8 +377,9 @@ def main():
     사건 = []
     # ⭐ 10/19 POOL_BUYBACK — 실전 「변동성·자사주」 갈래는 빠짐 조건이 없는데 이 그물은 빠진 종목만 담아
     #    안 빠진 자사주 매입 종목이 시험에 없었다(주말 점검 ③ · 사용자 10/19 「둘 다 걸어」). 켜면 최근 R.자사주창일
-    #    거래일 안에 자사주 취득 공시가 있는 종목도 그물에 넣는다(빠짐 조건 없이) · 기본은 꺼짐(지금까지와 같다)
-    _풀자사 = os.environ.get("POOL_BUYBACK") == "1"
+    #    거래일 안에 자사주 취득 공시가 있는 종목도 그물에 넣는다(빠짐 조건 없이)
+    #    10/19 기본 켬 — 실전과 같게(사용자 10/19 「1·2·3 다 해」) · 옛 그물로 보려면 POOL_BUYBACK=0
+    _풀자사 = os.environ.get("POOL_BUYBACK", "1") != "0"
     _증자풀 = _NM._증자표() if _풀자사 else {}
     if _풀자사:
         print(f"  ⭐ POOL_BUYBACK — 자사주 취득 {R.자사주창일}거래일 안 종목도 그물에 넣는다", flush=True)
@@ -8156,7 +8157,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8450,7 +8451,7 @@ def main():
             # ⭐ 2026-10-12 BRANCH — **지금 규칙 갈래 하나씩**: 혼자 · 빼면 (사용자 「기본 규칙부터 갈래/업종 등 모든 규칙 하나하나 …
             #    끝자산, 기회, 승률, 수익율, 낙폭 등등을 보여주고 … 기본 규칙에 얹어진 규칙인지, 단독 규칙인지」)
             #    갈래 판정은 _H 와 똑같이 나눈다(업종은 10/12 고친 _H 의 OR) · 운용(자리·비중·악재·종가평가)은 DDCTRL 그대로
-            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID"):
+            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK"):
                 def _섹B(x):
                     return bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x) and (R.섹터규칙_큰회사 or 크기통과(x))
 
@@ -8932,6 +8933,71 @@ def main():
                         print(f"     볼린저 {_v:>5g}: " + " │ ".join(_줄) + f" │ 해마다 이김 {_이} · 짐 {_진}", flush=True)
                         print(f"                 " + " ".join(_ys), flush=True)
                     print("  [대조] BOLLGRID 끝")
+                # ⭐ 10/19 BOLLWALK — 「앞에서 고르고 뒤에서 확인」(사용자 10/19 「1·2·3 다 해」) · 반영 없음
+                #    BOLLGRID 에서 −1.0 이 뾰족한 한 점(−0.9 80% · −1.1 75%)이었다 → 과거로만 골랐다면 뒤에서도 −1.0 이었나
+                #    ① 한 번 나눔: 2016~2020 에서 제일 돈 많이 번 값 → 2021~ 에서 그 값 ÷ −1.0
+                #    ② 해마다 늘려 가며: Y 해의 값 = 2016~(Y−1) 해마다 수익을 곱해 제일 큰 값 → Y 해 성적 (2019~ 해마다)
+                if "BOLLWALK" in _ONLY.split("+") or _ONLY == "BOLLWALK":
+                    _시장["실전"] = True
+                    _기, _섹, _시, _변, _업 = (f for _, f in _갈들)
+                    _지금W = _또([_기, _섹, _시, _변])
+                    _원볼 = R.볼린저문턱
+                    _값W = (-0.6, -0.7, -0.8, -0.9, -1.0, -1.1, -1.2, -1.3, -1.4)
+                    _해들 = list(range(2016, 2027))
+                    _앞W, _뒤W, _해W = {}, {}, {}
+                    try:
+                        for _v in _값W:
+                            R.볼린저문턱 = _v
+                            for _z in 사건:
+                                _z.pop("_겹친", None)
+                            _앞W[_v] = _한판(_지금W, None, "2020")
+                            _뒤W[_v] = _한판(_지금W, "2021", None)
+                            _해W[_v] = {h: _한판(_지금W, str(h), str(h)) for h in _해들}
+                            print(f"     볼린저 {_v:g} 끝", flush=True)
+                    finally:
+                        R.볼린저문턱 = _원볼
+                        for _z in 사건:
+                            _z.pop("_겹친", None)
+                    print(f"\n  ── BOLLWALK · 볼린저 문턱을 앞에서 고르고 뒤에서 확인 (지금 {_원볼:g} · POOL_BUYBACK {'끔' if os.environ.get('POOL_BUYBACK') == '0' else '켬'}) ──")
+                    print("     ① 한 번 나눔 — 2016~2020 으로 고르고 2021~ 로 확인 (같은 기간 500만 시작)")
+                    for _v in _값W:
+                        a, b = _앞W.get(_v), _뒤W.get(_v)
+                        a0, b0 = _앞W.get(_원볼), _뒤W.get(_원볼)
+                        print(f"        {_v:>5g}: ~2020 {a['끝'] / a0['끝'] * 100:>4.0f}% (끝 {a['끝'] / 1e4:,.0f}만) │ 2021~ {b['끝'] / b0['끝'] * 100:>4.0f}% (끝 {b['끝'] / 1e4:,.0f}만 · 낙 {b['낙']:.1f}%)"
+                              if (a and b and a0 and b0) else f"        {_v:>5g}: 못 잼", flush=True)
+                    _ok앞 = [v for v in _값W if _앞W.get(v)]
+                    if _ok앞:
+                        _고름 = max(_ok앞, key=lambda v: _앞W[v]["끝"])
+                        b, b0 = _뒤W.get(_고름), _뒤W.get(_원볼)
+                        print(f"        ⇒ 2016~2020 으로 고른 값 {_고름:g} · 2021~ 에서 {_원볼:g} 의 {b['끝'] / b0['끝'] * 100:.0f}%" if (b and b0) else f"        ⇒ 고른 값 {_고름:g} · 2021~ 못 잼")
+                    print("     ② 해마다 늘려 가며 — 그 해 전까지(2016~) 해마다 수익을 곱해 제일 큰 값을 그 해에 쓴다")
+
+                    def _곱(v, 해들):
+                        p = 1.0
+                        for h in 해들:
+                            r = _해W[v].get(h)
+                            if r is None:
+                                return None
+                            p *= r["끝"] / 5e6
+                        return p
+                    _누고, _누지 = 1.0, 1.0
+                    _고른것 = []
+                    for Y in range(2019, 2027):
+                        _후 = [(v, _곱(v, range(2016, Y))) for v in _값W]
+                        _후 = [(v, p) for v, p in _후 if p]
+                        if not _후:
+                            continue
+                        _고 = max(_후, key=lambda t: t[1])[0]
+                        a, b = _해W[_고].get(Y), _해W[_원볼].get(Y)
+                        if not (a and b):
+                            continue
+                        _누고 *= a["끝"] / 5e6
+                        _누지 *= b["끝"] / 5e6
+                        _고른것.append(_고)
+                        print(f"        {Y}: 고른 값 {_고:>5g} → 그 해 {a['끝'] / 5e6 * 100 - 100:+6.1f}% │ 지금 {_원볼:g} {b['끝'] / 5e6 * 100 - 100:+6.1f}%", flush=True)
+                    print(f"        ⇒ 2019~ 해마다 이어 붙인 돈: 앞에서 고른 값 {_누고:.2f}배 · 지금 {_원볼:g} {_누지:.2f}배 → 지금의 {_누고 / _누지 * 100:.0f}% · 고른 값 {sorted(set(_고른것))}")
+                    print("     ⚠️ ② 는 해마다 500만 새로 시작해 이어 붙인 것 — 해를 넘긴 보유가 끊겨 실제 계좌와 다르다(견줌용)")
+                    print("  [대조] BOLLWALK 끝")
                 # ⭐ 10/14 MINCAND (②-2 헛점) — 시뮬은 하루 후보가 3개 미만이면 그날을 **건너뛴다**(최소후보 3) · 실전(record_pick)엔 그런 규칙이 없다
                 #    ① 최소후보 3 vs 1 로 지금 규칙(갈래 넷)의 끝 자산·산 횟수 ② 중형 신호 날 지금 규칙 후보가 120 을 넘어 중형이 잘렸나
                 if "MINCAND" in _ONLY.split("+") or _ONLY == "MINCAND":
@@ -9056,6 +9122,23 @@ def main():
                            ("대형 1조↑(남김)", _대형S, lambda x: (x.get("시총억") or 0) >= 10000 and 재무통과(x) and 대금통과(x), -1.0),
                            ("중형(탈락)", _중형S, lambda x: 2000 <= (x.get("시총억") or 0) < 10000 and 재무통과(x) and 대금통과(x), -1.0),
                            ("회전율·선물20(탈락)", _회선S, lambda x: 재무통과(x) and 대금통과(x), R.상대갭문턱)]
+                    # ⭐ 10/19 웹 배치안(사용자 10/19 「1·2·3 다 해」) — 넓힌 섹터(목록 밖 같은 산업 · SECWIDE 와 같은 조건)도 같은 잣대로
+                    _산섹S = {}
+                    for c, s in _사슬섹터.items():
+                        _i = _산업.get(c)
+                        if _i and s in R.섹터규칙:
+                            _산섹S.setdefault(_i, set()).add(s)
+
+                    def _섹넓S(x):
+                        if not (재무통과(x) and 대금통과(x)) or 섹터맞나(x):
+                            return False
+                        for s in (_산섹S.get(_산업.get(x["code"])) or set()):
+                            bw, bt, nw, nt = R.섹터규칙[s]
+                            b, n = x.get(f"볼{bw}"), x.get(f"낙{nw}")
+                            if b is not None and n is not None and b <= bt and n <= nt:
+                                return True
+                        return False
+                    _규S.append(("넓힌 섹터(목록 밖)", _섹넓S, lambda x: bool(_산섹S.get(_산업.get(x["code"]))) and 재무통과(x) and 대금통과(x), R.상대갭문턱))
 
                     def _상S(x):
                         _t = _표S.get(x["인"])
@@ -9132,21 +9215,38 @@ def main():
                     # 빈 날 보완 — 지금 규칙 후보가 0 인 날, 보완 규칙 신호의 성적
                     print("\n  ── ALLSIG · 지금 규칙 후보가 없는 날에만 낸 보완 규칙 신호 (2016~) ──")
                     _있는날 = set(_날별)
-                    for _이S, _신S, _무S, _문S in _규S[4:]:
-                        _sig = []
-                        for x in 사건:
-                            if str(x.get("해") or "0") < "2016" or x["인"] in _있는날:
-                                continue
-                            try:
-                                if not _신S(x):
+                    _빈날신호 = {}   # 10/19 — 빈 날 보완 신호를 모아 「몇 번째까지」 도 본다(웹 배치안)
+                    for _창라, _시, _끝, _해수 in (("2016~", "2016", "9999", 10.8), ("~2020", "2016", "2020", 5.0), ("2021~", "2021", "9999", 5.8)):
+                        print(f"     [{_창라}]")
+                        for _이S, _신S, _무S, _문S in _규S[4:]:
+                            _sig = []
+                            for x in 사건:
+                                if not (_시 <= str(x.get("해") or "0") <= _끝) or x["인"] in _있는날:
                                     continue
-                            except Exception:  # noqa: BLE001
-                                continue
-                            _v = _상S(x)
-                            if _v is not None and _v <= _문S:
-                                _sig.append(_수S(x))
-                        a = _통S(_sig, 10.8)
-                        print(f"     {_이S:<20}" + (f"신호 {a['n']:,} · 1년 {a['1년']:.1f} · 승 {a['승']:.0f}% · 평균 {a['평']:+.2f}% · 이익반 {a['반평']:+.2f}% · 최악 {a['최악']:+.1f}%" if a else "신호 없음"), flush=True)
+                                try:
+                                    if not _신S(x):
+                                        continue
+                                except Exception:  # noqa: BLE001
+                                    continue
+                                _v = _상S(x)
+                                if _v is not None and _v <= _문S:
+                                    _sig.append(_수S(x))
+                                    if _창라 == "2016~" and not _이S.startswith("업종"):
+                                        _빈날신호.setdefault(x["인"], {})[x["code"]] = (_v, _이S, _sig[-1])
+                            a = _통S(_sig, _해수)
+                            print(f"     {_이S:<20}" + (f"신호 {a['n']:,} · 1년 {a['1년']:.1f} · 승 {a['승']:.0f}% · 평균 {a['평']:+.2f}% · 이익반 {a['반평']:+.2f}% · 최악 {a['최악']:+.1f}%" if a else "신호 없음"), flush=True)
+                    print("\n  ── ALLSIG · 빈 날 보완 넷(중형·대형·회전율·넓힌 섹터)을 한 줄로 — 몇 번째까지 좋은가 · 어떤 순서가 좋은가 (2016~) ──")
+                    _뜻 = {"상대갭 깊은 순": lambda t: t[0], "상대갭 얕은 순": lambda t: -t[0]}
+                    _모양 = ("중형(탈락)", "넓힌 섹터(목록 밖)", "대형 1조↑(남김)", "회전율·선물20(탈락)")
+                    _뜻["규칙 차례(중형→넓힌 섹터→대형→회전율)"] = lambda t: (_모양.index(t[1]) if t[1] in _모양 else 9, t[0])
+                    for _뜻이, _키 in _뜻.items():
+                        _순B = {}
+                        for _인, _들 in _빈날신호.items():
+                            for k, t in enumerate(sorted(_들.values(), key=_키), 1):
+                                _순B.setdefault(min(k, 7), []).append(t[2])
+                        print(f"     {_뜻이}: " + " · ".join(
+                            f"{(str(k) if k < 7 else '7↓')}번째 {a['n']}건 {a['승']:.0f}% {a['평']:+.1f}" for k in sorted(_순B) for a in [_통S(_순B[k], 10.8)] if a), flush=True)
+                    print(f"     빈 날에 보완 신호가 있던 날 {len(_빈날신호):,}일 · 하루 평균 {sum(len(v) for v in _빈날신호.values()) / max(1, len(_빈날신호)):.1f}개 (한 종목이 둘에 걸리면 하나로)")
                     print("     ⚠️ 사건 그물은 낙폭 조건으로 모은다 — 안 빠지고 사는 변동성·자사주는 일부만 잡힌다(LIVECMP · ② 에서 고침)")
                     print("  [대조] ALLSIG 끝")
                 # ⭐ 10/12 BRANCHCHK — BRANCH 결과(업종 빼면 168% · 크게 빠짐 혼자가 전체보다 많음)를 **해마다·조합마다** 확인
