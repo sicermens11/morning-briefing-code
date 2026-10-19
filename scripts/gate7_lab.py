@@ -9247,6 +9247,76 @@ def main():
                         print(f"     {_뜻이}: " + " · ".join(
                             f"{(str(k) if k < 7 else '7↓')}번째 {a['n']}건 {a['승']:.0f}% {a['평']:+.1f}" for k in sorted(_순B) for a in [_통S(_순B[k], 10.8)] if a), flush=True)
                     print(f"     빈 날에 보완 신호가 있던 날 {len(_빈날신호):,}일 · 하루 평균 {sum(len(v) for v in _빈날신호.values()) / max(1, len(_빈날신호)):.1f}개 (한 종목이 둘에 걸리면 하나로)")
+                    # ⭐ 10/19 ALLSIG_CMP — 사용자 10/19 「보완 후보가 지금 규칙보다 셀 수도 있는 거 아니야? 경쟁을 통해 신호가 센게 올라야 하는데」
+                    #    지금 규칙 후보와 보완 넷이 **같은 날** 있을 때 한 줄로 세워 위 8개를 고르면 지금 규칙만 8개보다 나은가
+                    #    세우는 잣대: 갭 깊은 순 · 걸린 규칙 수 많은 순(실전 차례) · 규칙의 앞 기간(2016~2020) 승률 높은 순(뒤 기간엔 미래를 안 본다)
+                    if os.environ.get("ALLSIG_CMP") == "1":
+                        _지금이름 = ("크게 빠짐", "섹터 6업종", "시장 급락", "변동성·자사주")
+                        _보완이름 = ("중형(탈락)", "대형 1조↑(남김)", "회전율·선물20(탈락)", "넓힌 섹터(목록 밖)")
+                        _쓸규 = [t for t in _규S if t[0] in _지금이름 + _보완이름]
+                        _날C = {}
+                        for x in 사건:
+                            if str(x.get("해") or "0") < "2016":
+                                continue
+                            _v = _상S(x)
+                            if _v is None:
+                                continue
+                            _걸 = []
+                            for _이S, _신S, _무S, _문S in _쓸규:
+                                try:
+                                    if _v <= _문S and _신S(x):
+                                        _걸.append(_이S)
+                                except Exception:  # noqa: BLE001
+                                    continue
+                            if _걸:
+                                _r = _수S(x)
+                                if _r is not None:
+                                    _날C.setdefault(x["인"], {})[x["code"]] = {"v": _v, "걸": _걸, "r": _r, "해": str(x.get("해") or "0")}
+                        _앞판 = {}
+                        for _들 in _날C.values():
+                            for e in _들.values():
+                                if e["해"] <= "2020":
+                                    for h in e["걸"]:
+                                        _앞판.setdefault(h, []).append(e["r"] > 0)
+                        _앞승 = {h: sum(z) / len(z) for h, z in _앞판.items() if z}
+                        print("\n  ── ALLSIG_CMP · 같은 날 한 줄 경쟁 — 지금 규칙만 위 8개 vs 보완 넷까지 한 줄로 세워 위 8개 ──")
+                        print("     규칙의 앞 기간(2016~2020) 승률: " + " · ".join(f"{h} {_앞승[h] * 100:.0f}%" for h in _지금이름 + _보완이름 if h in _앞승))
+                        _잣대 = {"갭 깊은 순": lambda e: (e["v"],),
+                                "걸린 규칙 수 많은 순": lambda e: (-len(e["걸"]), e["v"]),
+                                "규칙 앞 기간 승률 순": lambda e: (-max(_앞승.get(h, 0) for h in e["걸"]), e["v"])}
+                        for _창라, _시, _끝 in (("2016~", "2016", "9999"), ("2021~", "2021", "9999")):
+                            _둘다 = 0
+                            _넘침 = 0
+                            _A, _모두 = [], []
+                            _B = {k: [] for k in _잣대}
+                            _들어옴 = {k: [] for k in _잣대}
+                            _밀려남 = {k: [] for k in _잣대}
+                            for _인, _들 in _날C.items():
+                                es = [e for e in _들.values() if _시 <= e["해"] <= _끝]
+                                cur = [e for e in es if any(h in _지금이름 for h in e["걸"])]
+                                if not cur or len(cur) == len(es):
+                                    continue
+                                _둘다 += 1
+                                _넘침 += 1 if len(es) > 8 else 0
+                                a = sorted(cur, key=lambda e: e["v"])[:8]
+                                _A += [e["r"] for e in a]
+                                _모두 += [e["r"] for e in es]
+                                for k, f in _잣대.items():
+                                    b = sorted(es, key=f)[:8]
+                                    _B[k] += [e["r"] for e in b]
+                                    _들어옴[k] += [e["r"] for e in b if e not in a]
+                                    _밀려남[k] += [e["r"] for e in a if e not in b]
+
+                            def _줄(rs):
+                                t = _통S(rs, 1)
+                                return f"{t['n']:,}건 승 {t['승']:.0f}% 평균 {t['평']:+.2f}% 최악 {t['최악']:+.1f}%" if t else "없음"
+                            print(f"     [{_창라}] 같은 날 둘 다 있던 날 {_둘다}일 (그중 합쳐 8개 넘는 날 {_넘침}일 — 경쟁이 일어나는 날)")
+                            print(f"        지금 규칙만 위 8개       : {_줄(_A)}")
+                            print(f"        그날 나온 것 전부        : {_줄(_모두)}")
+                            for k in _잣대:
+                                print(f"        한 줄로 위 8개 · {k:<14}: {_줄(_B[k])}  │ 새로 든 것 {_줄(_들어옴[k])} │ 밀려난 것 {_줄(_밀려남[k])}", flush=True)
+                        print("     ⚠️ 위 8개 = 실전 「하루 6 + 섹터 자리 2」 를 한 줄로 줄인 것 · 돈 제한 없음 · 신호 하나하나 성적")
+                        print("  [대조] ALLSIG_CMP 끝")
                     print("     ⚠️ 사건 그물은 낙폭 조건으로 모은다 — 안 빠지고 사는 변동성·자사주는 일부만 잡힌다(LIVECMP · ② 에서 고침)")
                     print("  [대조] ALLSIG 끝")
                 # ⭐ 10/12 BRANCHCHK — BRANCH 결과(업종 빼면 168% · 크게 빠짐 혼자가 전체보다 많음)를 **해마다·조합마다** 확인
