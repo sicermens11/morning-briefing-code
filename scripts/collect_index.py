@@ -71,9 +71,19 @@ def 하루(날, key):
             이름 = r.get("IDX_NM")
             if not 이름:
                 continue
-            표[이름] = {"시장": mkt, "분류": r.get("IDX_CLSS"),
-                        "종가": _n(r.get("CLSPRC_IDX")),
-                        "등락률": _n(r.get("FLUC_RT"))}
+            값 = {"시장": mkt, "분류": r.get("IDX_CLSS"),
+                  "종가": _n(r.get("CLSPRC_IDX")),
+                  "등락률": _n(r.get("FLUC_RT"))}
+            # ⭐ (월요일 제안 D) 코스피·코스닥에 **같은 이름 업종**(화학·제약·금속…)이 있어 코스닥이 코스피를 덮었다
+            #    (4,130일 전부 · 10/16 주말 점검). 읽는 쪽(gate7 업종 재료)은 맨 이름 = 코스닥 값을 기대하므로
+            #    맨 이름은 그대로 코스닥에 두고, 겹친 코스피 값을 「이름(코스피)」 로 따로 남긴다
+            if 이름 in 표 and 표[이름].get("시장") != mkt:
+                if mkt == "KOSDAQ":
+                    표[f"{이름}(코스피)"] = 표[이름]
+                else:
+                    표[f"{이름}(코스피)"] = 값
+                    continue
+            표[이름] = 값
         time.sleep(_쉼)
     return 표
 
