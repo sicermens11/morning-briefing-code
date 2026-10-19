@@ -375,6 +375,13 @@ def main():
 
     print("  후보 모으는 중 (크기 조건도 느슨하게)...", flush=True)
     사건 = []
+    # ⭐ 10/19 POOL_BUYBACK — 실전 「변동성·자사주」 갈래는 빠짐 조건이 없는데 이 그물은 빠진 종목만 담아
+    #    안 빠진 자사주 매입 종목이 시험에 없었다(주말 점검 ③ · 사용자 10/19 「둘 다 걸어」). 켜면 최근 R.자사주창일
+    #    거래일 안에 자사주 취득 공시가 있는 종목도 그물에 넣는다(빠짐 조건 없이) · 기본은 꺼짐(지금까지와 같다)
+    _풀자사 = os.environ.get("POOL_BUYBACK") == "1"
+    _증자풀 = _NM._증자표() if _풀자사 else {}
+    if _풀자사:
+        print(f"  ⭐ POOL_BUYBACK — 자사주 취득 {R.자사주창일}거래일 안 종목도 그물에 넣는다", flush=True)
     for i, d1 in enumerate(날):
         if i < 260 or i + 1 >= len(날):
             continue
@@ -469,7 +476,8 @@ def main():
                     or (낙 is not None and 낙 <= -5)
                     or (낙60 is not None and 낙60 <= -15)
                     or (code in _사슬섹터
-                        and 낙60 is not None and 낙60 <= -10)):
+                        and 낙60 is not None and 낙60 <= -10)
+                    or (_풀자사 and _NM._증자재기(_증자풀, code, "자사주취득", d1, R.자사주창일, 날, i))):
                 continue
             # ⭐ **241차** (2026-09-10) — 표준화 낙폭·PBR 을 자본 시뮬로
             #    재려면 사건에 있어야 한다. 둘 다 승률로는 좋았는데
@@ -8148,7 +8156,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8442,7 +8450,7 @@ def main():
             # ⭐ 2026-10-12 BRANCH — **지금 규칙 갈래 하나씩**: 혼자 · 빼면 (사용자 「기본 규칙부터 갈래/업종 등 모든 규칙 하나하나 …
             #    끝자산, 기회, 승률, 수익율, 낙폭 등등을 보여주고 … 기본 규칙에 얹어진 규칙인지, 단독 규칙인지」)
             #    갈래 판정은 _H 와 똑같이 나눈다(업종은 10/12 고친 _H 의 OR) · 운용(자리·비중·악재·종가평가)은 DDCTRL 그대로
-            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP"):
+            if any(z in _ONLY.split("+") for z in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID")) or _ONLY in ("BRANCH", "BRANCHCHK", "CAUSECHK", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID"):
                 def _섹B(x):
                     return bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x) and (R.섹터규칙_큰회사 or 크기통과(x))
 
@@ -8885,6 +8893,45 @@ def main():
                     print(f"     해마다(하루 8 + 섹터 {R.섹터전용자리} ÷ 지금): 이긴 해 {_이D}/{len(_줄D)} · " + " · ".join(_줄D), flush=True)
                     print("     「%」 = 지금(하루 6 + 섹터 2) 대비 · 같은 기간 500만 시작 · 낙폭은 매일 종가")
                     print("  [대조] DAYCAP 끝")
+                # ⭐ 10/19 BOLLGRID — 볼린저 −1σ 가 ±20% 에서 한쪽이 50~66% 로 꺼졌다(ROBUST·ROBUST2) → 촘촘히 · 해마다
+                #    사용자 10/19 「② 둘 다 걸어」 · 반영 없음(결과 보고)
+                if "BOLLGRID" in _ONLY.split("+") or _ONLY == "BOLLGRID":
+                    _시장["실전"] = True
+                    _기, _섹, _시, _변, _업 = (f for _, f in _갈들)
+                    _지금B = _또([_기, _섹, _시, _변])
+                    _원볼 = R.볼린저문턱
+                    _창B = (("2016~", None, None), ("~2020", None, "2020"), ("2021~", "2021", None))
+                    _값B = (-0.8, -0.9, -1.0, -1.1, -1.2)
+                    _표B, _해B = {}, {}
+                    try:
+                        for _v in _값B:
+                            R.볼린저문턱 = _v
+                            for _z in 사건:
+                                _z.pop("_겹친", None)
+                            _표B[_v] = {k: _한판(_지금B, s, e) for k, s, e in _창B}
+                            _해B[_v] = {h: _한판(_지금B, str(h), str(h)) for h in range(2016, 2027)}
+                            print(f"     볼린저 {_v:g} 끝", flush=True)
+                    finally:
+                        R.볼린저문턱 = _원볼
+                        for _z in 사건:
+                            _z.pop("_겹친", None)
+                    print(f"\n  ── BOLLGRID · 크게 빠짐 볼린저 문턱 (지금 {_원볼:g} = 100% · 시장 문턱 20일 {R.지수낙20문턱:g}) ──")
+                    _b0 = _표B.get(_원볼)
+                    for _v in _값B:
+                        _줄 = []
+                        for k, _, _ in _창B:
+                            r, b = _표B[_v][k], _b0[k]
+                            _줄.append(f"{k} {r['끝'] / b['끝'] * 100:>4.0f}% 낙 {r['낙']:.1f}% 산 {r['산']}" if (r and b) else f"{k} 못 잼")
+                        _이, _진, _ys = 0, 0, []
+                        for h in range(2016, 2027):
+                            a, b = _해B[_v].get(h), _해B[_원볼].get(h)
+                            if a and b:
+                                _이 += 1 if a["끝"] > b["끝"] * 1.005 else 0
+                                _진 += 1 if a["끝"] < b["끝"] * 0.995 else 0
+                                _ys.append(f"{h % 100:02d}:{a['끝'] / b['끝'] * 100:.0f}")
+                        print(f"     볼린저 {_v:>5g}: " + " │ ".join(_줄) + f" │ 해마다 이김 {_이} · 짐 {_진}", flush=True)
+                        print(f"                 " + " ".join(_ys), flush=True)
+                    print("  [대조] BOLLGRID 끝")
                 # ⭐ 10/14 MINCAND (②-2 헛점) — 시뮬은 하루 후보가 3개 미만이면 그날을 **건너뛴다**(최소후보 3) · 실전(record_pick)엔 그런 규칙이 없다
                 #    ① 최소후보 3 vs 1 로 지금 규칙(갈래 넷)의 끝 자산·산 횟수 ② 중형 신호 날 지금 규칙 후보가 120 을 넘어 중형이 잘렸나
                 if "MINCAND" in _ONLY.split("+") or _ONLY == "MINCAND":
