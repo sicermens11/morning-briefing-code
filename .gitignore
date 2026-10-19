@@ -79,3 +79,7 @@ data/qt-*.html
 
 # 10/19 헤드리스 크롬 고정 프로필 (계정 잠김 막기)
 data/_chrome_headless_profile/
+# 10/19 카카오 알림 토큰·기록
+data/_kakao_token.json
+data/_kakao.log
+data/_alert_sent.json
