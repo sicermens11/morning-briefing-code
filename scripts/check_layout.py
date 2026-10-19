@@ -84,6 +84,8 @@ SEAM_MAX = 110       # 상한
 SEAM_SPREAD = 60    # 한 장 안 최대-최소 차이
 NARROW = (320, 390)  # 재볼 화면 폭 — 320은 아이폰 SE, 390은 최근 아이폰
 
+# 10/19 — 헤드리스 크롬 고정 프로필(계정 잠김 막기 · 아래 _run 주석). 저장소엔 안 올린다(.gitignore)
+_크롬프로필 = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "_chrome_headless_profile")
 CHROME = [
     os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"),
                  r"Google\Chrome\Application\chrome.exe"),
@@ -509,8 +511,13 @@ def _run(exe, html, width, height, marker):
             f.write(html)
         url = "file:///" + pathname2url(page).lstrip("/")
         try:
+            # ⭐⭐ 2026-10-19 — **계정 잠김의 범인이었다.** 프로필을 안 주면 크롬이 켤 때마다 새 임시 프로필로 시작해
+            #    윈도 계정에 「빈 비밀번호」 로그인을 한 번씩 시도한다(비밀번호 관리 기능의 확인 · 보안 기록 4625 · chrome.exe · 유형 2).
+            #    게시 한 번에 크롬을 수십 번 띄우니 10분 10번 규칙에 걸려 계정이 잠겼다(10/19 08:05·08:33·08:56·09:07 = 게시 시각).
+            #    ⇒ **고정 프로필**을 쓴다 — 확인 결과를 기억해 처음 한 번만 시도한다
             r = subprocess.run(
                 [exe, "--headless=new", "--disable-gpu", "--no-sandbox",
+                 f"--user-data-dir={_크롬프로필}",
                  "--allow-file-access-from-files",
                  f"--window-size={width},{height}",
                  "--virtual-time-budget=12000", "--dump-dom", url],

@@ -158,6 +158,8 @@ def 재다(site):
         try:
             r = subprocess.run(
                 [exe, "--headless=new", "--disable-gpu", "--no-sandbox",
+                 # 10/19 — 고정 프로필(임시 프로필이면 켤 때마다 윈도 「빈 비밀번호」 로그인을 시도해 계정이 잠겼다 · check_layout 과 같은 폴더)
+                 "--user-data-dir=" + os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "_chrome_headless_profile"),
                  "--allow-file-access-from-files",
                  f"--window-size={W},{H}",
                  "--virtual-time-budget=15000", "--dump-dom", url],
