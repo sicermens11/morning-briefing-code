@@ -779,6 +779,7 @@ def _악재줄():
 
 
 _폰자료 = {}
+_띠색 = ("#3C4250", "#5A6272")   # 10/20 새 카드 위 띠 색 — build_site 가 그날 홈 색으로 바꾼다(없으면 보합 회색)
 
 
 def _장1(q, 보유):
@@ -2032,6 +2033,14 @@ def quant_view(q, 보유=None, 줄들=None):
         print(f"  ⚠️ 핸드폰 4:5 카드 실패 — 옛 핸드폰 판으로: {type(_ex).__name__}: {_ex}")
         _폰판 = f'<div class="qmob">{_폰사본(_덱)}</div>'
         _폰css = _폰CSS
+    # ⭐ 10/20 새 카드(3:4 · 홈 결) — 사용자 「A로 해서 반영하자!」 · PC·핸드폰 같은 카드 · 터지면 옛 화면(qrail · qm45) 그대로
+    _새 = ""
+    try:
+        import quant_n34 as _N
+        _새 = (_N.CSS(*_띠색) + '<div class="qn34"><div class="nrow">' + _N.덱(q, 보유) + '</div></div>')
+    except Exception as _ex:  # noqa: BLE001
+        print(f"  ⚠️ 퀀트 새 카드 실패 — 옛 화면으로: {type(_ex).__name__}: {_ex}")
+        _새 = ""
     _오늘 = str(q.get("기록시각") or "")[:10]
     _날들, _지난html = _지난들(줄들, _오늘)
     _날값 = ",".join(_날들)
@@ -2048,10 +2057,9 @@ def quant_view(q, 보유=None, 줄들=None):
             + '</div></div>'
             + _묵은종가(q)
             + _지난html
-            + f'<div class="rail qrail" data-active="true">'
-            + _덱
-            + '</div>'
-            # ⭐ 10/16 핸드폰 판 — 4:5 카드 (.qrail 은 폰에서 숨김) · 실패하면 10/14 옛 사본
-            + _폰판
+            + (_새 if _새 else
+               (f'<div class="rail qrail" data-active="true">' + _덱 + '</div>'
+                # ⭐ 10/16 핸드폰 판 — 4:5 카드 (.qrail 은 폰에서 숨김) · 실패하면 10/14 옛 사본
+                + _폰판))
             + f'<div class="qhint" style="text-align:center;font-size:13px;color:{C["보"]};padding:0 0 30px">'
             f'← 옆으로 넘겨서 보세요 →</div></section>')

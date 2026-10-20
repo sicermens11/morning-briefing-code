@@ -1397,6 +1397,12 @@ def build(out, days=DEFAULT_DAYS):
         f'<span><b>{_t}</b><span>{_sub}</span></span><em>{_up}</em></button>'
         for _id, _attr, _t, _sub, _up, _hot in _메뉴)
     _하늘, (_c1, _c2) = _시장날씨(kept[-1])
+    # 10/20 퀀트 새 카드(3:4) 위 띠도 홈과 같은 그날 색 (사용자 「A로 해서 반영하자!」)
+    try:
+        import quant_cards as _qc
+        _qc._띠색 = (_c1, _c2)
+    except Exception:  # noqa: BLE001
+        pass
 
     home = (
         f'<section class="view wx2" id="home" style="--c1:{_c1};--c2:{_c2}">'

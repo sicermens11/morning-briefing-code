@@ -422,7 +422,35 @@ document.getElementById("f").onload=function(){
      });
      if(o>1||w>4||sq||cut) bad.push((i+1)+"장 아래 "+o+" · 옆 "+w+" · 눌린 상자 "+sq+" · 줄 갈림 "+cut);
    });
-   document.title="Q::"+cs.length+"|"+bad.length+"|"+bad.slice(0,4).join(" / ");
+   // 10/20 새 카드(3:4 · .qn34) — 카드가 overflow:hidden 이라 카드 높이로는 안 잡힌다 → 칸(.menu)·흰 상자(.m) 기준으로 잰다
+   var ns=d.querySelectorAll("#qt .qn34 .c");
+   ns.forEach(function(c,i){
+     var o=0, w=0, cut=0;
+     c.querySelectorAll(".menu").forEach(function(m){
+       var mr=m.getBoundingClientRect(), pb=parseFloat(getComputedStyle(m).paddingBottom), mb=0;
+       m.querySelectorAll("*").forEach(function(e){ var b=e.getBoundingClientRect().bottom; if(b>mb) mb=b; });
+       o=Math.max(o, Math.round(mb-(mr.bottom-pb)));
+     });
+     var cr=c.getBoundingClientRect(), cb=0;
+     c.querySelectorAll("*").forEach(function(e){ var b=e.getBoundingClientRect().bottom; if(b>cb) cb=b; });
+     o=Math.max(o, Math.round(cb-cr.bottom));
+     c.querySelectorAll(".m,.strip").forEach(function(m){
+       var mr=m.getBoundingClientRect(), pr=parseFloat(getComputedStyle(m).paddingRight);
+       m.querySelectorAll("*").forEach(function(e){ var b=e.getBoundingClientRect(); if(b.width>0&&b.right>mr.right-pr+0.5) w=Math.max(w, Math.round(b.right-(mr.right-pr))); });
+     });
+     // 10/20 — 이름·이유 줄이 옆 가격과 겹친다(PC 에서 삼성공조 이유 줄이 10,720원을 덮었다) → 줄 안의 글 끝이 제 칸을 넘나
+     c.querySelectorAll(".s1").forEach(function(s){
+       var nb=s.firstElementChild, pr=s.querySelector(".pr"); if(!nb||!pr) return;
+       var lim=pr.getBoundingClientRect().left-2;
+       nb.querySelectorAll("*").forEach(function(e){ var b=e.getBoundingClientRect(); if(b.width>0&&b.right>lim) w=Math.max(w, Math.round(b.right-lim)); });
+     });
+     c.querySelectorAll("*").forEach(function(e){
+       var s=getComputedStyle(e); if(s.display.indexOf("flex")<0||s.flexDirection.indexOf("column")<0) return;
+       for(var k=0;k<e.childNodes.length;k++){ var nd=e.childNodes[k]; if(nd.nodeType===3&&nd.textContent.trim()){ cut++; break; } }
+     });
+     if(o>1||w>1||cut) bad.push("새"+(i+1)+"장 아래 "+o+" · 옆 "+w+" · 눌린 상자 0 · 줄 갈림 "+cut);
+   });
+   document.title="Q::"+(cs.length+ns.length)+"|"+bad.length+"|"+bad.slice(0,4).join(" / ");
   },900);
  },1700);
 };
