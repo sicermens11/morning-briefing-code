@@ -209,10 +209,10 @@ def 덱(q, 보유):
     s = Q._사례()
     도 = s.get("도달률") or s.get("승률")
     장.append(_카드(_위("이 규칙은 무엇을 노리나", "좋은 회사가 같이 빠진 날을 노립니다", 작게=False),
-        '<div class="menu">'
-        '<div class="m"><div class="step"><b>①</b><span>시장이 통째로 크게 빠지거나 업종이 한꺼번에 빠지면, 튼튼한 회사도 <em>자기 잘못 없이</em> 같이 빠집니다.</span></div></div>'
-        f'<div class="m"><div class="step"><b>②</b><span>그런 회사는 제자리로 돌아오는 일이 많았습니다. 10년 동안 {s.get("전체건수", 0)}번 샀다면 <em>{도}%가 +{R.몫들[0][1]:g}%에 닿았습니다</em>.</span></div></div>'
-        f'<div class="m"><div class="step"><b>③</b><span>그래서 빠진 날 <em>더 싸게 시작할 때만</em> 사고, +{R.몫들[0][1]:g}%와 +{R.몫들[1][1]:g}%에 나눠 팝니다.</span></div></div>'
+        '<div class="menu fill">'
+        '<div class="m"><div class="step num"><b>①</b><span>시장이 통째로 크게 빠지거나 업종이 한꺼번에 빠지면, 튼튼한 회사도 <em>자기 잘못 없이</em> 같이 빠집니다.</span></div></div>'
+        f'<div class="m"><div class="step num"><b>②</b><span>그런 회사는 제자리로 돌아오는 일이 많았습니다. 10년 동안 {s.get("전체건수", 0)}번 샀다면 <em>{도}%가 +{R.몫들[0][1]:g}%에 닿았습니다</em>.</span></div></div>'
+        f'<div class="m"><div class="step num"><b>③</b><span>그래서 빠진 날 <em>더 싸게 시작할 때만</em> 사고, +{R.몫들[0][1]:g}%와 +{R.몫들[1][1]:g}%에 나눠 팝니다.</span></div></div>'
         '<div class="m hot"><b>사람이 고르지 않습니다</b><p>재무제표와 주가만 보는 정해진 규칙이 매일 똑같이 고릅니다. 뉴스나 느낌은 쓰지 않습니다.</p></div>'
         '</div>'))
     # ── 오늘 나온 길 (깔때기 — 기록에 있을 때만) ──
@@ -256,7 +256,7 @@ def 덱(q, 보유):
     # ── 사고 파는 법 ──
     a1, a2 = R.몫들[0], R.몫들[1]
     장.append(_카드(_위("어떻게 사고 파나", "걸어 두고, 나눠서 팝니다", 작게=False),
-        '<div class="menu">'
+        '<div class="menu fill">'
         f'<div class="m"><div class="step r"><b>{R.판정시각}</b><span>주문가에 지정가 매수를 겁니다(하루 최대 {R.오늘최대종목(None)}개 + 섹터 {R.섹터전용자리}개). 9시 시가가 주문가 이하일 때만 체결됩니다</span></div>'
         '<div class="step r"><b>09:01</b><span>안 찬 주문은 반드시 취소합니다. 장중에 내려와서 사면 규칙이 아닙니다</span></div></div>'
         f'<div class="m"><div class="step"><b>체결 뒤</b><span>{a1[0] * 100:g}%는 +{a1[1]:g}%, {a2[0] * 100:g}%는 +{a2[1]:g}%에 매도 지정가를 걸어 둡니다</span></div>'
@@ -298,13 +298,13 @@ def CSS(c1, c2):
             f"@media(min-width:900px){{{p} .nrow{{flex-wrap:wrap;justify-content:center;overflow:visible;scroll-snap-type:none}}}}"
             f"{p} .cw{{flex:0 0 min(400px,calc(100vw - 32px));container-type:inline-size;scroll-snap-align:start;scroll-snap-stop:always}}"
             f"@media(min-width:900px){{{p} .cw{{flex-basis:360px}}}}"
-            f"{p} .c{{aspect-ratio:3/4;font-size:calc(100cqw / 22.5);border-radius:1.4em;overflow:hidden;display:flex;flex-direction:column;font-feature-settings:'tnum';letter-spacing:-.01em;background:var(--bg);color:var(--ink);word-break:keep-all;line-height:1.5;box-sizing:border-box}}"
+            f"{p} .c{{aspect-ratio:3/4;font-size:calc(100cqw / 22.5);border-radius:0;overflow:hidden;display:flex;flex-direction:column;font-feature-settings:'tnum';letter-spacing:-.01em;background:var(--bg);color:var(--ink);word-break:keep-all;line-height:1.5;box-sizing:border-box}}"
             f"{p} .c *{{margin:0;box-sizing:border-box}}"
             f"{p} .strip{{color:#F3F6FB;background:linear-gradient(180deg,var(--c1),var(--c2));padding:.65em 1.05em .6em;display:flex;flex-direction:column;gap:.25em;margin-bottom:.4em}}"
             f"{p} .st1{{display:flex;justify-content:space-between;align-items:baseline;gap:.5em;white-space:nowrap}}"
             f"{p} .st1 b{{font-size:1.15em;font-weight:800;letter-spacing:-.03em}}{p} .st1 span{{font-size:.7em;color:rgba(243,246,251,.75)}}"
             f"{p} .st3{{display:grid;grid-template-columns:1.35fr 1fr 1fr;gap:.35em}}"
-            f"{p} .st3 span{{background:rgba(255,255,255,.12);border-radius:.6em;padding:.3em .55em;font-size:.66em;color:rgba(243,246,251,.8);display:flex;flex-direction:column;min-width:0;white-space:nowrap}}"
+            f"{p} .st3 span{{background:rgba(255,255,255,.12);border-radius:.25em;padding:.3em .55em;font-size:.66em;color:rgba(243,246,251,.8);display:flex;flex-direction:column;min-width:0;white-space:nowrap}}"
             f"{p} .st3 i{{font-style:normal}}{p} .st3 b{{color:#fff;font-size:1.3em;font-weight:800}}"
             f"{p} .al{{font-size:.7em;font-weight:700;background:rgba(255,255,255,.18);border-radius:.5em;padding:.25em .55em}}"
             f"{p} .nh{{padding:1.2em 1.15em .65em;display:flex;flex-direction:column;gap:.2em}}"
@@ -312,14 +312,14 @@ def CSS(c1, c2):
             f"{p} .nh h3{{font-size:1.35em;font-weight:800;letter-spacing:-.035em;line-height:1.3}}{p} .nh h3.sm{{font-size:1.05em}}"
             f"{p} .lead2{{font-size:.74em;color:var(--sub);line-height:1.45;margin-top:.15em}}{p} .lead2 b{{color:var(--ink)}}"
             f"{p} .menu{{padding:0 .9em .9em;display:flex;flex-direction:column;gap:.6em;flex:1;min-height:0}}{p} .menu.tight{{gap:.26em}}"
-            f"{p} .m{{background:#fff;border-radius:.9em;padding:.72em .9em;box-shadow:0 1px 0 rgba(15,42,85,.08);display:flex;flex-direction:column;gap:.45em}}"
+            f"{p} .m{{background:#fff;border-radius:.3em;padding:.72em .9em;box-shadow:0 1px 0 rgba(15,42,85,.08);display:flex;flex-direction:column;gap:.45em}}"
             f"{p} .m.stk{{padding:.45em .85em .42em;gap:.24em}}"
             f"{p} .s1{{display:flex;justify-content:space-between;align-items:flex-end;gap:.5em}}"
             f"{p} .s1>b{{flex:1;min-width:0;font-size:1.02em;font-weight:800;letter-spacing:-.03em;line-height:1.15;white-space:nowrap}}"
             f"{p} .s1 .cd{{font-size:.62em;font-weight:500;color:var(--sub);letter-spacing:0}}"
             f"{p} .why{{display:flex;align-items:center;gap:.4em;font-size:.76em;color:var(--sub);min-width:0;margin-top:.12em;font-weight:500;letter-spacing:0}}"
             f"{p} .why .wt{{white-space:nowrap}}"
-            f"{p} .tag{{flex:none;white-space:nowrap;font-size:.95em;font-weight:800;border-radius:999px;padding:.1em .55em;background:#E8EEF8;color:var(--blue)}}"
+            f"{p} .tag{{flex:none;white-space:nowrap;font-size:.95em;font-weight:800;border-radius:.25em;padding:.1em .55em;background:#E8EEF8;color:var(--blue)}}"
             f"{p} .tag.big{{background:#FBE9E7;color:var(--red)}}"
             f"{p} .s1 .pr{{font-size:1.3em;font-weight:800;letter-spacing:-.035em;line-height:1;text-align:right;white-space:nowrap}}"
             f"{p} .s1 .pr small{{display:block;font-size:.42em;font-weight:600;color:var(--sub);letter-spacing:0;margin-bottom:.2em}}"
@@ -341,12 +341,14 @@ def CSS(c1, c2):
             f"{p} .d{{font-size:.76em;color:var(--sub);line-height:1.45;padding:0 .3em}}"
             f"{p} .m.br{{padding:.48em .85em;gap:.2em}}{p} .bh{{display:flex;align-items:baseline;gap:.5em;white-space:nowrap}}"
             f"{p} .bh b{{font-size:.98em;font-weight:800}}"
-            f"{p} .bh .sz{{font-size:.68em;font-weight:700;color:var(--sub);background:var(--tile);border-radius:999px;padding:.05em .5em}}"
+            f"{p} .bh .sz{{font-size:.68em;font-weight:700;color:var(--sub);background:var(--tile);border-radius:.25em;padding:.05em .5em}}"
             f"{p} .bh .sz.big{{color:var(--red);background:#FBE9E7}}{p} .bh em{{margin-left:auto;font-style:normal;font-size:.76em;font-weight:800;color:var(--blue)}}"
             f"{p} .m.br p{{font-size:.74em;color:var(--sub);line-height:1.4}}"
             f"{p} .ln{{display:flex;justify-content:space-between;align-items:baseline;gap:.6em}}{p} .ln b{{font-size:.94em;font-weight:800}}"
             f"{p} .ln em{{font-style:normal;font-size:.86em;font-weight:700;color:var(--blue);white-space:nowrap}}"
             f"{p} .m .d{{padding:0}}"
+            f"{p} .menu.fill .m{{flex:1;justify-content:center}}{p} .step.num{{grid-template-columns:1.4em 1fr;gap:.5em;font-size:.92em}}"
+            f"{p} .step.num b{{font-size:1.05em}}"
             f"{p} .m.tests{{gap:.28em;padding:.65em .85em}}{p} .m.tests .d{{font-size:.7em;line-height:1.35;margin-bottom:.15em}}{p} .m.tests .ln b{{font-size:.88em}}"
             f"{p} .bigv{{font-size:3.4em;font-weight:800;letter-spacing:-.05em;line-height:1}}{p} .bigv small{{font-size:.4em;color:var(--sub);margin-left:.15em}}"
             f"{p} .six{{display:grid;grid-template-columns:repeat(3,1fr);gap:.6em .5em}}{p} .six div{{display:flex;flex-direction:column}}"
@@ -354,6 +356,7 @@ def CSS(c1, c2):
             f"{p} .foot{{font-size:.72em;color:var(--sub);padding:0 1.2em 1.1em;margin-top:auto}}"
             # 10/20 사용자 「이렇게 할거면 배경색도 맞춰야할 것 같은데!」 — 퀀트 화면 바탕·날짜 줄을 홈 푸른 회색 계열로(새 카드가 나올 때만 · 옛 화면은 베이지 그대로)
             f"section#qt{{background:#E3E8EF;color:#1A2333}}"
+            f"html:has(section#qt:not([hidden])),html:has(section#qt:not([hidden])) body{{background:#E3E8EF}}"
             f"section#qt .top{{background:#E3E8EF;border-bottom:1px solid #D3DAE4}}"
             f"section#qt .tbtn{{background:#fff;border-color:#D3DAE4;color:#5B6678}}"
             f"section#qt .tbtn:hover{{border-color:#2E5FB8;color:#1A2333}}"
