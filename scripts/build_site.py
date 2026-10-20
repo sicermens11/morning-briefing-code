@@ -699,6 +699,9 @@ def _portfolio():
 
 QT_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                        "data", "forward-log.jsonl")
+# 10/20 화면 시험용 — 임시 사본 기록으로 사이트를 만들어 잴 때만 준다(실전 게시는 안 준다)
+if os.environ.get("QT_FILE_TEST"):
+    QT_FILE = os.environ["QT_FILE_TEST"]
 
 
 INDUSTRY = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
