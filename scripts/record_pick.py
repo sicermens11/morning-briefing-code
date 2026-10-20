@@ -847,6 +847,8 @@ def main():
         for x in (r.get("후보") or []):
             if not any(y.get("종목코드") == x.get("종목코드") for y in 볼것):
                 볼것.append(x)
+        # ⭐ 10/20 보완 후보도 같은 잣대로 채점한다(체결 = 매수일 원본 시가 ≤ 주문가 · 결과는 보완후보 안에 남는다 — 지금 규칙 통계와 안 섞임)
+        볼것 += [x for x in (r.get("보완후보") or []) if not any(y.get("종목코드") == x.get("종목코드") for y in 볼것)]
         for x in 볼것:
             # ⭐ 2026-10-12 B 전용 종목은 파는 규칙이 다르다(20일선 회복 등) — 채점은 forward-groups-log 에 맡긴다
             if x.get("B전용"):
