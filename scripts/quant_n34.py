@@ -213,7 +213,7 @@ def 덱(q, 보유):
         '<div class="m"><div class="step num"><b>①</b><span>시장이 통째로 크게 빠지거나 업종이 한꺼번에 빠지면, 튼튼한 회사도 <em>자기 잘못 없이</em> 같이 빠집니다.</span></div></div>'
         f'<div class="m"><div class="step num"><b>②</b><span>그런 회사는 제자리로 돌아오는 일이 많았습니다. 10년 동안 {s.get("전체건수", 0)}번 샀다면 <em>{도}%가 +{R.몫들[0][1]:g}%에 닿았습니다</em>.</span></div></div>'
         f'<div class="m"><div class="step num"><b>③</b><span>그래서 빠진 날 <em>더 싸게 시작할 때만</em> 사고, +{R.몫들[0][1]:g}%와 +{R.몫들[1][1]:g}%에 나눠 팝니다.</span></div></div>'
-        '<div class="m hot"><b>사람이 고르지 않습니다</b><p>재무·주가·지수와 공시 몇 가지(자사주 매입 · 감자 · 유상증자)를 정해진 숫자로만 봅니다. 뉴스 내용이나 느낌은 쓰지 않고, 매일 똑같이 고릅니다.</p></div>'
+        '<div class="m hot"><b>사람이 고르지 않습니다</b><p>재무·주가·지수와 공시 몇 가지(자사주 매입 · 감자 · 유상증자)를 정해진 숫자로만 봅니다. 뉴스나 느낌은 쓰지 않습니다.</p></div>'
         '</div>'))
     # ── 오늘 나온 길 (깔때기 — 기록에 있을 때만) ──
     깔 = q.get("깔때기") or {}
@@ -347,7 +347,7 @@ def CSS(c1, c2):
             f"{p} .ln{{display:flex;justify-content:space-between;align-items:baseline;gap:.6em}}{p} .ln b{{font-size:.94em;font-weight:800}}"
             f"{p} .ln em{{font-style:normal;font-size:.86em;font-weight:700;color:var(--blue);white-space:nowrap}}"
             f"{p} .m .d{{padding:0}}"
-            f"{p} .menu.fill .m{{flex:1;justify-content:center}}{p} .step.num{{grid-template-columns:1.4em 1fr;gap:.5em;font-size:.92em}}"
+            f"{p} .menu.fill{{gap:.48em}}{p} .menu.fill .m{{flex:1;justify-content:center}}{p} .step.num{{grid-template-columns:1.4em 1fr;gap:.5em;font-size:.92em}}"
             f"{p} .step.num b{{font-size:1.05em}}"
             f"{p} .m.tests{{gap:.28em;padding:.65em .85em}}{p} .m.tests .d{{font-size:.7em;line-height:1.35;margin-bottom:.15em}}{p} .m.tests .ln b{{font-size:.88em}}"
             f"{p} .bigv{{font-size:3.4em;font-weight:800;letter-spacing:-.05em;line-height:1}}{p} .bigv small{{font-size:.4em;color:var(--sub);margin-left:.15em}}"
