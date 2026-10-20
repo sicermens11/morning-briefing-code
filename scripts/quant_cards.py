@@ -416,6 +416,88 @@ def _딱지(x):
     return " · ".join(t)
 
 
+def _오늘왜(q, 목록):
+    r"""오늘 왜 이 종목들인가 — 한 문단 (10/20 사용자 「지금 바로 넣자!」 ①). 그날 지수 낙폭과 갈래별 개수로만 만든다"""
+    if not 목록:
+        return ""
+    낙 = ((q.get("국면") or {}).get("지수낙폭") or {})
+    이름 = {"KOSPI": "코스피", "KOSDAQ": "코스닥"}
+    앞 = []
+    for k in ("KOSPI", "KOSDAQ"):
+        v = 낙.get(k) or [None, None]
+        if v[0] is not None and v[0] <= R.지수낙20문턱:
+            앞.append(f"{이름[k]}가 20일 동안 {abs(v[0]):.0f}% 빠진 날")
+        elif len(v) > 1 and v[1] is not None and v[1] <= R.지수낙60문턱:
+            앞.append(f"{이름[k]}가 60일 동안 {abs(v[1]):.0f}% 빠진 날")
+    # 10/20 — 길게 쓰면 갈래가 여럿인 날 PC 1장이 14~16px 넘쳤다(실측) → 짧은 말로(뜻은 같다)
+    갈 = [("시장규칙", "같이 빠진 튼튼한 소형주", "시장"),
+         ("기존규칙", "혼자 크게 빠진 종목", "낙폭"),
+         ("섹터규칙", "정해 둔 업종에서 빠진 종목", "섹터"),
+         ("변동성자사주", "흔들리는 장에 자사주를 산 회사", "변동성")]
+    뒤 = [f"{말} {n}개({표})" for 키, 말, 표 in 갈 for n in [sum(1 for x in 목록 if x.get(키))] if n]
+    if not 뒤:
+        return ""
+    return ((" · ".join(앞) + "입니다. " if 앞 else "") + " · ".join(뒤) + ".")
+
+
+def _팔값(x):
+    r"""주문가 기준 40%·60% 팔 값 (10/20 ②) — 주문가가 없으면(08:55 전) None"""
+    주 = x.get("주문가")
+    if not 주:
+        return None
+    return [round(주 * (1 + 몫[1] / 100)) for 몫 in R.몫들[:2]]
+
+
+def _시험표():
+    r"""「어떤 시험을 거쳤나」 줄들 (10/20 ③) — data/rule-tests.json · @건수·@분할 은 화면 숫자 파일에서 채운다"""
+    try:
+        t = json.load(io.open(os.path.join(_DATA, "rule-tests.json"), encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return [], ""
+    s = _사례()
+    out = []
+    for z in t.get("줄") or []:
+        값 = z.get("값", "")
+        if 값 == "@건수":
+            값 = f'{s.get("전체건수", 0)}번'
+        elif 값 == "@분할":
+            try:
+                cap = json.load(io.open(os.path.join(_DATA, "rule-capital.json"), encoding="utf-8"))
+                연 = [float(d["연"]) for d in cap.get("분할") or [] if d.get("연") is not None]
+                값 = f"연 {min(연):.0f}~{max(연):.0f}%" if 연 else "—"
+            except Exception:  # noqa: BLE001
+                값 = "—"
+        out.append((z.get("이름", ""), 값, z.get("설명", "")))
+    return out, str(t.get("시험날짜") or "")
+
+
+def _장시험():
+    r"""PC 「어떤 시험을 거쳤나」 장"""
+    줄, 날 = _시험표()
+    if not 줄:
+        return []
+    몸 = _본문("성적표 숫자를 그대로 믿어도 되는지, 넣기 전에 이렇게 확인했습니다.", 31)
+    for 이, 값, 설 in 줄:
+        몸 += (f'<div style="display:flex;flex-direction:column;gap:6px;border-top:1px solid {C["선"]};padding-top:16px">'
+              f'<div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px">'
+              f'<span style="font-size:32px;font-weight:800">{_esc(이)}</span>'
+              f'<span style="font-size:32px;font-weight:800;color:{C["금진"]};white-space:nowrap">{_esc(값)}</span></div>'
+              f'<span style="font-size:26px;line-height:1.5;color:{C["본"]}">{_esc(설)}</span></div>')
+    몸 += f'<span style="font-size:24px;color:{C["보"]}">시험 날짜 {_esc(날)} · 규칙이 바뀌면 다시 잽니다.</span>'
+    return [_카드("퀀트 시험", _머리("TESTS", _쪽표, "어떤 시험을 거쳤나", 틈=18, 밑=28), 몸, 정렬=None)]
+
+
+def _폰시험():
+    r"""핸드폰 「어떤 시험을 거쳤나」 카드"""
+    줄, 날 = _시험표()
+    if not 줄:
+        return []
+    몸 = ('<p class="t">어떤 시험을 거쳤나</p><div class="notes">'
+          + "".join(f'<div class="nt"><b>{_e(이)} · {_e(값)}</b><span>{_e(설)}</span></div>' for 이, 값, 설 in 줄)
+          + f'</div><p class="note">시험 날짜 {_e(날)} · 규칙이 바뀌면 다시 잽니다.</p>')
+    return [_폰카드("TESTS", 몸)]
+
+
 def _보완자료(q):
     r"""보완 후보(10/20 · 사용자 「오케이 너의 권고대로 하자!」) — (목록, 상자 상태, 글들) · 없으면 목록 []"""
     목록 = list(q.get("보완후보") or [])
@@ -622,6 +704,10 @@ def _종목블록(x, 업종, 상태, 확정):
 
     # ── 4행 — 문턱가(또는 매수 적정 범위) │ 이익 · 빚 ──
     _4행 = _행(v["라4"], _esc(v["값4"]).replace("~", "~<wbr>"), "이익 · 빚", _esc(v["재"]), C["금진"], None)
+    # ⭐ 10/20 ② 팔 값을 가격으로 (주문가 기준 · 사는 날만)
+    _팔 = _팔값(x) if 상태 == "buy" else None
+    if _팔:
+        _4행 += _행(f"{R.몫들[0][0] * 100:g}% 팔 값", f"{_팔[0]:,}원", f"{R.몫들[1][0] * 100:g}% 팔 값", f"{_팔[1]:,}원", C["빨"], C["빨"])
 
     return (f'<div data-block="1" style="background:{C["블록"]};'
             f'border:1px solid {C["선"]};border-radius:16px;padding:13px 24px;'   # 0929-2 ③ 16→13
@@ -816,8 +902,13 @@ def _장1(q, 보유):
     _폰자료.clear()
     _폰자료.update(상태=상태, 목록=목록, 업=업, 킥=킥, 제=제, 배=배, 배색=배색, 리드=리드, 라벨=라벨,
                   라벨색=라벨색, 각주=각주, 알림말=(말 if (팔것 or 뒤팔것) else []), 전체=전체, 보유=보유)
+    # ⭐ 10/20 ① 오늘 왜 이 종목들인가 (사용자 「지금 바로 넣자!」)
+    _왜 = _오늘왜(q, 목록) if 상태 in ("buy", "wait", "pre") else ""
+    _폰자료["왜"] = _왜
     if 리드:
         부.append(_본문(_esc(리드), 35))
+    if _왜:
+        부.append(_본문(f'<b style="font-weight:800">왜 오늘 이 종목인가 · </b>{_esc(_왜)}', 29))   # 31 이면 08:00 상태에서 4px 넘쳤다
     if 상태 == "none":
         부.append(f'<div style="display:flex;flex-direction:column;gap:18px">'
                  f'<span style="font-size:114px;font-weight:800;letter-spacing:-.05em;'
@@ -850,7 +941,7 @@ def _장1(q, 보유):
     #    한 장에 4개부터 잘린다 (실측). 글을 줄이는 대신 **장을 늘린다**
     # ⭐⭐ 2026-09-29 — **고르게 나눈다.** 앞에서부터 채우면 8개가 4+4 가 아니라
     #    4+4 여도 6개는 4+2 가 되어 마지막 장이 휑하다. 8->4+4 · 7->4+3 · 6->3+3 · 5->3+2
-    _쪽수 = max(1, -(-len(목록) // _한장에))
+    _쪽수 = max(1, -(-len(목록) // (3 if _왜 else _한장에)))   # 10/20 「왜」 가 붙으면 한 장 4개는 2~4px 넘쳤다 → 3개
     _쪽들, _i0, _남 = [], 0, len(목록)
     for _j in range(_쪽수):
         _몫 = -(-_남 // (_쪽수 - _j))
@@ -1626,7 +1717,10 @@ def _폰종목(x, 업종, 상태):
                 f'<div><small>이익 · 빚</small><strong>{_e(v["재"])}</strong></div></div>'
                 f'<div class="g3"><div><small>전날 종가</small><strong>{_e(v["종가"])}</strong></div>'
                 f'<div class="span2"><small>{_e(v["라4"])}</small><strong class="gd">{값4}</strong></div></div></div>')
-    return (머리 +
+    _팔 = _팔값(x) if 상태 == "buy" else None      # 10/20 ② 팔 값을 가격으로
+    _팔줄 = (f'<div class="g3"><div class="span2"><small>{_e(_몫말(R.몫들[0][0])[:-1])} · {_e(_몫말(R.몫들[1][0], 뒤=True)[:-1])} 팔 값</small>'
+            f'<strong class="pos">{_팔[0]:,} · {_팔[1]:,}원</strong></div></div>') if _팔 else ""
+    return (머리 + _팔줄 +
             f'<div class="g3"><div><small>{_e(v["낙라"])}</small><strong{낙색}>{_e(v["낙글"])}</strong></div>'
             f'<div><small>상대갭</small>{갭}</div>'
             f'<div><small>{_e(v["라4"])}</small><strong class="gd{" w" if 상태 == "pre" else ""}">{값4}</strong></div></div>'
@@ -1684,7 +1778,9 @@ def _폰종목장들(d):
         return []
     업 = d.get("업") or {}
     # PC 와 같은 나눔 — 한 장에 최대 _한장에(4) · 고르게 (6→3+3 · 8→4+4 · 5→3+2)
-    n쪽 = max(1, -(-len(목록) // _한장에))
+    # 10/20 — 사는 날은 상자에 「팔 값」 줄이 붙어 3개면 20~26px 잘렸다(실측) → 한 장에 2개
+    _한 = 2 if 상태 == "buy" else (3 if d.get("왜") else _한장에)   # 08:00 상태 4개 + 「왜」 는 45~59px 잘렸다
+    n쪽 = max(1, -(-len(목록) // _한))
     out, i0, 남 = [], 0, len(목록)
     이름 = {"buy": "살 종목", "wait": "참고 종목", "pre": "볼 종목"}.get(상태, "종목")
     for j in range(n쪽):
@@ -1692,7 +1788,9 @@ def _폰종목장들(d):
         조각 = 목록[i0:i0 + m]
         상자 = "".join(_폰종목(x, (업.get(x.get("종목코드", "")) or {}).get("업종명") or (x.get("섹터") or ""), 상태)
                      for x in 조각)
-        out.append(_폰카드(f"{이름} · {i0 + 1}~{i0 + m}", f'<div class="stks">{상자}</div>',
+        # 10/20 ① 「왜 오늘 이 종목인가」 는 첫 종목 장 맨 위에 (표지에 두면 19~26px 잘렸다)
+        _왜글 = (f'<p class="lead"><b>왜 오늘 이 종목인가</b> · {_e(d["왜"])}</p>' if (j == 0 and d.get("왜")) else "")
+        out.append(_폰카드(f"{이름} · {i0 + 1}~{i0 + m}", f'{_왜글}<div class="stks">{상자}</div>',
                          "dense" if m > 3 else ""))
         i0 += m
         남 -= m
@@ -1808,7 +1906,7 @@ def _폰덱(q, 보유):
     if _뽑기글()["업켬"]:
         # 업종 갈래가 켜진 날은 PC 업종 장을 옛 핸드폰 꼴로 덧붙인다(지금은 꺼짐)
         장들 += [f'<div class="qold">{_폰사본(h)}</div>' for h in _장2()[1:]]
-    장들 += _폰사고팔기() + _폰성적()
+    장들 += _폰사고팔기() + _폰성적() + _폰시험()   # 10/20 ③ 시험
     n = len(장들)
     return "".join(h.replace(_쪽표, f"{i} / {n}") for i, h in enumerate(장들, 1))
 
@@ -1923,7 +2021,7 @@ def quant_view(q, 보유=None, 줄들=None):
     """`build_site.quant_view` 가 여기로 넘긴다. `q` 는 forward-log 마지막 줄, `보유` 는 `_보유()`, `줄들` 은 forward-log 전체."""
     보유 = 보유 or []
     # ⭐ 2026-09-29 — _장1 이 **여러 장**을 돌려준다. 쪽 번호를 전체에 맞춰 다시 매긴다
-    _덱 = _쪽번호매기기(_장1(q, 보유) + _장보완(q) + _장2() + _장3() + [_장4()])   # 10/20 보완 후보 장
+    _덱 = _쪽번호매기기(_장1(q, 보유) + _장보완(q) + _장2() + _장3() + [_장4()] + _장시험())   # 10/20 보완 후보 장 · 시험 장
     # ⭐ 10/16 핸드폰 4:5 카드 — _장1 이 _폰자료 를 채운 **뒤에** 만든다
     try:
         _폰 = _폰덱(q, 보유)
