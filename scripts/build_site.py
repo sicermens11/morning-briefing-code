@@ -1388,7 +1388,7 @@ def build(out, days=DEFAULT_DAYS):
         _n주 = sum(1 for _x in (_qq.get("후보") or []) if _x.get("오늘산다"))
         _q확 = (_qq.get("동시호가") or {}).get("예상시장갭") is not None
         _메뉴.append(("btn-qt", "", "퀀트 후보" + (f" · 지정가 {_n주}" if (_q확 and _n주) else ""),
-                      "재무제표와 주가만 보는 기계 규칙", _두줄(_퀀트갱신), False))
+                      "재무·주가·지수를 숫자로만 보는 기계 규칙", _두줄(_퀀트갱신), False))
     if _portfolio():
         _메뉴.append(("btn-pf", "", "깜댕의 포트폴리오",
                       "섹터별 비중으로 쏠림을 봅니다", _두줄(_포트폴리오갱신), False))
