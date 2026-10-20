@@ -2037,7 +2037,7 @@ def quant_view(q, 보유=None, 줄들=None):
     _새 = ""
     try:
         import quant_n34 as _N
-        _새 = (_N.CSS(*_띠색) + '<div class="qn34"><div class="nrow">' + _N.덱(q, 보유) + '</div></div>')
+        _새 = (_N.CSS(*_띠색) + '<div class="qn34"><div class="nrow">' + _N.덱(q, 보유, 줄들) + '</div></div>')
     except Exception as _ex:  # noqa: BLE001
         print(f"  ⚠️ 퀀트 새 카드 실패 — 옛 화면으로: {type(_ex).__name__}: {_ex}")
         _새 = ""

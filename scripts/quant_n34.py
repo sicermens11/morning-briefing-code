@@ -81,7 +81,50 @@ def _팔(주):
     return [int(주 * (1 + m[1] / 100) + .5) for m in R.몫들[:2]]
 
 
-def _종목상자(x, 업, 상태, 보완=False):
+# ⭐ 10/20 ① 후보 종목 소식 (사용자 「오케이 진행해」) — data/news/{코드}.json · 최근 5거래일쯤(7일) · 제목에 회사 이름이 「그대로」 있는 것만
+#    이름 바로 뒤에 한글이 붙으면(「삼영」 → 「삼영검사엔지니어링」) 다른 회사로 보고 뺀다 · 조사(은는이가…)는 받는다
+#    좋은 소식인지 나쁜 소식인지는 판단하지 않는다 — 제목만 보여 준다
+_조사 = set("은는이가을를의에와과도로만")
+_소식캐시 = {}
+
+
+def _소식(code, 이름, 기준):
+    if not code or not 이름:
+        return []
+    k = (code, 기준)
+    if k in _소식캐시:
+        return _소식캐시[k]
+    out = []
+    try:
+        import datetime as _dt
+        import re as _re
+        d = json.load(io.open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "news", f"{code}.json"), encoding="utf-8-sig"))
+        끝 = _dt.date.fromisoformat(기준)
+        시작 = (끝 - _dt.timedelta(days=7)).strftime("%Y%m%d")
+        본 = set()
+        for it in (d.get("뉴스") or []):
+            날 = str(it.get("날짜") or "")
+            제 = str(it.get("제목") or "").strip()
+            if not (len(날) == 8 and 시작 <= 날 <= 끝.strftime("%Y%m%d")) or not 제:
+                continue
+            ok = False
+            for m in _re.finditer(_re.escape(이름), 제):
+                뒤 = 제[m.end():m.end() + 1]
+                if not 뒤 or not ("가" <= 뒤 <= "힣") or 뒤 in _조사:
+                    ok = True
+                    break
+            if not ok or 제 in 본:
+                continue
+            본.add(제)
+            out.append({"날": f"{int(날[4:6])}/{int(날[6:8])}", "제목": 제, "언론": it.get("언론사") or "", "키": 날 + str(it.get("시각") or "")})
+        out.sort(key=lambda z: z["키"], reverse=True)
+    except Exception:  # noqa: BLE001
+        out = []
+    _소식캐시[k] = out
+    return out
+
+
+def _종목상자(x, 업, 상태, 보완=False, 소식수=0):
     갈 = (["대형 · 주의" if x.get("보완규칙") == "대형" else "중형"] if 보완 else _갈래(x))
     표 = (갈[0] + (f" +{len(갈) - 1}" if len(갈) > 1 else "")) if 갈 else ""
     큰 = 보완 or (갈 and 갈[0] == "크게 빠짐")
@@ -116,8 +159,9 @@ def _종목상자(x, 업, 상태, 보완=False):
         f"이익 {float(잉):.0f}%" if 잉 is not None else "", f"빚 {float(부):.0f}%" if 부 is not None else ""] if z)
     return (f'<div class="m stk"><div class="s1"><b>{_e(x.get("이름", ""))} <span class="cd">{_e(x.get("종목코드", ""))}</span>'
             f'<small class="why">' + (f'<span class="tag{" big" if 큰 else ""}">{_e(표)}</span>' if 표 else "")
-            + f'<span class="wt">{_e(왜)}</span></small></b>{값}</div>'
-            f'<div class="tg">{칸}</div><p class="sub2">{_e(줄)}</p></div>')
+            + f'<span class="wt">{_e(왜)}</span>'
+            + f'</small></b>{값}</div>'
+            f'<div class="tg">{칸}</div><p class="sub2">' + (f'<span class="nw">소식 {소식수}</span> ' if 소식수 else '') + f'{_e(줄)}</p></div>')
 
 
 def _띠(q, d, n):
@@ -178,7 +222,49 @@ def _위(k, 제목=None, 작게=True):
             + (f'<h3 class="{"sm" if 작게 else ""}">{_e(제목)}</h3>' if 제목 else "") + '</div>')
 
 
-def 덱(q, 보유):
+def _비교(줄들):
+    r"""⭐ 10/20 ③ 브리핑 추천 vs 퀀트 후보 — 같은 잣대: 그날 시가에 샀다고 보고 · 20일 안에 +15% 닿았나 · 20일 뒤 수익
+    브리핑 = data/backtest-returns.jsonl (D20.실전 · D20.최고) · 퀀트 = forward-log 후보(중간성적 D+20 · 결과·며칠 · 체결)
+    채점이 끝난(20일 지난) 것만 센다 — 채점 전 건수도 같이 돌려준다"""
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    br = []
+    try:
+        for z in io.open(os.path.join(base, "data", "backtest-returns.jsonl"), encoding="utf-8"):
+            if z.strip():
+                br.append(json.loads(z))
+    except Exception:  # noqa: BLE001
+        br = []
+    def 통(rs):
+        rs = [r for r in rs if r[1] is not None]
+        if not rs:
+            return None
+        return (len(rs), sum(1 for r in rs if r[0]) / len(rs) * 100, sum(r[1] for r in rs) / len(rs))
+    b표 = [(bool((r.get("D20") or {}).get("최고") is not None and r["D20"]["최고"] >= 15), (r.get("D20") or {}).get("실전")) for r in br]
+    b전 = sum(1 for r in br if not (isinstance(r.get("D20"), dict) and r["D20"].get("실전") is not None))
+    b코드 = {(str(r.get("날짜") or ""), str(r.get("코드") or "")): r for r in br}
+    q체, q전, 둘 = [], [], []
+    q대기 = 0
+    for r in 줄들 or []:
+        매 = str(r.get("매수일") or "")
+        매 = f"{매[:4]}-{매[4:6]}-{매[6:8]}" if len(매) == 8 and 매.isdigit() else 매
+        for x in r.get("후보") or []:
+            if not (x.get("오늘산다") or x.get("규칙매수")):
+                continue
+            d20 = (x.get("중간성적") or {}).get("D+20")
+            닿 = bool(x.get("결과") is not None and x["결과"] > 14 and (x.get("며칠") or 99) <= 20)
+            if d20 is None:
+                q대기 += 1
+                continue
+            q전.append((닿, d20))
+            if x.get("체결"):
+                q체.append((닿, d20))
+            bb = b코드.get((매, str(x.get("종목코드") or "")))
+            if bb is not None:
+                둘.append((닿, d20))
+    return {"브리핑": 통(b표), "브리핑대기": b전, "퀀트체결": 통(q체), "퀀트전부": 통(q전), "퀀트대기": q대기, "둘다": 통(둘)}
+
+
+def 덱(q, 보유, 기록줄=None):
     r"""새 카드 묶음 HTML (카드들만). 실패하면 예외를 그대로 던진다 — quant_cards 가 옛 화면으로 돌아간다"""
     import quant_cards as Q
     d = dict(Q._폰자료)
@@ -186,25 +272,46 @@ def 덱(q, 보유):
     목록 = list(d.get("목록") or [])
     업 = Q._업종표()
     장 = []
+    기준 = str(q.get("기록시각") or "")[:10]
+    보, _, _ = Q._보완자료(q)
+    소식표 = {x.get("종목코드"): _소식(x.get("종목코드"), x.get("이름"), 기준) for x in 목록 + 보} if 기준 else {}
     # ── 종목 장 (한 장에 셋 · 첫 장 위 띠) ──
     if 목록:
         for i in range(0, len(목록), 3):
             조각 = 목록[i:i + 3]
             머리 = (_띠(q, d, len(목록)) if i == 0 else
                    _위(f"{'살 종목' if 상태 == 'buy' else '볼 종목'} {i + 1}–{i + len(조각)} / {len(목록)}", "사는 값과 파는 값"))
-            장.append(_카드(머리, '<div class="menu tight">' + "".join(_종목상자(x, 업, 상태) for x in 조각) + '</div>'))
+            장.append(_카드(머리, '<div class="menu tight">' + "".join(_종목상자(x, 업, 상태, 소식수=len(소식표.get(x.get("종목코드")) or [])) for x in 조각) + '</div>'))
     else:
         장.append(_카드(_띠(q, d, 0), '<div class="menu"><div class="m zero"><b>0개</b><p>조건을 통과한 종목이 없습니다. '
                      '규칙을 낮춰 억지로 후보를 만들지 않습니다. 이런 날은 열흘에 세 번쯤 있습니다.</p></div></div>'))
     # ── 보완 ──
-    보, _, _ = Q._보완자료(q)
     for i in range(0, len(보), 3):
         조각 = 보[i:i + 3]
         머리 = (f'<div class="nh"><p class="k"><span>보완 후보 {len(보)} · 지금 규칙 주문과 따로</span><span>@@PG@@</span></p>'
                f'<p class="lead2"><b>대형</b> {R.보완대형["시총억"][0] / 10000:g}조↑·40일 {R.보완대형["낙40"]:g}% · '
                f'<b>중형</b> {R.보완중형["시총억"][0]:,}억~{R.보완중형["시총억"][1] / 10000:g}조·지수 20일 {R.보완중형["지수낙20"]:g}% · '
                f'시장보다 <b>{abs(R.보완상대갭):g}%p</b> 싸게 시작하면 삼 · 대형은 더 빠진 적 있음(2023 −86%)</p></div>')
-        장.append(_카드(머리, '<div class="menu tight">' + "".join(_종목상자(x, 업, "buy", 보완=True) for x in 조각) + '</div>'))
+        장.append(_카드(머리, '<div class="menu tight">' + "".join(_종목상자(x, 업, "buy", 보완=True, 소식수=len(소식표.get(x.get("종목코드")) or [])) for x in 조각) + '</div>'))
+    # ── 사기 전에 알아 둘 소식 (10/20 ①) — 소식 있는 종목만 · 한 종목 2건까지 · 한 장에 종목 넷까지(넘치면 다음 장)
+    있음 = [x for x in 목록 + 보 if 소식표.get(x.get("종목코드"))]
+    없음 = [x.get("이름", "") for x in 목록 + 보 if not 소식표.get(x.get("종목코드"))]
+    for i in range(0, len(있음), 3):
+        조각 = 있음[i:i + 3]
+        블록 = ""
+        for x in 조각:
+            ns = 소식표[x.get("종목코드")]
+            갈 = (["대형 · 보완" if x.get("보완규칙") == "대형" else "중형 · 보완"] if x.get("보완규칙") else _갈래(x))
+            블록 += (f'<div class="m ns"><div class="h"><b>{_e(x.get("이름", ""))}</b>'
+                    + (f'<span class="tag{" big" if (x.get("보완규칙") or (갈 and 갈[0] == "크게 빠짐")) else ""}">{_e(갈[0])}</span>' if 갈 else "")
+                    + f'<em>뉴스 {len(ns)}</em></div>'
+                    + "".join(f'<div class="it"><i>{_e(n["날"])}</i><span>{_e(n["제목"])}<small> {_e(n["언론"])}</small></span></div>' for n in ns[:2])
+                    + '</div>')
+        끝장 = (i + 3 >= len(있음))
+        장.append(_카드(_위(f"오늘 후보 종목 소식 · 최근 7일 · 제목에 회사 이름이 있는 것만", "사기 전에 알아 둘 소식"),
+            f'<div class="menu tight">{블록}'
+            + (f'<p class="none">소식 없음 · {_e(" · ".join(없음))}</p>' if (끝장 and 없음) else "")
+            + '</div>'))
     # ── 무엇을 노리나 ──
     s = Q._사례()
     도 = s.get("도달률") or s.get("승률")
@@ -284,6 +391,26 @@ def 덱(q, 보유):
         f'<div class="menu"><div class="m"><p class="bigv">{(끝 or 0) / 1e8:.2f}<small>억</small></p>'
         f'<div class="six">' + "".join(f'<div><small>{a}</small><b>{b}</b></div>' for a, b in 칸) + '</div></div>'
         f'<p class="d">모두 {s.get("전체건수", 0)}번 샀고 {도}%가 +{R.몫들[0][1]:g}%에 닿았습니다. {_e(Q._볼린저주의[0])} — {_e(Q._볼린저주의[1])} {_e(Q._성적주의[1])} {_e(Q._성적주의[3])}</p></div>'))
+    # ── 브리핑 추천 vs 퀀트 후보 (10/20 ③) ──
+    try:
+        v = _비교(기록줄)
+    except Exception as _ex:  # noqa: BLE001
+        print(f"  ⚠️ 브리핑 vs 퀀트 채점 실패: {type(_ex).__name__}: {_ex}")
+        v = {}
+    def 칸(이름, 설명, t):
+        if not t:
+            return f'<tr><td>{이름}<small>{설명}</small></td><td>—</td><td>—</td><td>—</td></tr>'
+        return (f'<tr><td>{이름}<small>{설명}</small></td><td>{t[0]}</td><td>{t[1]:.0f}%</td>'
+                f'<td class="{"pos" if t[2] >= 0 else "neg"}">{_퍼(t[2])}</td></tr>')
+    장.append(_카드(_위("브리핑 추천 vs 퀀트 후보 · 같은 잣대로 채점", "어느 쪽이 더 맞았나", 작게=False),
+        '<div class="menu"><div class="m"><table class="vs"><thead><tr><th>지난 기록</th><th>건수</th><th>20일 안 +15%</th><th>20일 뒤</th></tr></thead><tbody>'
+        + 칸("브리핑 추천", "AI가 뉴스·수급으로", v.get("브리핑"))
+        + 칸("퀀트 · 체결된 것", "시가가 주문가에 닿음", v.get("퀀트체결"))
+        + 칸("퀀트 · 주문 전부", "체결 안 된 것까지", v.get("퀀트전부"))
+        + 칸("둘 다 고른 종목", "같은 날 겹친 것", v.get("둘다"))
+        + '</tbody></table>'
+        f'<p class="d">20일이 지난 것만 셉니다. 채점 전 · 브리핑 {v.get("브리핑대기", 0)}건 · 퀀트 {v.get("퀀트대기", 0)}건. 건수가 적을 땐 우연이 큽니다.</p></div>'
+        '<div class="m hot"><b>같은 잣대</b><p>둘 다 그날 시가에 샀다고 보고, 20일 안에 +15%에 닿았는지와 20일 뒤 수익으로 견줍니다.</p></div></div>'))
     n = len(장)
     return "".join(h.replace("@@PG@@", f"{i}/{n}") for i, h in enumerate(장, 1))
 
@@ -328,7 +455,7 @@ def CSS(c1, c2):
             f"{p} .tg .w2{{grid-column:span 2}}"
             f"{p} .tg small{{font-size:.62em;color:var(--sub);white-space:nowrap}}{p} .tg b{{font-size:.84em;font-weight:800;white-space:nowrap}}"
             f"{p} .tg .r b{{color:var(--red)}}{p} .tg .bl b{{color:var(--blue)}}"
-            f"{p} .sub2{{font-size:.68em;color:var(--sub);line-height:1.4}}"
+            f"{p} .sub2{{font-size:.66em;color:var(--sub);line-height:1.4}}"
             f"{p} .step{{display:grid;grid-template-columns:3.3em 1fr;gap:.6em;align-items:baseline;font-size:.86em}}"
             f"{p} .step b{{font-weight:800;color:var(--blue)}}{p} .step.r b{{color:var(--red)}}{p} .step span{{line-height:1.5}}{p} .step em{{font-style:normal;font-weight:800}}"
             f"{p} .m.hot{{background:var(--ink);color:#fff}}{p} .m.hot b{{font-size:.92em}}{p} .m.hot p{{font-size:.82em;color:#AEB8C8;line-height:1.5}}"
@@ -347,6 +474,14 @@ def CSS(c1, c2):
             f"{p} .ln{{display:flex;justify-content:space-between;align-items:baseline;gap:.6em}}{p} .ln b{{font-size:.94em;font-weight:800}}"
             f"{p} .ln em{{font-style:normal;font-size:.86em;font-weight:700;color:var(--blue);white-space:nowrap}}"
             f"{p} .m .d{{padding:0}}"
+            f"{p} .vs{{width:100%;border-collapse:collapse;font-size:.8em}}{p} .vs th{{font-size:.82em;font-weight:600;color:var(--sub);text-align:right;padding:.3em .2em;border-bottom:1px solid #DCE2EA;white-space:nowrap}}"
+            f"{p} .vs th:first-child,{p} .vs td:first-child{{text-align:left}}{p} .vs td{{padding:.5em .2em;text-align:right;border-bottom:1px solid #EDF0F5;font-weight:700;white-space:nowrap}}"
+            f"{p} .vs td small{{display:block;font-weight:500;color:var(--sub);font-size:.8em}}{p} .vs .pos{{color:var(--red)}}{p} .vs .neg{{color:var(--blue)}}"
+            f"{p} .nw{{flex:none;white-space:nowrap;font-size:.9em;font-weight:800;border-radius:.2em;padding:0 .3em;background:#FFF3D6;color:#8A5A00}}"
+            f"{p} .ns{{gap:.3em}}{p} .ns .h{{display:flex;align-items:baseline;gap:.45em;white-space:nowrap}}{p} .ns .h b{{font-size:.98em;font-weight:800}}"
+            f"{p} .ns .h em{{margin-left:auto;font-style:normal;font-size:.7em;color:var(--sub)}}"
+            f"{p} .ns .it{{display:grid;grid-template-columns:3.1em 1fr;gap:.45em;font-size:.76em;line-height:1.4}}{p} .ns .it i{{font-style:normal;color:var(--sub)}}"
+            f"{p} .ns .it small{{color:var(--sub);font-size:.88em}}{p} .none{{font-size:.74em;color:var(--sub)}}"
             f"{p} .menu.fill{{gap:.48em}}{p} .menu.fill .m{{flex:1;justify-content:center}}{p} .step.num{{grid-template-columns:1.4em 1fr;gap:.5em;font-size:.92em}}"
             f"{p} .step.num b{{font-size:1.05em}}"
             f"{p} .m.tests{{gap:.28em;padding:.65em .85em}}{p} .m.tests .d{{font-size:.7em;line-height:1.35;margin-bottom:.15em}}{p} .m.tests .ln b{{font-size:.88em}}"

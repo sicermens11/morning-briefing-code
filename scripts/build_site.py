@@ -459,6 +459,7 @@ SITE_JS = """<script>
    if(_p){_p.disabled=(_i<=0); _p.dataset.go=_i>0?_ds[_i-1]:'';}
    if(_n){_n.disabled=(_i<0||_i>=_ds.length-1); _n.dataset.go=(_i>=0&&_i<_ds.length-1)?_ds[_i+1]:'';}
    document.querySelectorAll('.scrollwrap').forEach(function(s){s.dataset.on=String(s.dataset.d===d)});
+   document.querySelectorAll('#day .qlink').forEach(function(b){b.hidden=(b.dataset.d!==d)});   // 10/20 그날 브리핑에서만 퀀트 한 줄
    document.querySelectorAll('.scrollwrap').forEach(function(s){
      s.style.display=(s.dataset.d===d)?'':'none'});
    show('day');
@@ -476,6 +477,7 @@ SITE_JS = """<script>
  var _bp=$('#btn-past'); if(_bp) _bp.addEventListener('click',function(){show('cal')});   // 10/14 첫 화면에서 뺐다 · 지난 날은 ‹ 날짜 › 로
  var _pf=$('#btn-pf'); if(_pf) _pf.addEventListener('click',function(){show('pf')});
  var _qt=$('#btn-qt'); if(_qt) _qt.addEventListener('click',function(){qDay('');show('qt')});
+ document.querySelectorAll('.qlink').forEach(function(b){b.addEventListener('click',function(){qDay('');show('qt');window.scrollTo(0,0)})});
  // 10/14 퀀트 ‹ 날짜 › — 오늘이면 카드, 지난 날이면 그날 표(.qpast)
  function qDay(d){
    var s=$('#qt'); if(!s) return;
@@ -1217,6 +1219,10 @@ def _시장날씨(o):
 
 
 WX_CSS = """<style>
+#day .qlink{display:flex;justify-content:space-between;align-items:center;gap:10px;width:calc(100% - 24px);max-width:760px;margin:10px auto 0;background:#1A2333;color:#fff;border:0;border-radius:4px;padding:11px 14px;font:inherit;font-size:14px;text-align:left;cursor:pointer;box-sizing:border-box}
+#day .qlink[hidden]{display:none}
+#day .qlink b{font-weight:800}#day .qlink span{color:#AEB8C8}#day .qlink span b{color:#fff}#day .qlink em{font-style:normal;font-weight:700;color:#9FC0FF;white-space:nowrap}
+#day .qlink:focus-visible{outline:2px solid #9FC0FF;outline-offset:2px}
 /* ── 2026-10-14 첫 화면 「시장 날씨」 · 옛 확정안 규칙을 이 블록이 덮는다 ── */
 #home.wx2{padding:0;gap:0;background:#EEF2F7;color:#1A2333;min-height:100dvh;max-width:430px}
 #home.wx2 .sky{padding:26px 20px 22px;color:#F3F6FB;background:linear-gradient(180deg,var(--c1),var(--c2))}
@@ -1420,6 +1426,20 @@ def build(out, days=DEFAULT_DAYS):
     # ⚠️ 포트폴리오 화면은 달력과 나란한 형제다 — `cal` 문자열 앞에 붙인다.
     pf_html = portfolio_view(kept[-1], _copy(latest))
     _q = _quant()
+    # ⭐ 10/20 ② 오늘 브리핑 맨 위 한 줄 — 사용자 「오케이 진행해」(퀀트·브리핑 잇기) · 퀀트 기록의 날과 같은 날 브리핑을 볼 때만 보인다
+    _ql = ""
+    try:
+        if _q:
+            _qd = str(_q.get("기록시각") or "")[:10]
+            _n주 = sum(1 for _x in (_q.get("후보") or []) if _x.get("오늘산다"))
+            _n보 = len(_q.get("보완후보") or [])
+            _확 = (_q.get("동시호가") or {}).get("예상시장갭") is not None
+            _말 = (f"오늘 퀀트 주문 {_n주}개" if (_확 and _n주) else
+                  (f"오늘 퀀트 볼 종목 {len(_q.get('후보') or [])}개" if _q.get("후보") else "오늘 퀀트 후보 없음"))
+            _ql = (f'<button class="qlink" type="button" data-d="{_qd}" hidden><span><b>{_말}</b>'
+                   + (f" · 보완 {_n보}" if _n보 else "") + f' · {"08:55 확정" if _확 else "08:55에 확정"}</span><em>퀀트 후보 보기 →</em></button>')
+    except Exception:  # noqa: BLE001
+        _ql = ""
     qt_html = quant_view(_q) if _q else ""
 
     cal = (
@@ -1463,6 +1483,7 @@ def build(out, days=DEFAULT_DAYS):
         f'<span class="ax">가로 </span>요약</button>'
         f'</span></div>'
         f'<nav class="jump" aria-label="목차" hidden></nav></div>'
+        + _ql
         + "".join(rails) + "".join(scrolls)
         + '<div class="nav"></div>'
         + '<button class="arw prev" type="button" aria-label="이전 카드">&#8249;</button>'
