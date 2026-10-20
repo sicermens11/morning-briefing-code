@@ -174,7 +174,7 @@ def _카드(머리, 몸, 덧=""):
 
 
 def _위(k, 제목=None, 작게=True):
-    return (f'<div class="top"><p class="k"><span>{_e(k)}</span><span>@@PG@@</span></p>'
+    return (f'<div class="nh"><p class="k"><span>{_e(k)}</span><span>@@PG@@</span></p>'
             + (f'<h3 class="{"sm" if 작게 else ""}">{_e(제목)}</h3>' if 제목 else "") + '</div>')
 
 
@@ -200,7 +200,7 @@ def 덱(q, 보유):
     보, _, _ = Q._보완자료(q)
     for i in range(0, len(보), 3):
         조각 = 보[i:i + 3]
-        머리 = (f'<div class="top"><p class="k"><span>보완 후보 {len(보)} · 지금 규칙 주문과 따로</span><span>@@PG@@</span></p>'
+        머리 = (f'<div class="nh"><p class="k"><span>보완 후보 {len(보)} · 지금 규칙 주문과 따로</span><span>@@PG@@</span></p>'
                f'<p class="lead2"><b>대형</b> {R.보완대형["시총억"][0] / 10000:g}조↑·40일 {R.보완대형["낙40"]:g}% · '
                f'<b>중형</b> {R.보완중형["시총억"][0]:,}억~{R.보완중형["시총억"][1] / 10000:g}조·지수 20일 {R.보완중형["지수낙20"]:g}% · '
                f'시장보다 <b>{abs(R.보완상대갭):g}%p</b> 싸게 시작하면 삼 · 대형은 더 빠진 적 있음(2023 −86%)</p></div>')
@@ -230,7 +230,7 @@ def 덱(q, 보유):
                      for x0, x1, c in 줄들 if x1 is not None)
         제목 = f"{n전:,}종목에서 {len(목록)}개가 남기까지"
     else:
-        fn = "".join(f'<div class="fn {c}"><span>{_e(x0)}</span><b></b></div>' for x0, x1, c in 줄들[1:6])
+        fn = "".join(f'<div class="fn {c}"><span>{_e(x0)}</span><b></b></div>' for x0, x1, c in 줄들[1:5])
         제목 = "이 조건을 모두 통과해야 후보"
     장.append(_카드(_위("어떻게 나왔나 · 전날 종가 기준" if n전 else "기본 조건 · 먼저 거르는 것", 제목, 작게=False),
         f'<div class="menu"><div class="m" style="gap:.55em">{fn}</div>'
@@ -251,7 +251,7 @@ def 덱(q, 보유):
         갈들 = [z for z in 갈들 if z[0] != "변동성·자사주"]
     br = "".join(f'<div class="m br"><div class="bh"><b>{x0}</b><span class="sz{" big" if x1 == "크기 상한 없음" else ""}">{x1}</span>'
                  f'<em>오늘 {수.get(x0 if not x0.startswith("섹터") else "섹터 6업종", 0)}</em></div><p>{_e(x2)}</p></div>' for x0, x1, x2 in 갈들)
-    장.append(_카드(_위("갈래 · 기본 조건을 먼저 통과한 뒤", "넷 중 하나에 걸리면 후보"),
+    장.append(_카드(_위("갈래 넷 · 기본 조건을 먼저 통과한 뒤", "넷 중 하나에 걸리면 후보", 작게=False),
         f'<div class="menu tight">{br}</div><p class="foot">{R.시총상한억:,.0f}억 이상 큰 회사는 섹터 갈래와 보완 후보(중형·대형)로만 나옵니다.</p>'))
     # ── 사고 파는 법 ──
     a1, a2 = R.몫들[0], R.몫들[1]
@@ -307,9 +307,9 @@ def CSS(c1, c2):
             f"{p} .st3 span{{background:rgba(255,255,255,.12);border-radius:.6em;padding:.3em .55em;font-size:.66em;color:rgba(243,246,251,.8);display:flex;flex-direction:column;min-width:0;white-space:nowrap}}"
             f"{p} .st3 i{{font-style:normal}}{p} .st3 b{{color:#fff;font-size:1.3em;font-weight:800}}"
             f"{p} .al{{font-size:.7em;font-weight:700;background:rgba(255,255,255,.18);border-radius:.5em;padding:.25em .55em}}"
-            f"{p} .top{{padding:1.2em 1.15em .65em;display:flex;flex-direction:column;gap:.2em}}"
-            f"{p} .top .k{{font-size:.74em;color:var(--sub);font-weight:600;display:flex;justify-content:space-between;gap:.5em}}"
-            f"{p} .top h3{{font-size:1.35em;font-weight:800;letter-spacing:-.035em;line-height:1.3}}{p} .top h3.sm{{font-size:1.05em}}"
+            f"{p} .nh{{padding:1.2em 1.15em .65em;display:flex;flex-direction:column;gap:.2em}}"
+            f"{p} .nh .k{{font-size:.74em;color:var(--sub);font-weight:600;display:flex;justify-content:space-between;gap:.5em}}"
+            f"{p} .nh h3{{font-size:1.35em;font-weight:800;letter-spacing:-.035em;line-height:1.3}}{p} .nh h3.sm{{font-size:1.05em}}"
             f"{p} .lead2{{font-size:.74em;color:var(--sub);line-height:1.45;margin-top:.15em}}{p} .lead2 b{{color:var(--ink)}}"
             f"{p} .menu{{padding:0 .9em .9em;display:flex;flex-direction:column;gap:.6em;flex:1;min-height:0}}{p} .menu.tight{{gap:.26em}}"
             f"{p} .m{{background:#fff;border-radius:.9em;padding:.72em .9em;box-shadow:0 1px 0 rgba(15,42,85,.08);display:flex;flex-direction:column;gap:.45em}}"
@@ -352,6 +352,12 @@ def CSS(c1, c2):
             f"{p} .six{{display:grid;grid-template-columns:repeat(3,1fr);gap:.6em .5em}}{p} .six div{{display:flex;flex-direction:column}}"
             f"{p} .six small{{font-size:.72em;color:var(--sub)}}{p} .six b{{font-size:1.15em;font-weight:800}}"
             f"{p} .foot{{font-size:.72em;color:var(--sub);padding:0 1.2em 1.1em;margin-top:auto}}"
+            # 10/20 사용자 「이렇게 할거면 배경색도 맞춰야할 것 같은데!」 — 퀀트 화면 바탕·날짜 줄을 홈 푸른 회색 계열로(새 카드가 나올 때만 · 옛 화면은 베이지 그대로)
+            f"section#qt{{background:#E3E8EF;color:#1A2333}}"
+            f"section#qt .top{{background:#E3E8EF;border-bottom:1px solid #D3DAE4}}"
+            f"section#qt .tbtn{{background:#fff;border-color:#D3DAE4;color:#5B6678}}"
+            f"section#qt .tbtn:hover{{border-color:#2E5FB8;color:#1A2333}}"
+            f"section#qt .top .now{{color:#1A2333}}"
             f"#qt.past .qn34{{display:none!important}}"
             f"@media(min-width:900px){{#qt .qhint{{display:none}}}}"
             "</style>")
