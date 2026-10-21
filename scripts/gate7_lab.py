@@ -8157,7 +8157,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "TOPN", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "TOPN", "ORDER", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8336,6 +8336,82 @@ def main():
                      ("하루 3+1 · 20일 덜 빠진 순", {"하루상한": 3, **_섹자리(1), "고르기": _덜빠진}),
                      ("하루 6+2 · 상대갭 얕은 순", {"고르기": _얕은갭}))
             print("  ── TOPN · 하루 산 수 줄이기 + 고르는 순서 (지금 규칙 그대로 · 종가 평가) ──")
+        # ⭐ 2026-10-21 ORDER — **고르는 순서: 갈래 성적 순 · 재무 튼튼한 순** (TOPN 에 없는 순서만)
+        #    사용자 10/21 「테스트 했을 때 규칙이 각자 다르다면, 가장 성적이 좋았던 순으로 해야할 것 같아. 근데, 만약 후보의 규칙이
+        #    다 같다면, 재무가 튼튼한 순으로 해야하나? 어떤 종목이 더 성적이 좋았찌?」
+        #    갈래 성적 = **앞 기간(~2020) 신호 한 번 평균**으로만 매긴다(뒤 2021~ 은 안 봄) — 같은 갈래 안에선 지금처럼 갭 깊은 순
+        #    재무 = 쌓은 이익(잉여금) 많은 순 · 빚(부채) 적은 순 · ROE 높은 순 — 하나씩(섞는 무게를 내 맘대로 안 정한다) · 값 없으면 맨 뒤
+        if "ORDER" in _ONLY.split("+") or _ONLY == "ORDER":
+            def _기O(x):
+                return 문통과(x) and x["볼린저"] <= R.볼린저문턱 and x["낙폭20"] <= R.낙폭20문턱
+
+            def _섹O(x):
+                return bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x) and (R.섹터규칙_큰회사 or 크기통과(x))
+
+            def _시O(x):
+                return 문통과(x) and _시장갈래(x)
+
+            def _변O(x):
+                return (R.변동성자사주_켬 and 문통과(x) and x.get("시장변동성") is not None
+                        and x["시장변동성"] >= R.시장변동성문턱 and _자사H(x) >= 1)
+            _갈O = (("크게 빠짐", _기O), ("섹터 6업종", _섹O), ("시장 급락", _시O), ("변동성·자사주", _변O))
+
+            def _한번O(x):
+                _r = 0.0
+                for 몫 in R.몫들:
+                    _rr, _ = 결과(x, 몫[1], 몫[2], 몫[3] if len(몫) > 3 else None, None, "악재")
+                    if _rr is None:
+                        return None
+                    _r += 몫[0] * _rr
+                return _r
+            _앞O = {}
+            for _x in 사건:
+                if str(_x.get("해") or "9999") > "2020":
+                    continue
+                try:
+                    if not _H(_x):
+                        continue
+                except Exception:  # noqa: BLE001
+                    continue
+                for _이, _f in _갈O:
+                    try:
+                        if _f(_x):
+                            _v = _한번O(_x)
+                            if _v is not None:
+                                _앞O.setdefault(_이, []).append(_v)
+                    except Exception:  # noqa: BLE001
+                        pass
+            _평O = {k: sum(v) / len(v) for k, v in _앞O.items() if v}
+            _순O = sorted(_평O, key=lambda k: -_평O[k])
+            print("     갈래 성적(앞 기간 ~2020 · 신호 한 번 평균): " + " · ".join(f"{k} {_평O[k]:+.1f}% ({len(_앞O[k]):,}건)" for k in _순O))
+            _갈O사전 = dict(_갈O)
+
+            def _갈래순(x):
+                _r = len(_순O)
+                for _k, _이 in enumerate(_순O):
+                    try:
+                        if _갈O사전[_이](x):
+                            _r = min(_r, _k)
+                    except Exception:  # noqa: BLE001
+                        pass
+                return (_r, x.get("갭") or 0)
+            _이익순 = (lambda x: -(x.get("잉여금") if x.get("잉여금") is not None else -9e9))
+            _빚순 = (lambda x: (x.get("부채") if x.get("부채") is not None else 9e9))
+            _ROE순 = (lambda x: -(x.get("ROE") if x.get("ROE") is not None else -9e9))
+
+            def _섹자리O(n):
+                return {"무리자리": [(_섹C, "섹터", n)]}
+            _안들C = (("지금 그대로 (하루 6+2 · 상대갭 깊은 순)", {}),
+                     ("하루 6+2 · 갈래 성적 순", {"고르기": _갈래순}),
+                     ("하루 6+2 · 쌓은 이익 많은 순", {"고르기": _이익순}),
+                     ("하루 6+2 · 빚 적은 순", {"고르기": _빚순}),
+                     ("하루 6+2 · ROE 높은 순", {"고르기": _ROE순}),
+                     ("하루 3+1 · 상대갭 깊은 순", {"하루상한": 3, **_섹자리O(1)}),
+                     ("하루 3+1 · 갈래 성적 순", {"하루상한": 3, **_섹자리O(1), "고르기": _갈래순}),
+                     ("하루 3+1 · 쌓은 이익 많은 순", {"하루상한": 3, **_섹자리O(1), "고르기": _이익순}),
+                     ("하루 3+1 · 빚 적은 순", {"하루상한": 3, **_섹자리O(1), "고르기": _빚순}),
+                     ("하루 3+1 · ROE 높은 순", {"하루상한": 3, **_섹자리O(1), "고르기": _ROE순}))
+            print("  ── ORDER · 고르는 순서 — 갈래 성적 순 · 재무 튼튼한 순 (지금 규칙 · 종가 평가 · 뒤 2021~ 로 판단) ──")
         # ⭐ 2026-10-21 NEWSCUT —**신호 직전 7일 기사 제목에 악재 말이 있던 후보를 뺀다** (구글 뉴스 RSS · 날짜 범위)
         #    사용자 10/21 「다른 경제쪽 받을 수 있는 곳 없어?」 → 구글 뉴스 날짜 검색으로 옛 기사가 받힘 → 「진행해보자.」
         #    네이버 종목뉴스는 1년치뿐 · 네이버 검색 API 신규 신청 막힘 ([[news-sources-blocked]])
