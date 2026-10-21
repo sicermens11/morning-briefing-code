@@ -66,7 +66,13 @@ scripts/build_site.py         카드 서술
 def 보완화면(목록):
     """화면에 보일 보완 후보 — 화면(quant_n34)과 기록(record_pick 「화면」 표시)이 **같은 함수**를 쓴다
     10/21 사용자 「가로 기록을 나누고」 — 화면에 보인 것과 전체를 따로 채점하려면 무엇이 보였는지 남겨야 한다 · 순서를 바꾸면 여기만"""
-    return sorted(목록 or [], key=lambda z: (z.get("20일낙폭") if z.get("20일낙폭") is not None else 0))[:보완화면최대]
+    # 10/21 저녁 사용자 「권고대로」 — 08:55 뒤(상대갭이 있으면)는 **상대갭 깊은 순**(지금 규칙과 같은 잣대 · TOPN·ORDER 에서 다른 순서는 모두 같거나 못함)
+    #    08:55 전(상대갭 없음)은 20일 낙폭 깊은 순 그대로 · 상대갭 없는 종목(예상가 못 받음)은 뒤로
+    목 = list(목록 or [])
+    if any(z.get("상대갭") is not None for z in 목):
+        return sorted(목, key=lambda z: (z.get("상대갭") is None, z.get("상대갭") if z.get("상대갭") is not None else 0,
+                                         z.get("20일낙폭") if z.get("20일낙폭") is not None else 0))[:보완화면최대]
+    return sorted(목, key=lambda z: (z.get("20일낙폭") if z.get("20일낙폭") is not None else 0))[:보완화면최대]
 
 # ══════════════════════════════════════════════════════════════════
 #  ② 셋 중 하나 — 기존 OR 섹터 OR 시장

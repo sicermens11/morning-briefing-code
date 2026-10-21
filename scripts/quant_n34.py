@@ -318,7 +318,7 @@ def 덱(q, 보유, 기록줄=None):
     # ── 보완 ──
     for i in range(0, len(보), 3):
         조각 = 보[i:i + 3]
-        머리 = (f'<div class="nh"><p class="k"><span>보완 후보 {len(보전체)}{f" 중 깊은 순 {len(보)}" if len(보전체) > len(보) else ""} · 지금 규칙 주문과 따로</span><span>@@PG@@</span></p>'
+        머리 = (f'<div class="nh"><p class="k"><span>보완 후보 {len(보전체)}{f" 중 {_보순말(보전체)} {len(보)}" if len(보전체) > len(보) else ""} · 지금 규칙 주문과 따로</span><span>@@PG@@</span></p>'
                f'<p class="lead2"><b>대형</b> {R.보완대형["시총억"][0] / 10000:g}조↑·40일 {R.보완대형["낙40"]:g}% · '
                f'<b>중형</b> {R.보완중형["시총억"][0]:,}억~{R.보완중형["시총억"][1] / 10000:g}조·지수 20일 {R.보완중형["지수낙20"]:g}% · '
                f'시장보다 <b>{abs(R.보완상대갭):g}%p</b> 싸게 시작하면 삼 · 대형은 더 빠진 적 있음(2023 −86%)</p></div>')
@@ -452,6 +452,11 @@ def 덱(q, 보유, 기록줄=None):
         '<div class="m hot"><b>같은 잣대</b><p>둘 다 그날 시가에 샀다고 보고, 20일 안에 +15%에 닿았는지와 20일 뒤 수익으로 견줍니다.</p></div></div>'))
     n = len(장)
     return "".join(h.replace("@@PG@@", f"{i}/{n}") for i, h in enumerate(장, 1))
+
+
+def _보순말(목록):
+    r"""화면 보완 6개를 무슨 순서로 골랐나 — R.보완화면 과 같은 갈림(08:55 뒤 상대갭 · 그 전 20일 낙폭)"""
+    return "싸게 시작할 순" if any(z.get("상대갭") is not None for z in (목록 or [])) else "20일 낙폭 깊은 순"
 
 
 def _해마다():
@@ -601,7 +606,7 @@ def PC(q, 보유, 기록줄=None):
         표 += ('<tr><td colspan="15" class="l t">조건을 통과한 종목이 없습니다. 규칙을 낮춰 억지로 후보를 만들지 않습니다. '
               '이런 날은 열흘에 세 번쯤 있습니다.</td></tr>')
     if 보:
-        표 += (f'<tr class="grp"><td colspan="15">보완 후보 {len(보전체)}{f" 중 깊은 순 {len(보)}" if len(보전체) > len(보) else ""}'
+        표 += (f'<tr class="grp"><td colspan="15">보완 후보 {len(보전체)}{f" 중 {_보순말(보전체)} {len(보)}" if len(보전체) > len(보) else ""}'
               f'<span>지금 규칙 주문과 따로 · 시장보다 {abs(R.보완상대갭):g}%p 싸게 열리면 삼 · 대형은 더 빠진 적 있음(2023 −86%)</span></td></tr>'
               + "".join(_pc줄(x, i, 업, 보완=True, 소식수=len(소식표.get(x.get("종목코드")) or [])) for i, x in enumerate(보, 1)))
     표 += ('</table><p class="foot">상대갭 = 9시 시가가 시장보다 얼마나 더 싸게 열릴지(08:55 예상) · '
