@@ -8157,7 +8157,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "TOPN", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8313,7 +8313,30 @@ def main():
                      ("정지·심사·관리·폐지 60거래일 안 빼기", {"거름": _정지빼기("생사", 60)}),
                      ("정지·심사·관리·폐지 120거래일 안 빼기", {"거름": _정지빼기("생사", 120)}))
             print("  ── HALTCUT · 거래정지·실질심사 공시가 최근에 있던 후보 빼기 (공시 2010~ · 신호 날까지) ──")
-        # ⭐ 2026-10-21 NEWSCUT — **신호 직전 7일 기사 제목에 악재 말이 있던 후보를 뺀다** (구글 뉴스 RSS · 날짜 범위)
+        # ⭐ 2026-10-21 TOPN — **하루 산 수를 2~3개로 줄이면** 끝 자산·낙폭이 얼마나 달라지나 + 줄일 때 무슨 순서로 고르나
+        #    사용자 10/21 「보여주는 후보를 신호가 강하고 확실한 것만 보여주는 게 나을 것 같은데, 지금 갖고 있는 규칙에서
+        #    신호가 확실한 걸로 2개나 3개로 줄이면 끝자산이나 수익율이나 낙폭이나 차이 많이 나나?」
+        #    기본 순서 = 상대갭 깊은 순 · 그런데 ALLSIG(10/19) 몇 번째 표에서 1번째가 가장 약했다(승 76% · +15.2% vs 13↓ +22.2%)
+        #    ⇒ 순서도 같이 잰다(미리 정한 넷 · 결과 보고 안 더한다) · 섹터 자리는 무리자리로 줄인다
+        if "TOPN" in _ONLY.split("+") or _ONLY == "TOPN":
+            def _섹자리(n):
+                return {"무리자리": [(_섹C, "섹터", n)]}
+            _얕은갭 = (lambda x: -(x.get("갭") or 0))
+            _큰회사 = (lambda x: -(x.get("시총억") or 0))
+            _덜빠진 = (lambda x: -(x.get("낙20") if x.get("낙20") is not None else -999))
+            _안들C = (("지금 그대로 (하루 6 + 섹터 2)", {}),
+                     ("하루 4 + 섹터 2", {"하루상한": 4}),
+                     ("하루 3 + 섹터 2", {"하루상한": 3}),
+                     ("하루 2 + 섹터 2", {"하루상한": 2}),
+                     ("하루 3 + 섹터 1", {"하루상한": 3, **_섹자리(1)}),
+                     ("하루 2 + 섹터 1", {"하루상한": 2, **_섹자리(1)}),
+                     ("하루 1 + 섹터 1", {"하루상한": 1, **_섹자리(1)}),
+                     ("하루 3+1 · 상대갭 얕은 순", {"하루상한": 3, **_섹자리(1), "고르기": _얕은갭}),
+                     ("하루 3+1 · 큰 회사 순", {"하루상한": 3, **_섹자리(1), "고르기": _큰회사}),
+                     ("하루 3+1 · 20일 덜 빠진 순", {"하루상한": 3, **_섹자리(1), "고르기": _덜빠진}),
+                     ("하루 6+2 · 상대갭 얕은 순", {"고르기": _얕은갭}))
+            print("  ── TOPN · 하루 산 수 줄이기 + 고르는 순서 (지금 규칙 그대로 · 종가 평가) ──")
+        # ⭐ 2026-10-21 NEWSCUT —**신호 직전 7일 기사 제목에 악재 말이 있던 후보를 뺀다** (구글 뉴스 RSS · 날짜 범위)
         #    사용자 10/21 「다른 경제쪽 받을 수 있는 곳 없어?」 → 구글 뉴스 날짜 검색으로 옛 기사가 받힘 → 「진행해보자.」
         #    네이버 종목뉴스는 1년치뿐 · 네이버 검색 API 신규 신청 막힘 ([[news-sources-blocked]])
         #    ① NEWSDUMP=1 → 2016~ 실전 거름 통과 · 상대갭 −1.0 이하(넉넉히) 후보를 data/_labs/news_events.jsonl 로 내보내고 끝
