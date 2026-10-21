@@ -8160,7 +8160,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "TOPN", "ORDER", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "TOPN", "ORDER", "SPLIT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8423,6 +8423,29 @@ def main():
                      ("하루 3+1 · 빚 적은 순", {"하루상한": 3, **_섹자리O(1), "고르기": _빚순}),
                      ("하루 3+1 · ROE 높은 순", {"하루상한": 3, **_섹자리O(1), "고르기": _ROE순}))
             print("  ── ORDER · 고르는 순서 — 갈래 성적 순 · 재무 튼튼한 순 (지금 규칙 · 종가 평가 · 뒤 2021~ 로 판단) ──")
+        # ⭐ 2026-10-21 SPLIT — **갈래마다 제 자리** (지금은 크게 빠짐·시장 급락·변동성·자사주가 하루 6자리를 함께 씀)
+        #    사용자 10/21 「지금 규칙 갈래 넷도 따로 하면 어떻게 되냐는 뜻이야! 반대의 의미」
+        #    무리자리 = [(갈래, 자리)…] · 공용 자리(하루상한) 0 · 한 종목이 둘에 걸리면 앞 갈래(크게 빠짐→시장 급락→변동성)가 먼저 · 같은 갈래 안은 상대갭 깊은 순
+        #    자리 수는 미리 정한 셋(고르게 2·3 · 지금 공용만큼 6씩) — 결과 보고 안 더한다
+        if "SPLIT" in _ONLY.split("+") or _ONLY == "SPLIT":
+            def _기P(x):
+                return 문통과(x) and x["볼린저"] <= R.볼린저문턱 and x["낙폭20"] <= R.낙폭20문턱
+
+            def _시P(x):
+                return 문통과(x) and _시장갈래(x)
+
+            def _변P(x):
+                return (R.변동성자사주_켬 and 문통과(x) and x.get("시장변동성") is not None
+                        and x["시장변동성"] >= R.시장변동성문턱 and _자사H(x) >= 1)
+
+            def _따로(a, b, c):
+                return {"하루상한": 0, "무리자리": [(_기P, "크게 빠짐", a), (_시P, "시장 급락", b), (_변P, "변동성·자사주", c),
+                                                 (_섹C, "섹터", R.섹터전용자리)]}
+            _안들C = (("지금 그대로 (공용 6 + 섹터 2)", {}),
+                     ("갈래마다 따로 2·2·2 + 섹터 2", _따로(2, 2, 2)),
+                     ("갈래마다 따로 3·3·3 + 섹터 2", _따로(3, 3, 3)),
+                     ("갈래마다 따로 6·6·6 + 섹터 2", _따로(6, 6, 6)))
+            print("  ── SPLIT · 갈래마다 제 자리 (크게 빠짐 · 시장 급락 · 변동성·자사주 · 섹터) — 지금은 셋이 6자리를 함께 씀 ──")
         # ⭐ 2026-10-21 NEWSCUT —**신호 직전 7일 기사 제목에 악재 말이 있던 후보를 뺀다** (구글 뉴스 RSS · 날짜 범위)
         #    사용자 10/21 「다른 경제쪽 받을 수 있는 곳 없어?」 → 구글 뉴스 날짜 검색으로 옛 기사가 받힘 → 「진행해보자.」
         #    네이버 종목뉴스는 1년치뿐 · 네이버 검색 API 신규 신청 막힘 ([[news-sources-blocked]])
