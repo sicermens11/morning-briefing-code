@@ -8157,7 +8157,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8253,6 +8253,66 @@ def main():
                      ("개인만 5일 크게 산 것 빼기 (+2%↑)", {"거름": _빼기("개인5", 2.0, 아래=False)}),
                      ("개인만 5일 산 것 빼기 (+1%↑)", {"거름": _빼기("개인5", 1.0, 아래=False)}))
             print("  ── BADCUT · 나쁜 쪽 끝만 빼기 (수급 · 시총 대비 순매수 % · 그날까지) ──")
+        # ⭐ 2026-10-21 HALTCUT — **거래정지·실질심사 공시가 최근에 있던 후보를 뺀다**
+        #    사용자 10/21 「후보에는 올랐는데, 뉴스는 안 좋은 내용이더라구. 우진엔텍 같은거!」 → 「너권고대라하자」
+        #    우진엔텍: 10/1 주권매매거래정지(상장적격성 실질심사) → 10/15 해제 → 20일 −22% 로 「크게 빠짐」 후보. 규칙은 이런 공시를 안 본다
+        #    뉴스는 1년치뿐이라 못 잰다 — 공시(dart-daily 2010~)로 잰다 · 신호 날까지(날[인−1])만 본다(미래 안 봄) · 실전 거름(_H)과 AND
+        if "HALTCUT" in _ONLY.split("+") or _ONLY == "HALTCUT":
+            import bisect as _bsH
+            import glob as _gH
+            _말H = {"정지": ("거래정지",), "심사": ("실질심사",), "생사": ("거래정지", "실질심사", "관리종목", "상장폐지")}
+            _일H = {k: {} for k in _말H}   # 묶음 → code → 날짜8 정렬 목록
+            for _fH in sorted(_gH.glob(os.path.join(O._DATA, "dart-daily", "*.json"))):
+                _dH = os.path.basename(_fH)[:8]
+                try:
+                    _jH = json.load(io.open(_fH, encoding="utf-8-sig"))
+                except ValueError:
+                    continue
+                for _칸H in ("챙길공시", "그밖의공시"):
+                    for _xH in (_jH.get(_칸H) or []):
+                        _cH = str(_xH.get("종목코드") or "")
+                        _제H = str(_xH.get("공시명") or "")
+                        if not _cH:
+                            continue
+                        for _묶H, _wsH in _말H.items():
+                            if any(w in _제H for w in _wsH):
+                                _일H[_묶H].setdefault(_cH, []).append(_dH)
+            for _묶H in _일H:
+                for _cH in _일H[_묶H]:
+                    _일H[_묶H][_cH] = sorted(set(_일H[_묶H][_cH]))
+            print("     공시 종목 수: " + " · ".join(f"{k} {len(v):,}" for k, v in _일H.items()))
+
+            def _정지빼기(묶, n):
+                def f(x):
+                    if not _H(x):
+                        return False
+                    _ds = _일H[묶].get(x["code"])
+                    if not _ds:
+                        return True
+                    _i = x["인"] - 1
+                    _끝 = 날[_i]
+                    _시 = 날[max(0, _i - n)]
+                    _k = _bsH.bisect_left(_ds, _시)
+                    return not (_k < len(_ds) and _ds[_k] <= _끝)
+                return f
+            _걸H = {}
+            for _x in 사건:
+                if not _H(_x):
+                    continue
+                for _묶H, _n in (("정지", 20), ("정지", 60), ("심사", 120), ("생사", 60)):
+                    if not _정지빼기(_묶H, _n)(_x):
+                        _걸H[(_묶H, _n)] = _걸H.get((_묶H, _n), 0) + 1
+            print("     (점검) 실전 거름 통과 후보 중 걸리는 수: " + " · ".join(f"{k[0]} {k[1]}일 {v:,}건" for k, v in sorted(_걸H.items())))
+            _안들C = (("지금 그대로", {}),
+                     ("거래정지 공시 20거래일 안 빼기", {"거름": _정지빼기("정지", 20)}),
+                     ("거래정지 공시 60거래일 안 빼기", {"거름": _정지빼기("정지", 60)}),
+                     ("거래정지 공시 120거래일 안 빼기", {"거름": _정지빼기("정지", 120)}),
+                     ("실질심사 공시 60거래일 안 빼기", {"거름": _정지빼기("심사", 60)}),
+                     ("실질심사 공시 120거래일 안 빼기", {"거름": _정지빼기("심사", 120)}),
+                     ("실질심사 공시 250거래일 안 빼기", {"거름": _정지빼기("심사", 250)}),
+                     ("정지·심사·관리·폐지 60거래일 안 빼기", {"거름": _정지빼기("생사", 60)}),
+                     ("정지·심사·관리·폐지 120거래일 안 빼기", {"거름": _정지빼기("생사", 120)}))
+            print("  ── HALTCUT · 거래정지·실질심사 공시가 최근에 있던 후보 빼기 (공시 2010~ · 신호 날까지) ──")
         # ⭐ 2026-10-08 TAILCUT — **모든 재료의 양 끝 10% 빼기** (B245 · 3연휴)
         #    사용자 10/8 「어제도 그랬다가 찾았는데 안 해본 테스트 좀전에도 나왔잖아」 — 재료를 「빼기」 로 쓴 시험이
         #    낙폭둔화(B242)·수급(B244)뿐이었다. 후보에 붙어 있는 재료 전부를 한 판에서 같은 방식으로 잰다.
@@ -9247,6 +9307,54 @@ def main():
                         print(f"     {_뜻이}: " + " · ".join(
                             f"{(str(k) if k < 7 else '7↓')}번째 {a['n']}건 {a['승']:.0f}% {a['평']:+.1f}" for k in sorted(_순B) for a in [_통S(_순B[k], 10.8)] if a), flush=True)
                     print(f"     빈 날에 보완 신호가 있던 날 {len(_빈날신호):,}일 · 하루 평균 {sum(len(v) for v in _빈날신호.values()) / max(1, len(_빈날신호)):.1f}개 (한 종목이 둘에 걸리면 하나로)")
+                    # ⭐ 10/21 BOCOUNT — 사용자 10/21 「지금 퀀트후보 58페이지 나오는데 이게 맞아?」 → 「일단 권고대로하자」(화면 최대 6)
+                    #    실전처럼 매일(빈 날만이 아니라) 지금 규칙 갈래에 안 걸린 종목 중 중형·대형 조건에 든 수 — 화면은 상대갭 보기 전(08:00)이라 「갭 전」 이 화면 수
+                    if os.environ.get("BOCOUNT") == "1":
+                        print("\n  ── BOCOUNT · 보완 후보 하루 몇 개였나 (2016~ · 매일 · 지금 규칙 갈래에 걸린 종목은 뺌) ──")
+                        _전날 = {}
+                        for x in 사건:
+                            if str(x.get("해") or "0") < "2016":
+                                continue
+                            _전날[x["인"]] = _전날.get(x["인"], 0) + 1
+                        _전값 = sorted(_전날.values())
+                        print(f"     (점검) 사건이 있는 날 {len(_전날):,}일 · 하루 사건 수 가운데 {(_전값[len(_전값) // 2] if _전값 else 0):,} · 최대 {(_전값[-1] if _전값 else 0):,} — 매일 전 종목이면 2천 안팎이어야 한다")
+                        _보전 = {}   # 날 → [(갭, 낙20, 수익, 종류)]
+                        for x in 사건:
+                            if str(x.get("해") or "0") < "2016":
+                                continue
+                            # ⚠️ 10/21 첫 판 「없음」 — 갈래 넷을 크기 없이 봐서 중형·대형이 다 「크게 빠짐」 으로 빠졌다.
+                            #    실전(record_pick)은 크게 빠짐·시장 급락·변동성 이 2,000억 밑만 · 섹터만 크기 없음
+                            def _참(f):
+                                try:
+                                    return bool(f(x))
+                                except Exception:  # noqa: BLE001
+                                    return False
+                            if _참(_섹) or ((x.get("시총억") or 0) < 2000 and any(_참(f) for f in (_기, _시, _변))):
+                                continue
+                            _종 = "중형" if _참(_중형S) else ("대형" if _참(_대형S) else None)
+                            if not _종:
+                                continue
+                            _보전.setdefault(x["인"], []).append((_상S(x), x.get("낙20"), _수S(x), _종, x.get("code")))
+                        for _라, _거름 in (("갭 전(화면 08:00)", lambda t: True), ("갭 뒤(−1.0 넘어 주문 남음)", lambda t: t[0] is not None and t[0] <= -1.0)):
+                            _수 = {d: [t for t in v if _거름(t)] for d, v in _보전.items()}
+                            _수 = {d: v for d, v in _수.items() if v}
+                            _값 = sorted(len(v) for v in _수.values())
+                            if not _값:
+                                print(f"     [{_라}] 없음")
+                                continue
+                            _분 = lambda p: _값[min(len(_값) - 1, int(len(_값) * p))]
+                            print(f"     [{_라}] 있던 날 {len(_값):,}일 · 가운데 {_분(.5)} · 90% {_분(.9)} · 99% {_분(.99)} · 최대 {_값[-1]} · 7개↑ 날 {sum(1 for z in _값 if z > 6):,}일 · 20개↑ 날 {sum(1 for z in _값 if z >= 20):,}일")
+                            for _해 in sorted({str(d)[:4] for d in _수}):
+                                _해값 = [len(v) for d, v in _수.items() if str(d)[:4] == _해]
+                                print(f"        {_해}: {len(_해값)}일 · 최대 {max(_해값)} · 7개↑ {sum(1 for z in _해값 if z > 6)}일")
+                            print("        많던 날 위 10: " + " · ".join(f"{d} {len(v)}개(중 {sum(1 for t in v if t[3] == '중형')}·대 {sum(1 for t in v if t[3] == '대형')})" for d, v in sorted(_수.items(), key=lambda z: -len(z[1]))[:10]))
+                            # 화면 차례(20일 낙폭 깊은 순) 몇 번째가 성적이 어땠나 — 6에서 자르는 게 손해인가
+                            _순D = {}
+                            for d, v in _수.items():
+                                for k, t in enumerate(sorted(v, key=lambda t: t[1] if t[1] is not None else 0), 1):
+                                    _순D.setdefault("1~6" if k <= 6 else ("7~20" if k <= 20 else "21↓"), []).append(t[2])
+                            print("        20일 낙폭 깊은 순 몇 번째: " + " · ".join(f"{k} {a['n']:,}건 승 {a['승']:.0f}% 평균 {a['평']:+.1f}%" for k in ("1~6", "7~20", "21↓") if k in _순D for a in [_통S(_순D[k], 10.8)] if a))
+                        print("  [대조] BOCOUNT 끝", flush=True)
                     # ⭐ 10/19 ALLSIG_CMP — 사용자 10/19 「보완 후보가 지금 규칙보다 셀 수도 있는 거 아니야? 경쟁을 통해 신호가 센게 올라야 하는데」
                     #    지금 규칙 후보와 보완 넷이 **같은 날** 있을 때 한 줄로 세워 위 8개를 고르면 지금 규칙만 8개보다 나은가
                     #    세우는 잣대: 갭 깊은 순 · 걸린 규칙 수 많은 순(실전 차례) · 규칙의 앞 기간(2016~2020) 승률 높은 순(뒤 기간엔 미래를 안 본다)
