@@ -441,53 +441,59 @@ def 덱(q, 보유, 기록줄=None):
     return "".join(h.replace("@@PG@@", f"{i}/{n}") for i, h in enumerate(장, 1))
 
 
-def _pc줄(x, 상태, 보완=False, 소식수=0):
-    r"""PC 표 한 줄 — 종목 · 갈래·왜 · 주문가 · 상대갭(보완은 40일) · 팔 값 둘 · 20일 · 소식"""
+def _pc줄(x, i, 업, 보완=False, 소식수=0):
+    r"""PC 한 표의 한 줄 — # · 종목 · 갈래 · 왜 · 주문가 · 팔 값 둘 · 상대갭(보완은 40일) · 20일 · 업종 · 시총 · 이익 · 빚 · 소식 · 코드
+    10/21 사용자 「19에서 업종 · 시총 칸 나누는게 좋을 것 같은데」 → 「오케이 이렇게 바꾸자」"""
     갈 = (["대형 · 주의" if x.get("보완규칙") == "대형" else "중형"] if 보완 else _갈래(x))
-    큰 = 보완 or (갈 and 갈[0] == "크게 빠짐")
     if 보완:
         왜 = (f"40일 {_퍼(x.get('40일낙폭'), 0)}" if x.get("보완규칙") == "대형"
               else f"{지수이름.get(x.get('시장키'), '지수')} 20일 {_퍼(x.get('시장지수낙20'), 0)} 날")
     else:
         왜 = _왜한줄(x, 갈)
-    태 = (f'<span class="tag{" big" if 큰 else ""}">{_e(갈[0] + (f" +{len(갈) - 1}" if len(갈) > 1 else ""))}</span> ' if 갈 else "")
+    색 = (" r" if (보완 and x.get("보완규칙") == "대형") or (갈 and 갈[0] == "크게 빠짐") else (" o" if 보완 else ""))
+    태 = (f'<span class="tg{색}">{_e(갈[0] + (f" +{len(갈) - 1}" if len(갈) > 1 else ""))}</span>' if 갈 else "")
     주 = x.get("주문가")
-    팔 = _팔(주) if 주 else None
     if 주:
-        값 = f'<td class="px">{_원(주)}</td>'
-        팔칸 = f'<td class="up">{_원(팔[0])}</td><td class="up">{_원(팔[1])}</td>'
-    else:
+        팔 = _팔(주)
+        값 = f'<td class="p">{_원(주)}</td><td class="up">{_원(팔[0])}</td><td class="up">{_원(팔[1])}</td>'
+    else:   # 08:55 전 — 주문가가 아직 없다
         a, b = R.매수범위(x.get("어제종가", 0) or 0)
-        값 = f'<td class="px">{_원(x.get("어제종가"))}<small>{_원(a)}~{_원(b)}</small></td>'
-        팔칸 = '<td class="mu">—</td><td class="mu">—</td>'
+        값 = (f'<td class="p">{_원(x.get("어제종가"))}<small>{_원(a)}~{_원(b)}</small></td>'
+              '<td class="mu">—</td><td class="mu">—</td>')
     if 보완:
         v = x.get("40일낙폭")
         셋 = f'<td class="{"dn" if (v or 0) < 0 else "up"}">{_퍼(v)}</td>'
     elif x.get("상대갭") is not None:
-        밑 = bool(x.get("예상통과"))
-        셋 = f'<td class="{"up" if 밑 else "dn"}">{float(x["상대갭"]):+.2f}<small>{"문턱 밑" if 밑 else "문턱 위"}</small></td>'
+        셋 = f'<td class="{"up" if x.get("예상통과") else "dn"}">{float(x["상대갭"]):+.2f}</td>'
     else:
         셋 = '<td class="mu">—</td>'
     v20 = x.get("20일낙폭")
-    return (f'<tr><td class="nm"><b>{_e(x.get("이름", ""))}</b><small>{_e(x.get("종목코드", ""))}</small></td>'
-            f'<td class="why">{태}{_e(왜)}</td>{값}{셋}{팔칸}'
-            f'<td class="{"dn" if (v20 or 0) < 0 else "up"}">{_퍼(v20)}</td>'
-            f'<td>{f"<span class=nwb>{소식수}</span>" if 소식수 else "–"}</td></tr>')
+    업이름 = (업.get(x.get("종목코드", "")) or {}).get("업종명") if isinstance(업.get(x.get("종목코드", "")), dict) else ""
+    잉, 부 = x.get("잉여금비율"), x.get("부채비율")
+    return (f'<tr><td>{i}</td><td class="n l">{_e(x.get("이름", ""))}</td><td class="l">{태}</td><td class="t l">{_e(왜)}</td>'
+            f'{값}{셋}<td class="{"dn" if (v20 or 0) < 0 else "up"}">{_퍼(v20)}</td>'
+            f'<td class="t l">{_e(업이름 or "—")}</td><td>{_억(x.get("시총억"))}</td>'
+            f'<td>{f"{float(잉):.0f}%" if 잉 is not None else "—"}</td><td>{f"{float(부):.0f}%" if 부 is not None else "—"}</td>'
+            f'<td>{f"<span class=nb>{소식수}</span>" if 소식수 else ""}</td><td class="l">{_e(x.get("종목코드", ""))}</td></tr>')
 
 
 def PC(q, 보유, 기록줄=None):
-    r"""⭐ 10/21 PC 표 화면 — 사용자 「PC에 맞게 보기 편하게 볼 수 있는 시안 보여줘」 → 시안 A(표 한 화면) → 「A로 가자.」
-    시안 https://claude.ai/artifact/4DwtMnE1mcVfiULRm5M84z · 1200px 이상에서만 보인다(그 밑은 카드 그대로)
+    r"""⭐ PC 화면(1200px↑) — 10/21 두 번째 판: 한 표(시안 19) + 시간 순서(시안 16) + 설명 전부
+    사용자 「PC화면 다시 봐꾸자 가독성이 안 좋은 것 같아」 → 시안 20개 → 「16,19 괜찮은 것 같다」 → 전체 페이지 시안
+    https://claude.ai/artifact/XcuXg3k4v9K2yatzxkSD1A → 「오케이 이렇게 바꾸자」
     숫자는 덱() 과 같은 곳에서 — 터지면 quant_cards 가 이 판만 빼고 카드가 PC 에도 나온다"""
     import quant_cards as Q
     d = dict(Q._폰자료)
     상태 = d.get("상태")
     목록 = list(d.get("목록") or [])
     동 = q.get("동시호가") or {}
+    업 = Q._업종표()
     기준 = str(q.get("기록시각") or "")[:10]
     보전체, _, _ = Q._보완자료(q)
     보 = sorted(보전체, key=lambda z: (z.get("20일낙폭") if z.get("20일낙폭") is not None else 0))[:getattr(R, "보완화면최대", 999)]
     소식표 = {x.get("종목코드"): _소식(x.get("종목코드"), x.get("이름"), 기준) for x in 목록 + 보} if 기준 else {}
+    a1, a2 = R.몫들[0], R.몫들[1]
+    몫1, 몫2 = f"{a1[0] * 100:g}", f"{a2[0] * 100:g}"
     # ── 맨 위 띠 ──
     try:
         import datetime as _dt
@@ -522,21 +528,46 @@ def PC(q, 보유, 기록줄=None):
          f'<div><span>사는 문턱</span><b>시장 −{abs(R.상대갭문턱):g}%p</b></div>'
          + (f'<div><span>보완 후보</span><b>{len(보전체)}개 · 문턱 −{abs(R.보완상대갭):g}%p</b></div>' if 보전체 else "")
          + f'</div></div>{알림}')
-    # ── 오늘 주문 표 ──
-    머리칸 = ("<th>종목</th><th>갈래 · 왜</th><th>{}</th><th>{}</th><th>{}% 팔 값</th><th>{}% 팔 값</th><th>20일</th><th>소식</th>")
-    몫1, 몫2 = f"{R.몫들[0][0] * 100:g}", f"{R.몫들[1][0] * 100:g}"
-    값머리 = "주문가" if 상태 == "buy" else "전날 종가 · 주문가 자리"
-    if 목록:
-        주표 = (f'<table class="t"><thead><tr>{머리칸.format(값머리, "상대갭", 몫1, 몫2)}</tr></thead><tbody>'
-               + "".join(_pc줄(x, 상태, 소식수=len(소식표.get(x.get("종목코드")) or [])) for x in 목록) + '</tbody></table>')
-    else:
-        주표 = ('<p class="zero"><b>0개</b> 조건을 통과한 종목이 없습니다. 규칙을 낮춰 억지로 후보를 만들지 않습니다. '
-               '이런 날은 열흘에 세 번쯤 있습니다.</p>')
+    # ── 한 표 (오늘 주문 + 보완) ──
+    값머리 = "주문가" if 상태 == "buy" else "전날 종가<small>주문가 자리</small>"
+    머리 = (f'<tr><th>#</th><th class="l">종목</th><th class="l">갈래</th><th class="l">왜</th><th>{값머리}</th>'
+           f'<th>{몫1}% 팔 값<small>+{a1[1]:g}%</small></th><th>{몫2}% 팔 값<small>+{a2[1]:g}%</small></th>'
+           '<th>상대갭<small>보완은 40일</small></th><th>20일</th><th class="l">업종</th><th>시총</th>'
+           '<th>이익<small>쌓은 이익</small></th><th>빚<small>부채</small></th><th>소식</th><th class="l">코드</th></tr>')
     주제목 = {"buy": f"오늘 주문 {len(목록)}", "pre": f"오늘 볼 종목 {len(목록)}", "wait": "오늘 살 것 없음"}.get(상태, "오늘 후보 0")
-    주설명 = (f"주문가 = 시장보다 {abs(R.상대갭문턱):g}%p 싸게 시작할 때만 체결 · "
-             f"{몫1}%는 +{R.몫들[0][1]:g}%, {몫2}%는 +{R.몫들[1][1]:g}%에 팖")
-    주칸 = f'<div class="pc sec"><div class="hd"><h2>{_e(주제목)}</h2><span class="kk">{_e(주설명)}</span></div>{주표}</div>'
-    # ── 깔때기 + 갈래 수 ──
+    표 = (f'<div class="sheet"><table class="num">{머리}'
+         f'<tr class="grp"><td colspan="15">{_e(주제목)}<span>시가가 주문가 이하일 때만 체결</span></td></tr>')
+    if 목록:
+        표 += "".join(_pc줄(x, i, 업, 소식수=len(소식표.get(x.get("종목코드")) or [])) for i, x in enumerate(목록, 1))
+    else:
+        표 += ('<tr><td colspan="15" class="l t">조건을 통과한 종목이 없습니다. 규칙을 낮춰 억지로 후보를 만들지 않습니다. '
+              '이런 날은 열흘에 세 번쯤 있습니다.</td></tr>')
+    if 보:
+        표 += (f'<tr class="grp"><td colspan="15">보완 후보 {len(보전체)}{f" 중 깊은 순 {len(보)}" if len(보전체) > len(보) else ""}'
+              f'<span>지금 규칙 주문과 따로 · 시장보다 {abs(R.보완상대갭):g}%p 싸게 열리면 삼 · 대형은 더 빠진 적 있음(2023 −86%)</span></td></tr>'
+              + "".join(_pc줄(x, i, 업, 보완=True, 소식수=len(소식표.get(x.get("종목코드")) or [])) for i, x in enumerate(보, 1)))
+    표 += ('</table><p class="foot">상대갭 = 9시 시가가 시장보다 얼마나 더 싸게 열릴지(08:55 예상) · '
+          f'−{abs(R.상대갭문턱):g}보다 깊어야 체결 · 이익 = 쌓은 이익(잉여금) 비율 · 빚 = 부채 비율 · '
+          '소식 = 최근 7일 제목에 회사 이름이 든 기사 수(규칙은 안 봄)</p></div>')
+    # ── 시간 순서 ──
+    순서 = ('<div class="tl"><h2>오늘 할 일 · 시간 순서</h2><div class="line">'
+          f'<div class="st"><span class="t">{R.판정시각}</span><h3>위 표의 주문가로 지정가 매수를 겁니다</h3>'
+          f'<p>하루 최대 {R.오늘최대종목(None)}개 + 섹터 {R.섹터전용자리}개 · 보완 후보는 지금 규칙과 따로입니다.</p></div>'
+          f'<div class="st"><span class="t">09:00</span><h3>시가가 주문가 이하면 체결</h3>'
+          f'<p>시장보다 {abs(R.상대갭문턱):g}%p(보완은 {abs(R.보완상대갭):g}%p) 더 싸게 열려야 삽니다. 안 열리면 안 삽니다.</p></div>'
+          '<div class="st"><span class="t">09:01</span><h3>안 찬 주문은 반드시 취소</h3><p>장중에 내려와서 사면 규칙이 아닙니다.</p></div>'
+          f'<div class="st"><span class="t">체결 뒤</span><h3>{몫1}%는 +{a1[1]:g}%, {몫2}%는 +{a2[1]:g}%에 매도 지정가</h3>'
+          f'<p>값은 표의 「{몫1}% 팔 값 · {몫2}% 팔 값」 칸.</p></div>'
+          f'<div class="st"><span class="t">{a1[2]}일</span><h3>+{a1[1]:g}%에 못 닿은 {몫1}%는 그날 정리</h3></div>'
+          f'<div class="st"><span class="t">{a2[2]}일</span><h3>+{a2[1]:g}%에 못 닿은 {몫2}%도 그날 정리</h3>'
+          '<p>손절은 없습니다. 감자·유상증자 같은 악재 공시가 나오면 다음 날 시가에 팝니다.</p></div></div></div>')
+    # ── 세 칸: 무엇을 노리나 · 깔때기 · 사람이 고르지 않습니다 ──
+    s = Q._사례()
+    도 = s.get("도달률") or s.get("승률")
+    노림 = ('<div class="sec steps"><h2>이 규칙은 무엇을 노리나</h2>'
+          '<p><em>①</em>시장이 통째로 크게 빠지거나 업종이 한꺼번에 빠지면, 튼튼한 회사도 <b>자기 잘못 없이</b> 같이 빠집니다.</p>'
+          f'<p><em>②</em>그런 회사는 제자리로 돌아오는 일이 많았습니다. 10년 동안 {s.get("전체건수", 0)}번 샀다면 <b>{도}%가 +{a1[1]:g}%에 닿았습니다.</b></p>'
+          f'<p><em>③</em>그래서 빠진 날 <b>더 싸게 시작할 때만</b> 사고, +{a1[1]:g}%와 +{a2[1]:g}%에 나눠 팝니다.</p></div>')
     깔 = q.get("깔때기") or {}
     n전 = 깔.get("전체")
     깔줄 = [("상장 종목 전부", 깔.get("전체"), ""), (f"시가총액 {R.시총하한억:,.0f}억 이상", 깔.get("시총"), ""),
@@ -544,73 +575,52 @@ def PC(q, 보유, 기록줄=None):
           (f"쌓은 이익 {R.잉여금하한:g}% · 빚 {R.부채상한:g}% 이하 · 흑자", 깔.get("재무"), ""),
           (f"상장 {R.상장최소거래일}거래일 · 관리·우선주·스팩 뺌", 깔.get("기본문"), ""),
           ("갈래 넷 중 하나", 깔.get("갈래"), "b"),
-          ("시장보다 싸게 시작할 것 같은 순서로", len(목록) if n전 else None, "hi")]
+          ("시장보다 싸게 시작할 것 같은 순서로", len(목록) if n전 else None, "h")]
     if n전:
-        fn = "".join(f'<div class="fr {c}"><span>{_e(a)}</span><b>{_원(b)}</b><i style="width:{max(1.0, (b or 0) / n전 * 100):.1f}%"></i></div>'
+        fn = "".join(f'<div class="r {c}"><span>{_e(a)}</span><b class="num">{_원(b)}</b><i style="width:{max(1.0, (b or 0) / n전 * 100):.1f}%"></i></div>'
                      for a, b, c in 깔줄 if b is not None)
         깔제목 = f"{n전:,}종목에서 {len(목록)}개까지"
     else:
-        fn = "".join(f'<div class="fr"><span>{_e(a)}</span><b></b></div>' for a, _, _ in 깔줄[1:5])
+        fn = "".join(f'<div class="r"><span>{_e(a)}</span><b></b></div>' for a, _, _ in 깔줄[1:5])
         깔제목 = "이 조건을 모두 통과해야 후보"
+    깔칸 = f'<div class="sec fn"><h2>{_e(깔제목)}</h2>{fn}</div>'
+    사람 = ('<div class="sec dark"><h2>사람이 고르지 않습니다</h2>'
+          '<p>재무·주가·지수와 공시 몇 가지(자사주 매입 · 감자 · 유상증자)를 정해진 숫자로만 봅니다. <b>뉴스나 느낌은 쓰지 않습니다.</b></p>'
+          f'<p>{R.시총상한억:,.0f}억 이상 큰 회사는 섹터 갈래와 보완 후보(중형·대형)로만 나옵니다.</p></div>')
+    # ── 두 칸: 갈래 넷 · 소식 ──
     수 = {}
     for x in 목록:
         for g in _갈래(x):
             수[g] = 수.get(g, 0) + 1
-    갈넷 = ["크게 빠짐", "시장 급락"] + (["변동성·자사주"] if R.변동성자사주_켬 else []) + ["섹터 6업종"]
-    갈칸 = "".join(f'<b>{g}</b><span class="{"on" if 수.get(g) else "z"}">{수.get(g, 0)}</span>' for g in 갈넷)
-    깔칸 = (f'<div class="pc sec"><div class="hd"><h3>{_e(깔제목)}</h3></div><div class="fn">{fn}</div>'
-           f'<div class="brs">{갈칸}</div>'
-           f'<p class="kk" style="margin-top:8px">{R.시총상한억:,.0f}억 이상 큰 회사는 섹터 갈래와 보완 후보로만 나옵니다.</p></div>')
-    # ── 보완 표 ──
-    if 보:
-        보표 = (f'<table class="t"><thead><tr>{머리칸.format("주문가", "40일", 몫1, 몫2)}</tr></thead><tbody>'
-               + "".join(_pc줄(x, "buy", 보완=True, 소식수=len(소식표.get(x.get("종목코드")) or [])) for x in 보) + '</tbody></table>')
-        보설명 = (f'대형 {R.보완대형["시총억"][0] / 10000:g}조↑·40일 {R.보완대형["낙40"]:g}% · '
-                 f'중형 {R.보완중형["시총억"][0]:,}억~{R.보완중형["시총억"][1] / 10000:g}조·지수 20일 {R.보완중형["지수낙20"]:g}% · '
-                 f'시장보다 {abs(R.보완상대갭):g}%p 싸게 시작하면 삼 · 대형은 더 빠진 적 있음(2023 −86%)')
-        보칸 = (f'<div class="pc sec"><div class="hd"><h2>보완 후보 {len(보전체)}{f" 중 깊은 순 {len(보)}" if len(보전체) > len(보) else ""}</h2>'
-               f'<span class="kk">지금 규칙 주문과 따로</span></div><p class="kk lead">{_e(보설명)}</p>{보표}</div>')
-    else:
-        보칸 = ""
-    # ── 소식 ──
+    상한 = f"{R.시총상한억:,.0f}억 미만"
+    갈들 = [("크게 빠짐", 상한, f"혼자 평소 흔들림 폭 아래(볼린저 −{abs(R.볼린저문턱):g}σ 아래)로 내려가고 20일 {abs(R.낙폭20문턱):g}% 넘게 빠진 종목"),
+           ("시장 급락", 상한, f"지수가 20일 −{abs(R.지수낙20문턱):g}% 또는 60일 −{abs(R.지수낙60문턱):g}%인 날, 같이 빠진 종목"
+                            f"(종목 볼린저 −{abs(R.시장볼문턱):g}σ · 20일 −{abs(R.시장낙20문턱):g}% · 60일 −{abs(R.시장낙60문턱):g}% 중 하나)"),
+           ("변동성·자사주", 상한, f"지수가 크게 흔들리는 날(20일 변동성 {R.시장변동성문턱:g}% 이상), 최근 {R.자사주창일}거래일 안에 자사주를 산 회사"),
+           (f"섹터 {len(R.섹터규칙)}업종", "크기 상한 없음", " · ".join(k.split("/")[0] for k in R.섹터규칙) + f"이 업종마다 정한 만큼 빠지면 · 하루 {R.섹터전용자리}자리 따로")]
+    if not R.변동성자사주_켬:
+        갈들 = [z for z in 갈들 if z[0] != "변동성·자사주"]
+    갈칸 = ('<div class="sec br"><h2>갈래 넷 · 기본 조건을 먼저 통과한 뒤 하나에 걸리면 후보</h2>'
+           + "".join(f'<div class="it"><div class="h"><b>{g}</b><span class="sz{" big" if c == "크기 상한 없음" else ""}">{c}</span>'
+                     f'<em{" class=on" if 수.get(g if not g.startswith("섹터") else "섹터 6업종") else ""}>오늘 {수.get(g if not g.startswith("섹터") else "섹터 6업종", 0)}</em></div>{_e(t)}</div>'
+                     for g, c, t in 갈들) + '</div>')
     있음 = [x for x in 목록 + 보 if 소식표.get(x.get("종목코드"))]
     없음 = [x.get("이름", "") for x in 목록 + 보 if not 소식표.get(x.get("종목코드"))]
     소블 = ""
     for x in 있음:
         ns = 소식표[x.get("종목코드")]
         갈 = (["대형 · 보완" if x.get("보완규칙") == "대형" else "중형 · 보완"] if x.get("보완규칙") else _갈래(x))
+        색 = (" r" if (x.get("보완규칙") == "대형" or (갈 and 갈[0] == "크게 빠짐")) else (" o" if x.get("보완규칙") else ""))
         소블 += (f'<div class="it"><div class="h"><b>{_e(x.get("이름", ""))}</b>'
-                + (f'<span class="tag{" big" if (x.get("보완규칙") or (갈 and 갈[0] == "크게 빠짐")) else ""}">{_e(갈[0])}</span>' if 갈 else "")
-                + f'<em>뉴스 {len(ns)}</em></div>'
-                + "".join(f'<p><i>{_e(n["날"])}</i>{_e(n["제목"])} <small>{_e(n["언론"])}</small></p>' for n in ns[:1]) + '</div>')
-    소칸 = ('<div class="pc sec"><div class="hd"><h3>규칙은 이 소식을 안 봅니다 · 참고만</h3></div>'
-           '<p class="kk">최근 7일 · 제목에 회사 이름이 있는 것만</p>'
-           f'<div class="nl">{소블}' + (f'<p class="none">소식 없음 · {_e(" · ".join(없음))}</p>' if 없음 else "") + '</div></div>')
-    # ── 아래 셋: 무엇을 노리나 · 사고 파는 법 · 사람이 고르지 않습니다 ──
-    s = Q._사례()
-    도 = s.get("도달률") or s.get("승률")
-    a1, a2 = R.몫들[0], R.몫들[1]
-    셋 = ('<div class="row3">'
-          '<div class="pc sec"><span class="kk">이 규칙은 무엇을 노리나</span><h3>좋은 회사가 같이 빠진 날</h3>'
-          '<p>시장이 통째로 크게 빠지거나 업종이 한꺼번에 빠지면, 튼튼한 회사도 <b>자기 잘못 없이</b> 같이 빠집니다. 그런 회사는 제자리로 돌아오는 일이 많았습니다. '
-          f'그래서 빠진 날 <b>더 싸게 시작할 때만</b> 사고, +{a1[1]:g}%와 +{a2[1]:g}%에 나눠 팝니다.</p>'
-          f'<p class="bigp"><b>{도}%</b> 10년 동안 {s.get("전체건수", 0)}번 샀다면 +{a1[1]:g}%에 닿은 비율</p></div>'
-          '<div class="pc sec"><span class="kk">어떻게 사고 파나</span><h3>걸어 두고, 나눠서 팝니다</h3><dl class="pkv">'
-          f'<dt>{R.판정시각}</dt><dd>주문가에 지정가 매수(하루 최대 {R.오늘최대종목(None)}개 + 섹터 {R.섹터전용자리}개). 9시 시가가 주문가 이하일 때만 체결</dd>'
-          '<dt>09:01</dt><dd>안 찬 주문은 반드시 취소. 장중에 내려와서 사면 규칙이 아닙니다</dd>'
-          f'<dt>체결 뒤</dt><dd>{a1[0] * 100:g}%는 +{a1[1]:g}%, {a2[0] * 100:g}%는 +{a2[1]:g}%에 매도 지정가</dd>'
-          f'<dt>{a1[2]}일 · {a2[2]}일</dt><dd>그때까지 못 닿은 몫은 그날 정리</dd></dl></div>'
-          '<div class="pc sec dark"><span class="kk">사람이 고르지 않습니다</span><h3>재무·주가·지수와 공시 몇 가지만</h3>'
-          '<p>재무·주가·지수와 공시 몇 가지(자사주 매입 · 감자 · 유상증자)를 정해진 숫자로만 봅니다. <b>뉴스나 느낌은 쓰지 않습니다.</b></p>'
-          '<p><b>손절은 없습니다.</b> 감자·유상증자 같은 악재 공시가 나오면 다음 날 시가에 팝니다.</p></div>'
-          '</div>')
-    # ── 아래 셋: 시험 · 과거 성적 · 브리핑 vs 퀀트 ──
+                + (f'<span class="tg{색}">{_e(갈[0])}</span>' if 갈 else "") + f'<em>뉴스 {len(ns)}</em></div>'
+                + "".join(f'<p><i>{_e(n["날"])}</i>{_e(n["제목"])} <small>{_e(n["언론"])}</small></p>' for n in ns[:2]) + '</div>')
+    소칸 = ('<div class="sec news"><h2>규칙은 이 소식을 안 봅니다 · 참고만</h2><span class="k">최근 7일 · 제목에 회사 이름이 있는 것만</span>'
+           + 소블 + (f'<p class="none">소식 없음 · {_e(" · ".join(없음))}</p>' if 없음 else "") + '</div>')
+    # ── 세 칸: 시험 · 과거 성적 · 브리핑 vs 퀀트 ──
     시줄, 시날 = Q._시험표()
-    시칸 = ""
-    if 시줄:
-        시칸 = ('<div class="pc sec"><span class="kk">어떤 시험을 거쳤나</span><h3>넣기 전에 이렇게 쟀습니다</h3><div class="tests">'
-               + "".join(f'<div class="ln"><b>{_e(a)}</b><em>{_e(b)}</em></div><p>{_e(c)}</p>' for a, b, c in 시줄)
-               + f'</div><p class="kk">시험 날짜 {_e(시날)} · 규칙이 바뀌면 다시 잽니다</p></div>')
+    시칸 = ('<div class="sec tests"><h2>넣기 전에 이렇게 쟀습니다</h2>'
+           + "".join(f'<div class="ln"><b>{_e(a)}</b><em>{_e(b)}</em></div><p>{_e(c)}</p>' for a, b, c in (시줄 or []))
+           + f'<p class="when">시험 날짜 {_e(시날)} · 규칙이 바뀌면 다시 잽니다</p></div>') if 시줄 else '<div class="sec"></div>'
     try:
         cap = json.load(io.open(os.path.join(Q._DATA, "rule-capital.json"), encoding="utf-8"))
     except Exception:  # noqa: BLE001
@@ -620,10 +630,10 @@ def PC(q, 보유, 기록줄=None):
     시작 = cap.get("시작자산") or 5e6
     여섯 = [("해마다", _퍼(cap.get("연평균"))), (f"+{a1[1]:g}% 닿음", f"{도}%"), ("한 번 평균", _퍼(s.get("평균"))),
            ("산 횟수", f"{s.get('전체건수', 0)}번"), ("최악 한 번", _퍼(s.get("가장나쁨"))), ("계좌 가장 깊이", _퍼(종낙) if 종낙 is not None else "—")]
-    성칸 = (f'<div class="pc sec"><span class="kk">과거 성적 · {str(s.get("기간") or "")[:4]}년부터 · 컴퓨터 계산</span>'
-           f'<h3>{시작 / 1e4:,.0f}만 원이</h3><div class="bigv">{(끝 or 0) / 1e8:.2f}<small>억</small></div>'
-           '<div class="six">' + "".join(f'<div><small>{a}</small><b>{b}</b></div>' for a, b in 여섯) + '</div>'
-           f'<p class="kk">{_e(Q._볼린저주의[0])} — {_e(Q._볼린저주의[1])} {_e(Q._성적주의[1])} {_e(Q._성적주의[3])}</p></div>')
+    성칸 = (f'<div class="sec"><h2>과거 성적 · {str(s.get("기간") or "")[:4]}년부터 · 컴퓨터 계산</h2><span class="k">{시작 / 1e4:,.0f}만 원이</span>'
+           f'<div class="bigv num">{(끝 or 0) / 1e8:.2f}<small>억</small></div>'
+           '<div class="six num">' + "".join(f'<div><span>{a}</span><b>{b}</b></div>' for a, b in 여섯) + '</div>'
+           f'<p>{_e(Q._볼린저주의[0])} — {_e(Q._볼린저주의[1])} {_e(Q._성적주의[1])} {_e(Q._성적주의[3])}</p></div>')
     try:
         v = _비교(기록줄)
     except Exception as _ex:  # noqa: BLE001
@@ -632,87 +642,91 @@ def PC(q, 보유, 기록줄=None):
 
     def 비줄(이름, 설명, t):
         return f'<tr><td>{이름}<small>{설명}</small></td>{_비교칸(t, "few")}</tr>'
-    비칸 = ('<div class="pc sec"><span class="kk">브리핑 추천 vs 퀀트 후보 · 같은 잣대로 채점</span><h3>어느 쪽이 더 맞았나</h3>'
-           '<table class="vs"><thead><tr><th>지난 기록</th><th>건수</th><th>20일 안 +15%</th><th>20일 뒤</th></tr></thead><tbody>'
+    비칸 = ('<div class="sec"><h2>브리핑 추천 vs 퀀트 · 같은 잣대</h2>'
+           '<table class="vs num"><tr><th>지난 기록</th><th>건수</th><th>20일 안 +15%</th><th>20일 뒤</th></tr>'
            + 비줄("브리핑 추천", "AI가 뉴스·수급으로", v.get("브리핑"))
            + 비줄("퀀트 · 체결된 것", "시가가 주문가에 닿음", v.get("퀀트체결"))
            + 비줄("퀀트 · 주문 전부", "체결 안 된 것까지", v.get("퀀트전부"))
            + 비줄("둘 다 고른 종목", "같은 날 겹친 것", v.get("둘다"))
-           + '</tbody></table>'
-           f'<p class="kk">{v.get("시작날") or "퀀트 기록 시작"}부터 같은 날들만 · 둘 다 비용 0.26% 뺌 · 20일이 지난 것만 셉니다. 채점 전 · 브리핑 {v.get("브리핑대기", 0)}건 · 퀀트 {v.get("퀀트대기", 0)}건. 건수가 적을 땐 우연이 큽니다. '
-           '둘 다 그날 시가에 샀다고 보고 견줍니다.</p></div>')
-    return (f'{위}<div class="g2"><div class="col">{주칸}{보칸}</div><div class="col">{깔칸}{소칸}</div></div>'
-            f'{셋}<div class="row3">{시칸}{성칸}{비칸}</div>')
+           + '</table>'
+           f'<p>{v.get("시작날") or "퀀트 기록 시작"}부터 같은 날들만 · 둘 다 비용 0.26% 뺌 · 20일이 지난 것만 셉니다. '
+           f'채점 전 · 브리핑 {v.get("브리핑대기", 0)}건 · 퀀트 {v.get("퀀트대기", 0)}건. 둘 다 그날 시가에 샀다고 보고 견줍니다.</p></div>')
+    return (f'{위}{표}{순서}<div class="pg3">{노림}{깔칸}{사람}</div><div class="pg2">{갈칸}{소칸}</div>'
+            f'<div class="pg3">{시칸}{성칸}{비칸}</div>')
 
 
 def PC_CSS(c1, c2):
-    r"""PC 표 화면 — #qt .qpc 아래로만 · 1200px 이상에서 카드(.qn34)를 숨기고 이걸 보인다(이 CSS 가 없으면 카드가 PC 에 그대로)"""
+    r"""PC 화면 — #qt .qpc 아래로만 · 1200px 이상에서 카드(.qn34)를 숨기고 이걸 보인다(이 CSS 가 없으면 카드가 PC 에 그대로)
+    10/21 두 번째 판 — 시안 https://claude.ai/artifact/XcuXg3k4v9K2yatzxkSD1A 값 그대로"""
     p = "#qt .qpc"
     return ("<style>"
-            f"{p}{{display:none;--ink:#1A2333;--sub:#5B6678;--line:#DCE2EA;--soft:#F3F5F9;--up:#C8372D;--dn:#2E5FB8;--c1:{c1};--c2:{c2};"
-            "max-width:1320px;margin:0 auto;padding:16px 24px 40px;color:var(--ink);font-feature-settings:'tnum';word-break:keep-all;letter-spacing:-.01em}"
+            f"{p}{{display:none;--ink:#151B26;--sub:#5E6878;--line:#D9DFE7;--up:#D0312D;--dn:#2459C4;--c1:{c1};--c2:{c2};"
+            "max-width:1320px;margin:0 auto;padding:16px 24px 40px;color:var(--ink);word-break:keep-all;letter-spacing:-.01em}"
             "@media(min-width:1200px){#qt .qn34{display:none!important}#qt .qpc{display:block}}"
             "#qt.past .qpc{display:none!important}"
-            f"{p} *{{box-sizing:border-box}}{p} h2,{p} h3,{p} p,{p} dl,{p} dd{{margin:0}}"
-            f"{p} .pt{{background:linear-gradient(90deg,var(--c1),var(--c2));color:#fff;display:flex;align-items:center;gap:24px;padding:16px 22px}}"
-            f"{p} .pt .tt b{{display:block;font-size:24px;font-weight:800;letter-spacing:-.03em;white-space:nowrap}}"
+            f"{p} *{{box-sizing:border-box}}{p} h2,{p} h3,{p} p{{margin:0}}"
+            f"{p} .num{{font-variant-numeric:tabular-nums}}{p} .up{{color:var(--up)}}{p} .dn{{color:var(--dn)}}{p} .mu{{color:var(--sub)}}"
+            f"{p} .pt{{background:linear-gradient(90deg,var(--c1),var(--c2));color:#fff;display:flex;align-items:center;gap:22px;padding:18px 24px}}"
+            f"{p} .pt .tt b{{display:block;font-size:26px;font-weight:900;white-space:nowrap;letter-spacing:-.02em}}"
             f"{p} .pt .tt span{{font-size:13px;color:rgba(255,255,255,.78)}}"
-            f"{p} .chips{{display:flex;gap:10px;margin-left:auto}}"
-            f"{p} .chips div{{background:rgba(255,255,255,.13);padding:8px 14px;white-space:nowrap}}"
+            f"{p} .chips{{display:flex;gap:10px;margin-left:auto}}{p} .chips div{{background:rgba(255,255,255,.13);padding:8px 14px;white-space:nowrap}}"
             f"{p} .chips span{{display:block;font-size:12px;color:rgba(255,255,255,.78)}}{p} .chips b{{font-size:17px;font-weight:800}}"
             f"{p} .al{{font-size:13px;font-weight:700;background:#FFF3D6;color:#8A5A00;padding:8px 14px}}"
-            f"{p} .g2{{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;margin-top:16px;align-items:start}}{p} .col{{display:flex;flex-direction:column;gap:16px;min-width:0}}"
-            f"{p} .row3{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:16px;align-items:stretch}}"
-            f"{p} .sec{{background:#fff;border:1px solid var(--line);padding:18px 20px;display:flex;flex-direction:column;gap:6px}}"
-            f"{p} .hd{{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}}{p} .hd .kk{{margin-left:auto}}"
-            f"{p} h2{{font-size:20px;font-weight:800;letter-spacing:-.02em}}{p} h3{{font-size:16px;font-weight:800;letter-spacing:-.02em}}"
-            f"{p} .kk{{font-size:12px;color:var(--sub);line-height:1.5}}{p} .lead{{margin-top:-2px}}"
-            f"{p} .tag{{display:inline-block;font-size:12px;font-weight:700;padding:1px 7px;border-radius:3px;background:#E8EEF8;color:var(--dn);white-space:nowrap}}"
-            f"{p} .tag.big{{background:#FBE9E7;color:var(--up)}}"
-            f"{p} .nwb{{display:inline-block;font-size:12px;font-weight:800;padding:1px 7px;border-radius:3px;background:#FFF3D6;color:#8A5A00}}"
-            f"{p} table.t{{width:100%;border-collapse:collapse;font-size:14px;margin-top:4px}}"
-            f"{p} table.t th{{font-size:12px;font-weight:600;color:var(--sub);text-align:right;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}}"
-            f"{p} table.t th:nth-child(-n+2),{p} table.t td:nth-child(-n+2){{text-align:left}}"
-            f"{p} table.t td{{padding:10px 8px;border-bottom:1px solid #EDF0F5;text-align:right;white-space:nowrap;font-weight:600}}"
-            f"{p} table.t tr:hover td{{background:var(--soft)}}"
-            f"{p} table.t td small{{display:block;font-size:11px;font-weight:500;color:var(--sub)}}"
-            f"{p} table.t td.nm b{{font-size:15px;font-weight:800}}{p} table.t td.nm small{{display:inline;margin-left:5px}}"
-            f"{p} table.t td.why{{color:var(--sub);font-size:13px;font-weight:500;white-space:normal;min-width:150px;line-height:1.45}}"
-            f"{p} table.t td.px{{font-size:17px;font-weight:800}}"
-            f"{p} .up{{color:var(--up)}}{p} .dn{{color:var(--dn)}}{p} .mu{{color:var(--sub)}}"
-            f"{p} .zero{{font-size:14px;color:var(--sub);line-height:1.6}}{p} .zero b{{font-size:28px;color:var(--ink);margin-right:8px}}"
-            f"{p} .fn{{display:flex;flex-direction:column;gap:7px;margin-top:4px}}"
-            f"{p} .fr{{display:grid;grid-template-columns:1fr auto;gap:3px 10px;font-size:13px;align-items:baseline}}"
-            f"{p} .fr span{{color:var(--sub)}}{p} .fr b{{font-weight:800}}"
-            f"{p} .fr i{{grid-column:1/-1;height:5px;background:#C9D3E3;display:block}}"
-            f"{p} .fr.b span{{color:var(--ink);font-weight:700}}{p} .fr.b i{{background:var(--dn)}}"
-            f"{p} .fr.hi span,{p} .fr.hi b{{color:var(--up);font-weight:800}}{p} .fr.hi i{{background:var(--up)}}"
-            f"{p} .brs{{display:grid;grid-template-columns:1fr auto;gap:6px 10px;font-size:13px;border-top:1px solid var(--line);padding-top:12px;margin-top:10px}}"
-            f"{p} .brs .z{{color:var(--sub)}}{p} .brs .on{{color:var(--up);font-weight:800}}"
-            f"{p} .nl{{display:flex;flex-direction:column;gap:12px;margin-top:6px}}"
-            f"{p} .nl .h{{display:flex;align-items:center;gap:8px}}{p} .nl .h b{{font-size:14px}}"
-            f"{p} .nl .h em{{margin-left:auto;font-style:normal;font-size:12px;color:var(--sub)}}"
-            f"{p} .nl p{{font-size:13px;line-height:1.5;margin-top:3px}}{p} .nl p i{{font-style:normal;color:var(--sub);margin-right:6px}}"
-            f"{p} .nl p small{{color:var(--sub);font-size:11px}}"
-            f"{p} .none{{font-size:12px;color:var(--sub);border-top:1px solid var(--line);padding-top:10px}}"
-            f"{p} .row3 .sec>p:not(.kk){{font-size:14px;line-height:1.6;color:var(--sub)}}{p} .row3 .sec>p b{{color:var(--ink)}}"
-            f"{p} .bigp b{{font-size:30px;font-weight:800;color:var(--up)!important;letter-spacing:-.03em;margin-right:6px}}"
-            f"{p} .pkv{{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:14px;line-height:1.5;margin-top:6px}}"
-            f"{p} .pkv dt{{font-weight:800;color:var(--up);white-space:nowrap}}"
-            f"{p} .sec.dark{{background:#1A2333;border-color:#1A2333;color:#fff}}{p} .sec.dark .kk{{color:#AEB8C8}}"
-            f"{p} .sec.dark>p{{color:#C3CCDA!important}}{p} .sec.dark>p b{{color:#fff!important}}"
-            f"{p} .tests{{display:flex;flex-direction:column;gap:3px;margin-top:4px}}"
-            f"{p} .tests .ln{{display:flex;justify-content:space-between;gap:10px;align-items:baseline;border-top:1px solid #EDF0F5;padding-top:6px}}"
-            f"{p} .tests .ln b{{font-size:14px}}{p} .tests .ln em{{font-style:normal;font-weight:800;color:var(--dn);white-space:nowrap}}"
-            f"{p} .tests p{{font-size:12px;color:var(--sub);line-height:1.45}}"
-            f"{p} .bigv{{font-size:44px;font-weight:800;letter-spacing:-.04em;line-height:1.1}}{p} .bigv small{{font-size:18px;color:var(--sub);margin-left:3px}}"
-            f"{p} .six{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:6px 0}}{p} .six small{{display:block;font-size:12px;color:var(--sub)}}"
-            f"{p} .six b{{font-size:17px;font-weight:800}}"
-            f"{p} .vs{{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px}}"
-            f"{p} .vs th{{font-size:12px;font-weight:600;color:var(--sub);text-align:right;padding:6px 4px;border-bottom:1px solid var(--line);white-space:nowrap}}"
+            # 한 표
+            f"{p} .sheet{{background:#fff;margin-top:14px;padding:16px 18px;font-size:15px}}"
+            f"{p} .sheet table{{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',Consolas,'Pretendard Variable',Pretendard,monospace}}"
+            f"{p} .sheet th,{p} .sheet td{{border:1px solid #E1E6ED;padding:8px 9px;text-align:right;white-space:nowrap}}"
+            f"{p} .sheet th{{background:#EEF2F7;font-family:'Pretendard Variable',Pretendard,sans-serif;font-weight:700;font-size:12.5px;color:#3F4A5C}}"
+            f"{p} .sheet th small,{p} .sheet td small{{display:block;font-weight:500;color:var(--sub);font-size:11px}}"
+            f"{p} .sheet td.l,{p} .sheet th.l{{text-align:left}}"
+            f"{p} .sheet tr:nth-child(even) td{{background:#FAFBFD}}"
+            f"{p} .sheet td.n{{font-family:'Pretendard Variable',Pretendard,sans-serif;font-weight:800;font-size:15.5px}}"
+            f"{p} .sheet td.t{{font-family:'Pretendard Variable',Pretendard,sans-serif;font-size:13.5px}}"
+            f"{p} .sheet td.p{{font-weight:600;font-size:15.5px}}"
+            f"{p} .sheet .grp td{{background:#1D2533!important;color:#fff;font-family:'Pretendard Variable',Pretendard,sans-serif;font-weight:700;text-align:left}}"
+            f"{p} .sheet .grp td span{{font-weight:500;color:#AEB8C8;margin-left:10px}}"
+            f"{p} .tg{{font-family:'Pretendard Variable',Pretendard,sans-serif;display:inline-block;font-size:12px;font-weight:700;padding:1px 7px;border-radius:3px;background:#E6EEFB;color:var(--dn);white-space:nowrap}}"
+            f"{p} .tg.r{{background:#FDECEC;color:var(--up)}}{p} .tg.o{{background:#FFF0DE;color:#A85A00}}"
+            f"{p} .nb{{font-family:'Pretendard Variable',Pretendard,sans-serif;font-size:12px;font-weight:700;color:#8A5A00;background:#FFF3D6;padding:1px 7px;border-radius:3px}}"
+            f"{p} .sheet .foot{{font-size:14px;color:var(--sub);margin:10px 2px 0;line-height:1.6}}"
+            # 시간 순서
+            f"{p} .tl{{background:#fff;margin-top:14px;padding:24px 28px;font-size:16px}}"
+            f"{p} .tl h2,{p} .sec h2{{font-size:19px;margin:0 0 16px;font-weight:800;color:var(--ink)}}"
+            f"{p} .tl .line{{position:relative;padding-left:140px}}"
+            f"{p} .tl .line::before{{content:'';position:absolute;left:110px;top:6px;bottom:6px;width:2px;background:var(--line)}}"
+            f"{p} .tl .st{{position:relative;margin-bottom:18px}}{p} .tl .st:last-child{{margin-bottom:0}}"
+            f"{p} .tl .st .t{{position:absolute;left:-140px;width:92px;text-align:right;font-weight:900;font-size:19px;color:var(--up)}}"
+            f"{p} .tl .st::before{{content:'';position:absolute;left:-37px;top:7px;width:13px;height:13px;border-radius:50%;background:var(--up);border:3px solid #fff;box-shadow:0 0 0 1px var(--up)}}"
+            f"{p} .tl .st h3{{font-size:17px;margin:0 0 3px}}{p} .tl .st p{{color:var(--sub);line-height:1.6}}"
+            # 아래 칸들
+            f"{p} .pg2{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}}"
+            f"{p} .pg3{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}}"
+            f"{p} .sec{{background:#fff;padding:22px 24px;font-size:15px;line-height:1.65;color:var(--sub)}}"
+            f"{p} .sec .k{{display:block;font-size:12.5px;color:var(--sub);margin:-10px 0 10px}}{p} .sec b{{color:var(--ink)}}"
+            f"{p} .sec.dark{{background:#1D2533;color:#C3CCDA}}{p} .sec.dark h2,{p} .sec.dark b{{color:#fff}}{p} .sec.dark p{{margin-bottom:10px}}"
+            f"{p} .steps p{{margin:0 0 10px}}{p} .steps p em{{font-style:normal;font-weight:900;color:var(--dn);margin-right:8px}}"
+            f"{p} .fn .r{{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin-bottom:8px;align-items:baseline}}"
+            f"{p} .fn .r b{{font-weight:800;color:var(--ink)}}{p} .fn .r i{{grid-column:1/-1;height:6px;background:#CBD5E3;display:block}}"
+            f"{p} .fn .r.b span{{color:var(--ink);font-weight:700}}{p} .fn .r.b i{{background:var(--dn)}}"
+            f"{p} .fn .r.h span,{p} .fn .r.h b{{color:var(--up);font-weight:800}}{p} .fn .r.h i{{background:var(--up)}}"
+            f"{p} .br .it,{p} .news .it{{border-top:1px solid #EDF0F5;padding:10px 0}}{p} .br .it:first-of-type,{p} .news .it:first-of-type{{border-top:0;padding-top:0}}"
+            f"{p} .br .h,{p} .news .h{{display:flex;gap:8px;align-items:center}}{p} .br .h b{{font-size:16px}}{p} .news .h b{{font-size:15.5px}}"
+            f"{p} .br .h em,{p} .news .h em{{margin-left:auto;font-style:normal}}{p} .br .h em{{font-weight:800;color:var(--dn)}}{p} .br .h em.on{{color:var(--up)}}{p} .news .h em{{font-size:12.5px}}"
+            f"{p} .br .sz{{font-size:12px;font-weight:700;background:#F3F5F8;padding:1px 7px;border-radius:3px;color:var(--sub)}}{p} .br .sz.big{{background:#FDECEC;color:var(--up)}}"
+            f"{p} .news p{{margin:4px 0 0;color:var(--ink)}}{p} .news p i{{font-style:normal;color:var(--sub);margin-right:6px}}{p} .news p small{{color:var(--sub)}}"
+            f"{p} .news p.none{{font-size:13px;color:var(--sub);border-top:1px solid var(--line);padding-top:10px;margin-top:4px}}"
+            f"{p} .tests .ln{{display:flex;justify-content:space-between;gap:10px;border-top:1px solid #EDF0F5;padding-top:8px;margin-top:8px}}"
+            f"{p} .tests .ln:first-of-type{{border-top:0;margin-top:0;padding-top:0}}"
+            f"{p} .tests .ln b{{font-size:15px}}{p} .tests .ln em{{font-style:normal;font-weight:800;color:var(--dn);white-space:nowrap}}"
+            f"{p} .tests p{{margin:2px 0 0;font-size:13px}}{p} .tests p.when{{margin-top:10px}}"
+            f"{p} .bigv{{font-size:46px;font-weight:900;color:var(--ink);letter-spacing:-.03em;line-height:1.1}}{p} .bigv small{{font-size:18px;color:var(--sub);margin-left:3px}}"
+            f"{p} .six{{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}}{p} .six span{{display:block;font-size:12.5px}}{p} .six b{{font-size:18px}}"
+            f"{p} .vs{{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:10px}}"
+            f"{p} .vs th{{font-size:12.5px;font-weight:600;text-align:right;padding:6px 4px;border-bottom:1px solid var(--line);white-space:nowrap}}"
             f"{p} .vs th:first-child,{p} .vs td:first-child{{text-align:left}}"
-            f"{p} .vs td{{padding:8px 4px;text-align:right;border-bottom:1px solid #EDF0F5;font-weight:700;white-space:nowrap}}"
-            f"{p} .vs td small{{display:block;font-weight:500;color:var(--sub);font-size:11px}}{p} .vs td.few{{color:var(--sub);font-weight:600;white-space:normal;line-height:1.4}}"
+            f"{p} .vs td{{padding:9px 4px;border-bottom:1px solid #EDF0F5;text-align:right;color:var(--ink);font-weight:700;white-space:nowrap}}"
+            f"{p} .vs td small{{display:block;font-weight:500;color:var(--sub);font-size:12px}}"
+            f"{p} .vs td.few{{color:var(--sub);font-weight:600;white-space:normal;line-height:1.4}}{p} .vs .pos{{color:var(--up)}}{p} .vs .neg{{color:var(--dn)}}"
             "</style>")
 
 
