@@ -8157,7 +8157,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8313,6 +8313,83 @@ def main():
                      ("정지·심사·관리·폐지 60거래일 안 빼기", {"거름": _정지빼기("생사", 60)}),
                      ("정지·심사·관리·폐지 120거래일 안 빼기", {"거름": _정지빼기("생사", 120)}))
             print("  ── HALTCUT · 거래정지·실질심사 공시가 최근에 있던 후보 빼기 (공시 2010~ · 신호 날까지) ──")
+        # ⭐ 2026-10-21 NEWSCUT — **신호 직전 7일 기사 제목에 악재 말이 있던 후보를 뺀다** (구글 뉴스 RSS · 날짜 범위)
+        #    사용자 10/21 「다른 경제쪽 받을 수 있는 곳 없어?」 → 구글 뉴스 날짜 검색으로 옛 기사가 받힘 → 「진행해보자.」
+        #    네이버 종목뉴스는 1년치뿐 · 네이버 검색 API 신규 신청 막힘 ([[news-sources-blocked]])
+        #    ① NEWSDUMP=1 → 2016~ 실전 거름 통과 · 상대갭 −1.0 이하(넉넉히) 후보를 data/_labs/news_events.jsonl 로 내보내고 끝
+        #    ② collect_news_hist.py 가 후보마다 직전 7일 기사를 받아 data/_labs/news_hist.jsonl 에 둔다
+        #    ③ NEWSCUT → 그 기사로 빼기 줄들을 돈 굴려 잰다 · 악재 말은 미리 정한 목록(newmat._악재말 + 몇 개) — 결과 보고 안 고친다
+        #    ⚠️ 구글 뉴스는 옛날일수록 성기다 → 「기사 없음」 ≠ 「악재 없음」 · 해마다 받힌 비율을 같이 찍는다
+        if "NEWSCUT" in _ONLY.split("+") or _ONLY == "NEWSCUT":
+            import statistics as _stN
+            _표N = _표본갭.get("실전표본") or {}
+
+            def _상N(x):
+                _t = _표N.get(x["인"])
+                return (x["갭"] - _stN.median(_t)) if _t else None
+            _evN = os.path.join(O._DATA, "_labs", "news_events.jsonl")
+            if os.environ.get("NEWSDUMP") == "1":
+                _이름N = {}
+                try:
+                    _bN = json.load(io.open(os.path.join(O._DATA, "stock-base.json"), encoding="utf-8-sig"))
+                    for _cN, _vN in (_bN.get("종목") or _bN).items():
+                        if isinstance(_vN, dict):
+                            _이름N[_cN] = (_vN.get("종목명") or _vN.get("이름") or "")
+                except Exception as _e:  # noqa: BLE001
+                    print(f"     ⚠️ 이름표 못 읽음: {_e}")
+                _본N = set()
+                for _x in 사건:
+                    if str(_x.get("해") or "0") < "2016":
+                        continue
+                    try:
+                        if not _H(_x):
+                            continue
+                    except Exception:  # noqa: BLE001
+                        continue
+                    _v = _상N(_x)
+                    if _v is None or _v > -1.0:
+                        continue
+                    _본N.add((_x["code"], 날[_x["인"] - 1]))
+                with io.open(_evN, "w", encoding="utf-8") as _fo:
+                    for _cN, _dN in sorted(_본N, key=lambda z: (z[1], z[0])):
+                        _fo.write(json.dumps({"code": _cN, "이름": _이름N.get(_cN, ""), "날": _dN}, ensure_ascii=False) + "\n")
+                print(f"     후보 {len(_본N):,}건(종목·신호 날) · 이름 없는 것 {sum(1 for c, _ in _본N if not _이름N.get(c)):,} → {_evN}")
+                print("  [대조] DDCTRL 끝", flush=True)
+                return 0
+            _말N = tuple(_NM._악재말) + ("급락", "하한가", "실질심사", "거래 중단", "매출 중단", "매출중단")
+            _기사N = {}
+            _hN = os.path.join(O._DATA, "_labs", "news_hist.jsonl")
+            for _l in io.open(_hN, encoding="utf-8"):
+                try:
+                    _z = json.loads(_l)
+                except ValueError:
+                    continue
+                _기사N[(_z["code"], _z["날"])] = _z.get("제목") or []
+            print(f"     받은 후보 {len(_기사N):,}건 · 악재 말 {len(_말N)}개")
+            _해N = {}
+            for (_cN, _dN), _ts in _기사N.items():
+                _a = _해N.setdefault(_dN[:4], [0, 0, 0])
+                _a[0] += 1
+                _a[1] += 1 if _ts else 0
+                _a[2] += 1 if any(any(w in t for w in _말N) for t in _ts) else 0
+            print("     해마다 — 후보 · 기사 받힌 % · 악재 제목 %: " + " · ".join(
+                f"{y} {a[0]} {a[1] / a[0] * 100:.0f}% {a[2] / a[0] * 100:.1f}%" for y, a in sorted(_해N.items())))
+
+            def _뉴빼기(종류, 일=7):
+                def f(x):
+                    if not _H(x):
+                        return False
+                    _ts = _기사N.get((x["code"], 날[x["인"] - 1]))
+                    if not _ts:
+                        return True
+                    if 종류 == "아무":
+                        return False
+                    return not any(any(w in t for w in _말N) for t in _ts)
+                return f
+            _안들C = (("지금 그대로", {}),
+                     ("직전 7일 악재 제목 있으면 빼기", {"거름": _뉴빼기("악재")}),
+                     ("(견줌) 직전 7일 기사 아무거나 있으면 빼기", {"거름": _뉴빼기("아무")}))
+            print("  ── NEWSCUT · 신호 직전 7일 기사 제목에 악재 말이 있던 후보 빼기 (구글 뉴스 · 이름 맞춤) ──")
         # ⭐ 2026-10-08 TAILCUT — **모든 재료의 양 끝 10% 빼기** (B245 · 3연휴)
         #    사용자 10/8 「어제도 그랬다가 찾았는데 안 해본 테스트 좀전에도 나왔잖아」 — 재료를 「빼기」 로 쓴 시험이
         #    낙폭둔화(B242)·수급(B244)뿐이었다. 후보에 붙어 있는 재료 전부를 한 판에서 같은 방식으로 잰다.
