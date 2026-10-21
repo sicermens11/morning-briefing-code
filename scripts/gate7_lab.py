@@ -8389,31 +8389,48 @@ def main():
                     _z = json.loads(_l)
                 except ValueError:
                     continue
-                _기사N[(_z["code"], _z["날"])] = _z.get("제목") or []
-            print(f"     받은 후보 {len(_기사N):,}건 · 악재 말 {len(_말N)}개")
+                # 10/21 제목은 [제목, 언론] (첫 178줄은 제목만 — 언론 모름 「」)
+                _기사N[(_z["code"], _z["날"])] = [(t if isinstance(t, list) else [t, ""]) for t in (_z.get("제목") or [])]
+            # ⭐ 10/21 경제·증권 언론 — 사용자 「기사를 경제·증권 언론으로 좁히는게 나아?」 → 넓게 받고 두 가지로 견준다
+            #    목록은 결과 보기 전에 고정(10/21 받은 종목뉴스 위 언론 + 증권 전문지) · 이름이 들어 있으면 맞춘다(「한국경제TV」 도 「한국경제」)
+            _경제N = ("이데일리", "머니투데이", "한국경제", "매일경제", "서울경제", "파이낸셜뉴스", "아시아경제", "헤럴드경제", "조선비즈",
+                     "뉴스핌", "이투데이", "아주경제", "비즈니스포스트", "더벨", "인포스탁", "머니S", "SBS Biz", "연합인포맥스", "딜사이트",
+                     "인베스트조선", "팍스넷", "글로벌이코노믹", "비즈워치", "Chosunbiz", "Hankyung", "mk.co.kr", "edaily", "mt.co.kr")
+            print(f"     받은 후보 {len(_기사N):,}건 · 악재 말 {len(_말N)}개 · 경제·증권 언론 {len(_경제N)}곳 · "
+                  f"언론 적힌 제목 {sum(1 for v in _기사N.values() for t in v if t[1]):,} / {sum(len(v) for v in _기사N.values()):,}")
+            _해경 = {}
+            for (_cN, _dN), _ts in _기사N.items():
+                _a = _해경.setdefault(_dN[:4], [0, 0])
+                _a[0] += 1
+                _a[1] += 1 if any(any(w in t[1] for w in _경제N) for t in _ts) else 0
+            print("     해마다 — 경제·증권 언론 기사가 받힌 %: " + " · ".join(f"{y} {a[1] / a[0] * 100:.0f}%" for y, a in sorted(_해경.items())))
             _해N = {}
             for (_cN, _dN), _ts in _기사N.items():
                 _a = _해N.setdefault(_dN[:4], [0, 0, 0])
                 _a[0] += 1
                 _a[1] += 1 if _ts else 0
-                _a[2] += 1 if any(any(w in t for w in _말N) for t in _ts) else 0
+                _a[2] += 1 if any(any(w in t[0] for w in _말N) for t in _ts) else 0
             print("     해마다 — 후보 · 기사 받힌 % · 악재 제목 %: " + " · ".join(
                 f"{y} {a[0]} {a[1] / a[0] * 100:.0f}% {a[2] / a[0] * 100:.1f}%" for y, a in sorted(_해N.items())))
 
-            def _뉴빼기(종류, 일=7):
+            def _뉴빼기(종류, 경제만=False):
                 def f(x):
                     if not _H(x):
                         return False
-                    _ts = _기사N.get((x["code"], 날[x["인"] - 1]))
+                    _ts = _기사N.get((x["code"], 날[x["인"] - 1])) or []
+                    if 경제만:
+                        _ts = [t for t in _ts if any(w in t[1] for w in _경제N)]
                     if not _ts:
                         return True
                     if 종류 == "아무":
                         return False
-                    return not any(any(w in t for w in _말N) for t in _ts)
+                    return not any(any(w in t[0] for w in _말N) for t in _ts)
                 return f
             _안들C = (("지금 그대로", {}),
-                     ("직전 7일 악재 제목 있으면 빼기", {"거름": _뉴빼기("악재")}),
-                     ("(견줌) 직전 7일 기사 아무거나 있으면 빼기", {"거름": _뉴빼기("아무")}))
+                     ("직전 7일 악재 제목 있으면 빼기 (모든 언론)", {"거름": _뉴빼기("악재")}),
+                     ("직전 7일 악재 제목 있으면 빼기 (경제·증권 언론만)", {"거름": _뉴빼기("악재", 경제만=True)}),
+                     ("(견줌) 직전 7일 기사 아무거나 있으면 빼기 (모든 언론)", {"거름": _뉴빼기("아무")}),
+                     ("(견줌) 직전 7일 기사 아무거나 있으면 빼기 (경제·증권만)", {"거름": _뉴빼기("아무", 경제만=True)}))
             print("  ── NEWSCUT · 신호 직전 7일 기사 제목에 악재 말이 있던 후보 빼기 (구글 뉴스 · 이름 맞춤) ──")
         # ⭐ 2026-10-08 TAILCUT — **모든 재료의 양 끝 10% 빼기** (B245 · 3연휴)
         #    사용자 10/8 「어제도 그랬다가 찾았는데 안 해본 테스트 좀전에도 나왔잖아」 — 재료를 「빼기」 로 쓴 시험이

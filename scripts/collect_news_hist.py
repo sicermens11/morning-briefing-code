@@ -7,7 +7,7 @@ collect_news_hist.py — **규칙 후보마다 신호 직전 7일 기사 제목�
     구글 뉴스 RSS 는 검색어에 `after:YYYY-MM-DD before:YYYY-MM-DD` 를 붙이면 옛 기사를 준다(10/21 실측 · 키 불필요).
 
 입력: data/_labs/news_events.jsonl  (gate7 ONLY=NEWSCUT NEWSDUMP=1 이 만든다 · {code, 이름, 날})
-출력: data/_labs/news_hist.jsonl    ({code, 이름, 날, 제목:[...], 원건수}) — 이어 받기(이미 받은 줄은 건너뜀)
+출력: data/_labs/news_hist.jsonl    ({code, 이름, 날, 제목:[[제목, 언론], ...], 원건수}) — 10/21 첫 178줄은 제목만(옛 꼴) — 이어 받기(이미 받은 줄은 건너뜀)
 
 규칙
 - 기간 = 신호 날 7일 전 ~ 신호 날(그날 저녁 기사까지 · 다음 날 08:55 판단 전에 볼 수 있는 것). pubDate 로 한 번 더 자른다
@@ -70,8 +70,12 @@ def 받기(이름, 날8):
                     continue
             except (TypeError, ValueError):
                 pass
-        if 이름맞나(이름, 제) and 제 not in out:
-            out.append(제)
+        # 10/21 언론 이름도 남긴다 — 「모든 언론」 과 「경제·증권 언론만」 을 다시 안 받고 견주려고
+        #    (사용자 「기사를 경제·증권 언론으로 좁히는게 나아? … 아니면 구글로 괜찮아?」 → 넓게 받고 언론을 적어 둔다)
+        s = re.search(r"<source[^>]*>(.*?)</source>", it, re.S)
+        언 = (s.group(1).strip() if s else "")
+        if 이름맞나(이름, 제) and 제 not in [z[0] for z in out]:
+            out.append([제, 언])
     return out, len(items)
 
 
