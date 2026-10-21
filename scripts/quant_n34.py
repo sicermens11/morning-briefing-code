@@ -420,6 +420,18 @@ def 덱(q, 보유, 기록줄=None):
         f'<div class="menu"><div class="m"><p class="bigv">{(끝 or 0) / 1e8:.2f}<small>억</small></p>'
         f'<div class="six">' + "".join(f'<div><small>{a}</small><b>{b}</b></div>' for a, b in 칸) + '</div></div>'
         f'<p class="d">모두 {s.get("전체건수", 0)}번 샀고 {도}%가 +{R.몫들[0][1]:g}%에 닿았습니다. {_e(Q._볼린저주의[0])} — {_e(Q._볼린저주의[1])} {_e(Q._성적주의[1])} {_e(Q._성적주의[3])}</p></div>'))
+    # ── 해마다 어땠나 (10/21 사용자 「화면에 넣자.」) — data/rule-yearly.json(gate7 YEARLY) · 없으면 장을 안 만든다 ──
+    y = _해마다()
+    if y:
+        줄 = "".join(f'<tr><td>{_e(z["해"])}{_e(_해꼬리(y, z))}</td><td class="{"pos" if z["수익"] >= 0 else "neg"}">{_퍼(z["수익"])}</td>'
+                    f'<td>{z["산날"]}일</td><td>{z["오른달"]}/{z["달수"]}</td><td class="neg">{_퍼(z["나쁜달"])}</td></tr>' for z in y["해"])
+        g = y.get("12달") or {}
+        장.append(_카드(_위("해마다 어땠나 · 컴퓨터 계산 · 매일 종가로 평가", "1년씩 끊어 보면", 작게=False),
+            '<div class="menu"><div class="m"><table class="vs yr"><thead><tr><th>해</th><th>수익</th><th>산 날</th><th>오른 달</th><th>가장 나쁜 달</th></tr></thead>'
+            f'<tbody>{줄}</tbody></table></div>'
+            + (f'<p class="d">아무 달에 시작해 1년 들고 있었다면 {g.get("번")}번 중 가장 나쁨 {_퍼(g.get("최악"))} · 가운데 {_퍼(g.get("가운데"))} · '
+               f'잃은 번 {g.get("잃은")} · 달 평균 {_퍼(y["달"]["평균"], 2)}(가운데 {_퍼(y["달"]["가운데"], 2)}) — 과거 시험이지 앞날 약속이 아닙니다.</p>' if g else "")
+            + '</div>'))
     # ── 브리핑 추천 vs 퀀트 후보 (10/20 ③) ──
     try:
         v = _비교(기록줄)
@@ -439,6 +451,51 @@ def 덱(q, 보유, 기록줄=None):
         '<div class="m hot"><b>같은 잣대</b><p>둘 다 그날 시가에 샀다고 보고, 20일 안에 +15%에 닿았는지와 20일 뒤 수익으로 견줍니다.</p></div></div>'))
     n = len(장)
     return "".join(h.replace("@@PG@@", f"{i}/{n}") for i, h in enumerate(장, 1))
+
+
+def _해마다():
+    r"""data/rule-yearly.json (gate7 ONLY=YEARLY 가 쓴다) — 없거나 깨지면 None (칸을 안 만든다)"""
+    try:
+        y = json.load(io.open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "rule-yearly.json"), encoding="utf-8"))
+        return y if y.get("해") else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _해꼬리(y, z):
+    r"""첫 해·마지막 해는 일부만 — 「(4월~)」 「(~10/20)」"""
+    a, b = (y.get("기간") or ["", ""])[:2]
+    if z["해"] == a[:4] and a[4:6] != "01":
+        return f" ({int(a[4:6])}월~)"
+    if z["해"] == b[:4] and b[4:8] != "1231":
+        return f" (~{int(b[4:6])}/{int(b[6:8])})"
+    return ""
+
+
+def _pc해마다():
+    r"""PC 「해마다 어땠나」 — 해가 열(가로) · 수익 · 산 날 · 오른 달 · 가장 나쁜/좋은 달 (10/21 사용자 「화면에 넣자.」)"""
+    y = _해마다()
+    if not y:
+        return ""
+    hs = y["해"]
+    머 = "".join(f'<th>{_e(z["해"])}<small>{_e(_해꼬리(y, z).strip(" ()")) or "&nbsp;"}</small></th>' for z in hs)
+    def 줄(이름, f):
+        return f'<tr><td class="l">{이름}</td>' + "".join(f(z) for z in hs) + '</tr>'
+    g = y.get("12달") or {}
+    dd = y.get("달") or {}
+    return ('<div class="sec yr"><h2>해마다 어땠나 · 컴퓨터 계산 · 들고 있는 종목을 매일 종가로 평가</h2>'
+            f'<table class="yt num"><tr><th class="l">해</th>{머}</tr>'
+            + 줄("수익", lambda z: f'<td class="{"up" if z["수익"] >= 0 else "dn"}"><b>{_퍼(z["수익"])}</b></td>')
+            + 줄("산 날", lambda z: f'<td>{z["산날"]}일</td>')
+            + 줄("오른 달", lambda z: f'<td>{z["오른달"]}/{z["달수"]}</td>')
+            + 줄("가장 나쁜 달", lambda z: f'<td class="dn">{_퍼(z["나쁜달"])}</td>')
+            + 줄("가장 좋은 달", lambda z: f'<td class="up">{_퍼(z["좋은달"])}</td>')
+            + '</table>'
+            + (f'<p>아무 달에 시작해 <b>1년 들고 있었다면</b> {g.get("번")}번 중 가장 나쁨 <b>{_퍼(g.get("최악"))}</b> · 아래 10% {_퍼(g.get("아래10"))} · '
+               f'가운데 <b>{_퍼(g.get("가운데"))}</b> · 위 10% {_퍼(g.get("위10"))} · 잃은 번 {g.get("잃은")} · '
+               f'달로 보면 {dd.get("개수")}달 중 {dd.get("오른")}달 오름 · 달 평균 {_퍼(dd.get("평균"), 2)}(가운데 {_퍼(dd.get("가운데"), 2)}) · '
+               f'가장 나쁜 달 {_퍼(dd.get("최악"))}. 사는 날이 1년에 며칠뿐이라 수익은 급락 뒤 몇 달에 몰립니다. 과거 시험이지 앞날 약속이 아닙니다.</p>' if g else "")
+            + '</div>')
 
 
 def _pc줄(x, i, 업, 보완=False, 소식수=0):
@@ -652,7 +709,7 @@ def PC(q, 보유, 기록줄=None):
            f'<p>{v.get("시작날") or "퀀트 기록 시작"}부터 같은 날들만 · 둘 다 비용 0.26% 뺌 · 20일이 지난 것만 셉니다. '
            f'채점 전 · 브리핑 {v.get("브리핑대기", 0)}건 · 퀀트 {v.get("퀀트대기", 0)}건. 둘 다 그날 시가에 샀다고 보고 견줍니다.</p></div>')
     return (f'{위}{표}{순서}<div class="pg3">{노림}{깔칸}{사람}</div><div class="pg2">{갈칸}{소칸}</div>'
-            f'<div class="pg3">{시칸}{성칸}{비칸}</div>')
+            f'<div class="pg3">{시칸}{성칸}{비칸}</div>{_pc해마다()}')
 
 
 def PC_CSS(c1, c2):
@@ -727,6 +784,11 @@ def PC_CSS(c1, c2):
             f"{p} .vs td{{padding:9px 4px;border-bottom:1px solid #EDF0F5;text-align:right;color:var(--ink);font-weight:700;white-space:nowrap}}"
             f"{p} .vs td small{{display:block;font-weight:500;color:var(--sub);font-size:12px}}"
             f"{p} .vs td.few{{color:var(--sub);font-weight:600;white-space:normal;line-height:1.4}}{p} .vs .pos{{color:var(--up)}}{p} .vs .neg{{color:var(--dn)}}"
+            f"{p} .sec.yr{{margin-top:14px}}{p} .yt{{width:100%;border-collapse:collapse;font-size:14.5px;margin-bottom:12px}}"
+            f"{p} .yt th{{font-size:13px;font-weight:700;color:var(--ink);text-align:right;padding:7px 6px;border-bottom:2px solid var(--ink);white-space:nowrap}}"
+            f"{p} .yt th small{{display:block;font-weight:500;color:var(--sub);font-size:11px}}"
+            f"{p} .yt td{{padding:8px 6px;text-align:right;border-bottom:1px solid #EDF0F5;white-space:nowrap;color:var(--ink)}}"
+            f"{p} .yt td.l,{p} .yt th.l{{text-align:left;color:var(--sub);font-weight:600}}{p} .yt td.up{{color:var(--up)}}{p} .yt td.dn{{color:var(--dn)}}"
             "</style>")
 
 
@@ -791,7 +853,7 @@ def CSS(c1, c2):
             f"{p} .m .d{{padding:0}}"
             f"{p} .vs{{width:100%;border-collapse:collapse;font-size:.8em}}{p} .vs th{{font-size:.82em;font-weight:600;color:var(--sub);text-align:right;padding:.3em .2em;border-bottom:1px solid #DCE2EA;white-space:nowrap}}"
             f"{p} .vs th:first-child,{p} .vs td:first-child{{text-align:left}}{p} .vs td{{padding:.5em .2em;text-align:right;border-bottom:1px solid #EDF0F5;font-weight:700;white-space:nowrap}}"
-            f"{p} .vs td small{{display:block;font-weight:500;color:var(--sub);font-size:.8em}}{p} .vs .pos{{color:var(--red)}}{p} .vs .neg{{color:var(--blue)}}{p} .vs td.few{{color:var(--sub);font-weight:600;white-space:normal;line-height:1.35}}"
+            f"{p} .vs td small{{display:block;font-weight:500;color:var(--sub);font-size:.8em}}{p} .vs .pos{{color:var(--red)}}{p} .vs .neg{{color:var(--blue)}}{p} .vs td.few{{color:var(--sub);font-weight:600;white-space:normal;line-height:1.35}}{p} .vs.yr{{font-size:.72em}}{p} .vs.yr th,{p} .vs.yr td{{padding:.24em .2em}}"
             f"{p} .nw{{flex:none;white-space:nowrap;font-size:.9em;font-weight:800;border-radius:.2em;padding:0 .3em;background:#FFF3D6;color:#8A5A00}}"
             f"{p} .ns{{gap:.3em}}{p} .ns .h{{display:flex;align-items:baseline;gap:.45em;white-space:nowrap}}{p} .ns .h b{{font-size:.98em;font-weight:800}}"
             f"{p} .ns .h em{{margin-left:auto;font-style:normal;font-size:.7em;color:var(--sub)}}"

@@ -9954,6 +9954,29 @@ def main():
                     _굴s = sorted(_굴)
                     print(f"     아무 달에 시작해 12달 들고 있었다면: {len(_굴)}번 · 가장 나쁨 {_굴s[0]:+.1f}% · 아래 10% {_굴s[len(_굴s) // 10]:+.1f}% · "
                           f"가운데 {_굴s[len(_굴s) // 2]:+.1f}% · 위 10% {_굴s[len(_굴s) * 9 // 10]:+.1f}% · 가장 좋음 {_굴s[-1]:+.1f}% · 잃은 번 {sum(1 for v in _굴 if v < 0)}")
+                # 10/21 화면이 읽는 파일 — 사용자 「화면에 넣자.」 (손으로 옮기지 않는다 [[hand-written-numbers-freeze]])
+                try:
+                    _해목 = []
+                    _앞2 = 5e6
+                    for _y in sorted(_끝해):
+                        _ms = [v for m, v in _달수익.items() if m[:4] == _y]
+                        _해목.append({"해": _y, "수익": round((_끝해[_y] / _앞2 - 1) * 100, 1), "끝": round(_끝해[_y]),
+                                     "산날": len(_산날해.get(_y, ())), "오른달": sum(1 for v in _ms if v > 0), "달수": len(_ms),
+                                     "나쁜달": round(min(_ms), 1), "좋은달": round(max(_ms), 1)})
+                        _앞2 = _끝해[_y]
+                    import datetime as _dtY
+                    _yj = {"만든날": _dtY.datetime.now().strftime("%Y-%m-%d %H:%M"), "출처": "gate7_lab ONLY=YEARLY — 지금 규칙 · 500만 · 매일 전날 종가 평가",
+                           "기간": [날[시i], 날[min(len(날) - 1, 시i + len(_곡Y) - 1)]], "끝": round((_본C or {}).get("끝", 0)),
+                           "연평균": round((_본C or {}).get("연", 0), 1), "낙폭": round((_본C or {}).get("낙", 0), 1), "해": _해목,
+                           "달": {"개수": len(_모), "오른": sum(1 for v in _모 if v > 0), "내린": sum(1 for v in _모 if v < 0),
+                                 "평균": round(sum(_모) / max(1, len(_모)), 2), "가운데": round(_모s[len(_모s) // 2], 2), "최악": round(_모s[0], 1), "최고": round(_모s[-1], 1)},
+                           "12달": ({"번": len(_굴), "최악": round(_굴s[0], 1), "아래10": round(_굴s[len(_굴s) // 10], 1), "가운데": round(_굴s[len(_굴s) // 2], 1),
+                                    "위10": round(_굴s[len(_굴s) * 9 // 10], 1), "최고": round(_굴s[-1], 1), "잃은": sum(1 for v in _굴 if v < 0)} if _굴 else None)}
+                    with io.open(os.path.join(O._DATA, "rule-yearly.json"), "w", encoding="utf-8") as _fy:
+                        json.dump(_yj, _fy, ensure_ascii=False, indent=1)
+                    print("     → data/rule-yearly.json (화면 「해마다」 칸)")
+                except Exception as _ey:  # noqa: BLE001
+                    print(f"     ⚠️ rule-yearly.json 못 씀: {_ey}")
                 print("  [대조] YEARLY 끝", flush=True)
                 return 0
             _한번C = 시뮬(_c(_H, **dict(_실전K, 나눔=((1.0, 20.0, 40),)), 종가평가=True))
