@@ -9827,7 +9827,7 @@ def main():
     #    6장은 rule-cases.json(build_rule_cases.py)을 읽는데, 그 코드는 **옛날식 단순 계산**이었다
     #    (하루 4종목 · 후보 40 · 후보 중앙갭 · 업종 문턱·섹터 자리·악재 매도·원전을 모른다).
     #    ⇒ 실전 바탕(LIVE 와 같은 _실전L) 시뮬의 **실제 거래 기록**으로 두 파일을 만든다
-    if _ONLY in ("CARDLIVE", "MULTIDUMP", "YEARLY") or "CARDLIVE" in _ONLY.split("+"):
+    if _ONLY in ("CARDLIVE", "MULTIDUMP", "YEARLY", "CONTRIB") or "CARDLIVE" in _ONLY.split("+"):
         print("\n" + "=" * 122)
         print("  ── CARDLIVE ⭐⭐⭐ **화면 성적표(5장·6장)를 실전 규칙의 실제 거래로** ──")
         print("=" * 122)
@@ -10065,6 +10065,66 @@ def main():
                 except Exception as _ey:  # noqa: BLE001
                     print(f"     ⚠️ rule-yearly.json 못 씀: {_ey}")
                 print("  [대조] YEARLY 끝", flush=True)
+                return 0
+            # ⭐ 10/21 CONTRIB — **번 돈을 갈래별로 나눈다** (거래마다 번 원 = 주수 × 산 값 × 수익% · 그 거래를 낸 갈래에 더함)
+            #    사용자 10/21 「2016년 500만원이 2026년 2.62억이 되는데에는, 각 규칙이 어느정도 기여했는지 보여줘」 →
+            #    「전제 끝자산에서 기여도 보여달라니까 헷갈리게 빼면 남는 돈 같은건 왜 보여주는거야」
+            #    ⇒ 「빼면」 이 아니라 **한 계좌 안에서 실제로 번 돈의 몫** · 갈래가 둘 이상이면 「여럿」 칸에 따로 두고 나눠 더한 값도 같이
+            if _ONLY == "CONTRIB":
+                _기록T = []
+                _본T = 시뮬(_c(_H, **_실전K, 종가평가=True), 기록=_기록T)
+
+                def _기T(x):
+                    return 문통과(x) and x["볼린저"] <= R.볼린저문턱 and x["낙폭20"] <= R.낙폭20문턱
+
+                def _섹T(x):
+                    return bool(섹터맞나(x)) and 재무통과(x) and 대금통과(x) and (R.섹터규칙_큰회사 or 크기통과(x))
+
+                def _시T(x):
+                    return 문통과(x) and _시장갈래(x)
+
+                def _변T(x):
+                    return (R.변동성자사주_켬 and 문통과(x) and x.get("시장변동성") is not None
+                            and x["시장변동성"] >= R.시장변동성문턱 and _자사H(x) >= 1)
+                _갈T = (("크게 빠짐", _기T), ("시장 급락", _시T), ("변동성·자사주", _변T), (f"섹터 {len(R.섹터규칙)}업종", _섹T))
+                _찾T = {}
+                for _x in 사건:
+                    for _k in (_x["인"] - 1, _x["인"]):
+                        if 0 <= _k < len(날):
+                            _찾T.setdefault((날[_k], _x["code"]), _x)
+                _원T, _건T, _나눔T = {}, {}, {}
+                _못찾T = 0
+                for _t in _기록T:
+                    _d, _cd, _시총, _값, _r, _청, _주 = _t
+                    _번 = _주 * _값 * (_r or 0) / 100
+                    _x = _찾T.get((str(_d), _cd))
+                    _걸 = []
+                    if _x is not None:
+                        for _이, _f in _갈T:
+                            try:
+                                if _f(_x):
+                                    _걸.append(_이)
+                            except Exception:  # noqa: BLE001
+                                pass
+                    else:
+                        _못찾T += 1
+                    _키 = (_걸[0] if len(_걸) == 1 else ("여럿 (" + " + ".join(_걸) + ")" if _걸 else "못 가림"))
+                    _원T[_키] = _원T.get(_키, 0) + _번
+                    _건T[_키] = _건T.get(_키, 0) + 1
+                    for _이 in (_걸 or ["못 가림"]):
+                        _나눔T[_이] = _나눔T.get(_이, 0) + _번 / max(1, len(_걸))
+                _합T = sum(_원T.values())
+                _끝T = (_본T or {}).get("끝", 0)
+                print("\n  ── CONTRIB · 번 돈을 갈래별로 (지금 규칙 · 500만 시작 · 한 계좌 · 거래마다 번 원을 그 거래를 낸 갈래에) ──")
+                print(f"     끝 자산 {_끝T:,.0f}원 (종가 평가) · 판 거래로 번 돈 합 {_합T:,.0f}원 · 시작 5,000,000원 · "
+                      f"아직 들고 있는 것·평가 차이 {_끝T - 5e6 - _합T:,.0f}원 · 거래 줄 {len(_기록T):,}(몫마다 한 줄) · 짝 못 찾음 {_못찾T}")
+                print(f"     {'갈래':<36}{'번 돈':>16}{'몫':>8}{'거래 줄':>8}")
+                for _k in sorted(_원T, key=lambda z: -_원T[z]):
+                    print(f"     {_k:<36}{_원T[_k]:>15,.0f}원{_원T[_k] / _합T * 100 if _합T else 0:>7.1f}%{_건T[_k]:>8}")
+                print("     (갈래 둘 이상에 걸린 거래를 똑같이 나눠 더하면)")
+                for _k in sorted(_나눔T, key=lambda z: -_나눔T[z]):
+                    print(f"     {_k:<36}{_나눔T[_k]:>15,.0f}원{_나눔T[_k] / _합T * 100 if _합T else 0:>7.1f}%")
+                print("  [대조] CONTRIB 끝", flush=True)
                 return 0
             _한번C = 시뮬(_c(_H, **dict(_실전K, 나눔=((1.0, 20.0, 40),)), 종가평가=True))
             _금지C = 시뮬(_c(_H, **_실전K, 중복금지=True, 종가평가=True))
