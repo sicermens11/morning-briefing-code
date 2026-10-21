@@ -13,7 +13,7 @@ collect_news_hist.py — **규칙 후보마다 신호 직전 7일 기사 제목�
 - 기간 = 신호 날 7일 전 ~ 신호 날(그날 저녁 기사까지 · 다음 날 08:55 판단 전에 볼 수 있는 것). pubDate 로 한 번 더 자른다
 - 제목에 회사 이름이 있어야 한다 · 이름 바로 뒤가 한글이면 조사(은는이가…)일 때만 (quant_n34._소식 과 같은 거르기)
 - ⚠️ 이름은 지금 이름이다 — 옛날에 이름이 달랐던 종목은 덜 받힌다
-- 요청 간격 1초 · 실패는 한 번 더 · 본문은 안 받는다(제목만)
+- 요청 간격 4초 · 구글이 막으면(503) 2분부터 두 배씩 쉬고 이어 받는다 · 본문은 안 받는다(제목만)
 
 쓰는 법:
     python scripts\collect_news_hist.py            # 전부(이어 받기)
@@ -93,28 +93,40 @@ def main():
         남 = 남[:a.최대]
     print(f"{dt.datetime.now():%m-%d %H:%M} 후보 {len(ev):,} · 이미 {len(한):,} · 받을 것 {len(남):,} · 이름 없음 {sum(1 for e in ev if not e.get('이름')):,}", flush=True)
     실패 = 0
+    # ⚠️ 10/21 첫 판: 1초 간격으로 178건째에 구글이 503(잠시 그만)을 줬고 30번 실패로 멈췄다
+    #    ⇒ 간격 4초 · 503/429 면 2분부터 두 배씩(최대 30분) 쉬고 같은 건을 다시 · 쉰 시간이 합쳐 4시간을 넘으면 멈춘다
+    쉼합 = 0
     with io.open(_출력, "a", encoding="utf-8") as fo:
         for k, e in enumerate(남, 1):
             r = None
-            for _시도 in range(2):
+            쉼 = 120
+            while r is None:
                 try:
                     r = 받기(e["이름"], e["날"])
-                    break
                 except Exception as ex:  # noqa: BLE001
-                    if _시도 == 1:
+                    막힘 = ("503" in str(ex)) or ("429" in str(ex))
+                    if not 막힘:
                         print(f"   실패 {e['code']} {e['날']}: {ex}", flush=True)
-                    time.sleep(5)
+                        break
+                    if 쉼합 >= 4 * 3600:
+                        print(f"🛑 구글이 4시간 넘게 막았다 — 멈춘다 · 받은 것 {k - 1:,}/{len(남):,}", flush=True)
+                        print(f"{dt.datetime.now():%m-%d %H:%M} ===== 기사 받기 끝 · 실패 {실패} =====", flush=True)
+                        return
+                    print(f"{dt.datetime.now():%m-%d %H:%M}   막힘({ex}) — {쉼 // 60}분 쉬고 다시 · 지금까지 {k - 1:,}/{len(남):,}", flush=True)
+                    time.sleep(쉼)
+                    쉼합 += 쉼
+                    쉼 = min(쉼 * 2, 1800)
             if r is None:
                 실패 += 1
                 if 실패 >= 30:
-                    print("🛑 실패 30건 — 멈춘다(막혔을 수 있다)", flush=True)
+                    print("🛑 막힘이 아닌 실패 30건 — 멈춘다", flush=True)
                     break
                 continue
             fo.write(json.dumps({"code": e["code"], "이름": e["이름"], "날": e["날"], "제목": r[0], "원건수": r[1]}, ensure_ascii=False) + "\n")
             fo.flush()
             if k % 100 == 0:
                 print(f"{dt.datetime.now():%m-%d %H:%M}   {k:,}/{len(남):,} · 실패 {실패}", flush=True)
-            time.sleep(1.0)
+            time.sleep(4.0)
     print(f"{dt.datetime.now():%m-%d %H:%M} ===== 기사 받기 끝 · 실패 {실패} =====", flush=True)
 
 

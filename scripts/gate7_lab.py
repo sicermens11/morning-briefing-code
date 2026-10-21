@@ -8370,7 +8370,9 @@ def main():
                     except Exception:  # noqa: BLE001
                         continue
                     _v = _상N(_x)
-                    if _v is None or _v > -1.0:
+                    # 10/21 −1.0 → 지금 규칙 문턱(−3.5) — −1.0 은 27,452건이라 구글이 178건째에 막았다(503)
+                    #    사용자 「보를 실제로 살 수 있는 것만 다시 뽑는 게 맞는 것 같아. 살 수 있다기보다 후보?」 — 문턱을 못 넘은 후보는 빼든 말든 돈이 안 달라진다
+                    if _v is None or _v > R.상대갭문턱:
                         continue
                     _본N.add((_x["code"], 날[_x["인"] - 1]))
                 with io.open(_evN, "w", encoding="utf-8") as _fo:
