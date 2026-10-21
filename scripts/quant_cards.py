@@ -2041,6 +2041,12 @@ def quant_view(q, 보유=None, 줄들=None):
     except Exception as _ex:  # noqa: BLE001
         print(f"  ⚠️ 퀀트 새 카드 실패 — 옛 화면으로: {type(_ex).__name__}: {_ex}")
         _새 = ""
+    # ⭐ 10/21 PC 표 화면(1200px↑) — 사용자 「A로 가자.」 · 터지면 이 판만 빠지고 카드가 PC 에도 그대로
+    if _새:
+        try:
+            _새 += _N.PC_CSS(*_띠색) + '<div class="qpc">' + _N.PC(q, 보유, 줄들) + '</div>'
+        except Exception as _ex:  # noqa: BLE001
+            print(f"  ⚠️ 퀀트 PC 표 화면 실패 — 카드 그대로: {type(_ex).__name__}: {_ex}")
     _오늘 = str(q.get("기록시각") or "")[:10]
     _날들, _지난html = _지난들(줄들, _오늘)
     _날값 = ",".join(_날들)
