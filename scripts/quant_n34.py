@@ -16,7 +16,8 @@ import io
 
 import rule_def as R
 
-갈래이름 = [("섹터규칙", "섹터 6업종"), ("기존규칙", "크게 빠짐"), ("시장규칙", "시장 급락"), ("변동성자사주", "변동성·자사주"), ("업종규칙", "업종")]
+_섹이름 = f"섹터 {len(R.섹터규칙)}업종"   # 10/21 점검: 「섹터 6업종」 을 손으로 적어 섹터 수가 바뀌면 「오늘 N」 이 0 이 될 뻔했다
+갈래이름 = [("섹터규칙", _섹이름), ("기존규칙", "크게 빠짐"), ("시장규칙", "시장 급락"), ("변동성자사주", "변동성·자사주"), ("업종규칙", "업종")]
 지수이름 = {"KOSPI": "코스피", "KOSDAQ": "코스닥"}
 
 
@@ -66,7 +67,7 @@ def _왜한줄(x, 갈):
         return f"{k} 20일 {_퍼(v, 0)} 날" if v is not None else "지수가 크게 빠진 날"
     if g == "크게 빠짐":
         return f"혼자 20일 {_퍼(x.get('20일낙폭'), 0)}"
-    if g == "섹터 6업종":
+    if g == _섹이름:
         return f"{x.get('섹터') or '업종'} 빠짐"
     if g == "변동성·자사주":
         return "흔들리는 장 · 자사주 매입"
@@ -141,7 +142,7 @@ def _종목상자(x, 업, 상태, 보완=False, 소식수=0):
         칸 = (f'<div class="r"><small>{몫1} 팔 값</small><b>{_원(팔[0])}</b></div>'
              f'<div class="r"><small>{몫2} 팔 값</small><b>{_원(팔[1])}</b></div>')
     else:   # 08:55 전 — 주문가가 아직 없다
-        a, b = R.매수범위(x.get("어제종가", 0) or 0)
+        a, b = R.매수범위(x.get("어제종가", 0) or 0, R.보완상대갭 if 보완 else None)   # 10/21 점검: 보완은 제 문턱(−1.0)
         값 = f'<p class="pr"><small>전날 종가</small>{_원(x.get("어제종가"))}원</p>'
         칸 = f'<div class="r w2"><small>주문가가 들어올 자리 · {R.판정시각}에 확정</small><b>{_원(a)}~{_원(b)}</b></div>'
     if 보완:
@@ -263,7 +264,7 @@ def _비교(줄들):
             if not (x.get("오늘산다") or x.get("규칙매수")):
                 continue
             d20 = (x.get("중간성적") or {}).get("D+20")
-            닿 = bool(x.get("결과") is not None and x["결과"] > 14 and (x.get("며칠") or 99) <= 20)
+            닿 = bool(x.get("결과") is not None and x["결과"] > 14 and x.get("며칠") is not None and x["며칠"] <= 20)   # 10/21 점검: 산 날 닿음(며칠 0)이 「or 99」 로 안 닿음이 됐다
             if d20 is None:
                 q대기 += 1
                 continue
@@ -386,7 +387,7 @@ def 덱(q, 보유, 기록줄=None):
     if not R.변동성자사주_켬:
         갈들 = [z for z in 갈들 if z[0] != "변동성·자사주"]
     br = "".join(f'<div class="m br"><div class="bh"><b>{x0}</b><span class="sz{" big" if x1 == "크기 상한 없음" else ""}">{x1}</span>'
-                 f'<em>오늘 {수.get(x0 if not x0.startswith("섹터") else "섹터 6업종", 0)}</em></div><p>{_e(x2)}</p></div>' for x0, x1, x2 in 갈들)
+                 f'<em>오늘 {수.get(x0 if not x0.startswith("섹터") else _섹이름, 0)}</em></div><p>{_e(x2)}</p></div>' for x0, x1, x2 in 갈들)
     장.append(_카드(_위("갈래 넷 · 기본 조건을 먼저 통과한 뒤", "넷 중 하나에 걸리면 후보", 작게=False),
         f'<div class="menu tight">{br}</div><p class="foot">{R.시총상한억:,.0f}억 이상 큰 회사는 섹터 갈래와 보완 후보(중형·대형)로만 나옵니다.</p>'))
     # ── 사고 파는 법 ──
@@ -419,7 +420,7 @@ def 덱(q, 보유, 기록줄=None):
     장.append(_카드(_위(f"과거 성적 · {str(s.get('기간') or '')[:4]}년부터 · 컴퓨터 계산", f"{시작 / 1e4:,.0f}만 원이", 작게=False),
         f'<div class="menu"><div class="m"><p class="bigv">{(끝 or 0) / 1e8:.2f}<small>억</small></p>'
         f'<div class="six">' + "".join(f'<div><small>{a}</small><b>{b}</b></div>' for a, b in 칸) + '</div></div>'
-        f'<p class="d">모두 {s.get("전체건수", 0)}번 샀고 {도}%가 +{R.몫들[0][1]:g}%에 닿았습니다. {_e(Q._볼린저주의[0])} — {_e(Q._볼린저주의[1])} {_e(Q._성적주의[1])} {_e(Q._성적주의[3])}</p></div>'))
+        f'<p class="d">끝 자산은 남은 보유를 산 값으로 센 값입니다(다음 장 「해마다」는 매일 종가 평가라 조금 다릅니다). 모두 {s.get("전체건수", 0)}번 샀고 {도}%가 +{R.몫들[0][1]:g}%에 닿았습니다. {_e(Q._볼린저주의[0])} — {_e(Q._볼린저주의[1])} {_e(Q._성적주의[1])} {_e(Q._성적주의[3])}</p></div>'))
     # ── 해마다 어땠나 (10/21 사용자 「화면에 넣자.」) — data/rule-yearly.json(gate7 YEARLY) · 없으면 장을 안 만든다 ──
     y = _해마다()
     if y:
@@ -430,7 +431,7 @@ def 덱(q, 보유, 기록줄=None):
             '<div class="menu"><div class="m"><table class="vs yr"><thead><tr><th>해</th><th>수익</th><th>산 날</th><th>오른 달</th><th>가장 나쁜 달</th></tr></thead>'
             f'<tbody>{줄}</tbody></table></div>'
             + (f'<p class="d">아무 달에 시작해 1년 들고 있었다면 {g.get("번")}번 중 가장 나쁨 {_퍼(g.get("최악"))} · 가운데 {_퍼(g.get("가운데"))} · '
-               f'잃은 번 {g.get("잃은")} · 달 평균 {_퍼(y["달"]["평균"], 2)}(가운데 {_퍼(y["달"]["가운데"], 2)}) — 과거 시험이지 앞날 약속이 아닙니다.</p>' if g else "")
+               f'잃은 번 {g.get("잃은")} · 달 평균 {_퍼((y.get("달") or {}).get("평균"), 2)}(가운데 {_퍼((y.get("달") or {}).get("가운데"), 2)}) — 과거 시험이지 앞날 약속이 아닙니다.</p>' if g else "")
             + '</div>'))
     # ── 브리핑 추천 vs 퀀트 후보 (10/20 ③) ──
     try:
@@ -514,7 +515,7 @@ def _pc줄(x, i, 업, 보완=False, 소식수=0):
         팔 = _팔(주)
         값 = f'<td class="p">{_원(주)}</td><td class="up">{_원(팔[0])}</td><td class="up">{_원(팔[1])}</td>'
     else:   # 08:55 전 — 주문가가 아직 없다
-        a, b = R.매수범위(x.get("어제종가", 0) or 0)
+        a, b = R.매수범위(x.get("어제종가", 0) or 0, R.보완상대갭 if 보완 else None)   # 10/21 점검: 보완은 제 문턱(−1.0)
         값 = (f'<td class="p">{_원(x.get("어제종가"))}<small>{_원(a)}~{_원(b)}</small></td>'
               '<td class="mu">—</td><td class="mu">—</td>')
     if 보완:
@@ -659,7 +660,7 @@ def PC(q, 보유, 기록줄=None):
         갈들 = [z for z in 갈들 if z[0] != "변동성·자사주"]
     갈칸 = ('<div class="sec br"><h2>갈래 넷 · 기본 조건을 먼저 통과한 뒤 하나에 걸리면 후보</h2>'
            + "".join(f'<div class="it"><div class="h"><b>{g}</b><span class="sz{" big" if c == "크기 상한 없음" else ""}">{c}</span>'
-                     f'<em{" class=on" if 수.get(g if not g.startswith("섹터") else "섹터 6업종") else ""}>오늘 {수.get(g if not g.startswith("섹터") else "섹터 6업종", 0)}</em></div>{_e(t)}</div>'
+                     f'<em{" class=on" if 수.get(g if not g.startswith("섹터") else _섹이름) else ""}>오늘 {수.get(g if not g.startswith("섹터") else _섹이름, 0)}</em></div>{_e(t)}</div>'
                      for g, c, t in 갈들) + '</div>')
     있음 = [x for x in 목록 + 보 if 소식표.get(x.get("종목코드"))]
     없음 = [x.get("이름", "") for x in 목록 + 보 if not 소식표.get(x.get("종목코드"))]
@@ -687,7 +688,7 @@ def PC(q, 보유, 기록줄=None):
     시작 = cap.get("시작자산") or 5e6
     여섯 = [("해마다", _퍼(cap.get("연평균"))), (f"+{a1[1]:g}% 닿음", f"{도}%"), ("한 번 평균", _퍼(s.get("평균"))),
            ("산 횟수", f"{s.get('전체건수', 0)}번"), ("최악 한 번", _퍼(s.get("가장나쁨"))), ("계좌 가장 깊이", _퍼(종낙) if 종낙 is not None else "—")]
-    성칸 = (f'<div class="sec"><h2>과거 성적 · {str(s.get("기간") or "")[:4]}년부터 · 컴퓨터 계산</h2><span class="k">{시작 / 1e4:,.0f}만 원이</span>'
+    성칸 = (f'<div class="sec"><h2>과거 성적 · {str(s.get("기간") or "")[:4]}년부터 · 컴퓨터 계산</h2><span class="k">{시작 / 1e4:,.0f}만 원이 · 끝 자산은 남은 보유를 산 값으로 셈(아래 「해마다」는 매일 종가 평가)</span>'
            f'<div class="bigv num">{(끝 or 0) / 1e8:.2f}<small>억</small></div>'
            '<div class="six num">' + "".join(f'<div><span>{a}</span><b>{b}</b></div>' for a, b in 여섯) + '</div>'
            f'<p>{_e(Q._볼린저주의[0])} — {_e(Q._볼린저주의[1])} {_e(Q._성적주의[1])} {_e(Q._성적주의[3])}</p></div>')

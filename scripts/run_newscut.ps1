@@ -124,15 +124,16 @@ function 합치기($이름, $스펙, $후보, $나눔, $꼬리, $w) {
 
 
 
-$날 = Get-Date -f "yyyy-MM-dd"
+$날 = Get-Date -f "yyyy-MM-dd_HHmm"   # 10/21 같은 날 다시 걸면 「이미 있는 파일」 로 gate7 이 코드 2 로 멈추는데 옛 파일 끝 줄을 성공으로 읽었다 — 시각을 붙인다
+$시작시각 = Get-Date
 Remove-Item env:MKT20, env:MKT60, env:MKT_LIVE, env:POOL_BUYBACK -ErrorAction SilentlyContinue
 Remove-Item env:IND_FORCE_ON, env:BOCOUNT, env:ALLSIG_CMP -ErrorAction SilentlyContinue
 Remove-Item env:NEWSDUMP -ErrorAction SilentlyContinue
-# ① 후보 뽑기 — 2016~ 실전 거름 통과 · 상대갭 −1.0 이하 → data\_labs\news_events.jsonl
+# ① 후보 뽑기 — 2016~ 실전 거름 통과 · 상대갭 지금 규칙 문턱(−3.5) 이하 → data\_labs\news_events.jsonl
 $env:NEWSDUMP = "1"
 잠금gate7 "후보 뽑기(NEWSDUMP)" "NEWSCUT" "${날}_NEWSCUT_후보뽑기.txt" "\[대조\] DDCTRL 끝" 60
 Remove-Item env:NEWSDUMP -ErrorAction SilentlyContinue
-if (-not (Test-Path "data\_labs\news_events.jsonl")) { 적기 "❌ [NEWSCUT] 후보 파일이 없다 — 멈춘다"; 적기 "===== run_newscut 끝 ====="; exit 1 }
+if ((-not (Test-Path "data\_labs\news_events.jsonl")) -or ((Get-Item "data\_labs\news_events.jsonl").LastWriteTime -lt $시작시각)) { 적기 "❌ [NEWSCUT] 후보 파일이 없거나 이번에 새로 안 만들어졌다(옛 파일) — 멈춘다"; 적기 "===== run_newscut 끝 ====="; exit 1 }
 # ② 기사 받기 — 큰 계산 아님(인터넷 · 1초 간격) · 자물쇠 안 잡는다
 적기 "[NEWSCUT] 기사 받기 시작 · 후보 $((Get-Content data\_labs\news_events.jsonl).Count)건"
 $p = Start-Process -FilePath $py -ArgumentList "scripts\collect_news_hist.py" -PassThru -WindowStyle Hidden -RedirectStandardOutput "run-logs\newscut_collect_$(Get-Date -f HHmm).txt" -RedirectStandardError "run-logs\newscut_collect_err_$(Get-Date -f HHmm).txt"

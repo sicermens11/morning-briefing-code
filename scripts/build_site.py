@@ -1435,8 +1435,10 @@ def build(out, days=DEFAULT_DAYS):
             _n주 = sum(1 for _x in (_q.get("후보") or []) if (_x.get("오늘산다") or _x.get("규칙매수")))
             _n보 = len(_q.get("보완후보") or [])
             _확 = (_q.get("동시호가") or {}).get("예상시장갭") is not None
+            # 10/21 점검: 08:55 확정 뒤 주문 0개인데 「볼 종목 155개」 로 나왔다 → 확정 뒤엔 「살 것 없음」
             _말 = (f"오늘 퀀트 주문 {_n주}개" if (_확 and _n주) else
-                  (f"오늘 퀀트 볼 종목 {len(_q.get('후보') or [])}개" if _q.get("후보") else "오늘 퀀트 후보 없음"))
+                  ("오늘 퀀트 살 것 없음" if (_확 and _q.get("후보")) else
+                   (f"오늘 퀀트 볼 종목 {len(_q.get('후보') or [])}개" if _q.get("후보") else "오늘 퀀트 후보 없음")))
             _ql = (f'<button class="qlink" type="button" data-d="{_qd}" hidden><span><b>{_말}</b>'
                    + (f" · 보완 {_n보}" if _n보 else "") + f' · {"08:55 확정" if _확 else "08:55에 확정"}</span><em>퀀트 후보 보기 →</em></button>')
     except Exception:  # noqa: BLE001
