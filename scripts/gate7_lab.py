@@ -8160,7 +8160,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "TOPN", "ORDER", "SPLIT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "TOPN", "ORDER", "SPLIT", "BOJOIN", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8446,6 +8446,39 @@ def main():
                      ("갈래마다 따로 3·3·3 + 섹터 2", _따로(3, 3, 3)),
                      ("갈래마다 따로 6·6·6 + 섹터 2", _따로(6, 6, 6)))
             print("  ── SPLIT · 갈래마다 제 자리 (크게 빠짐 · 시장 급락 · 변동성·자사주 · 섹터) — 지금은 셋이 6자리를 함께 씀 ──")
+        # ⭐ 2026-10-21 BOJOIN — **보완 후보를 같은 계좌에** (지금 시험 계좌·화면 2.62억에는 보완이 아예 없다)
+        #    사용자 10/21 「가로 기록을 나누고, 보완을 같은 계좌에 넣는 시험도 같이 걸자.」
+        #    보완 = 중형(2,000억~1조 · 지수 20일 ≤ −15) · 대형(1조↑ · 40일 ≤ −30) · 재무·대금 문 · 섹터에 걸린 건 섹터가 먼저
+        #    문턱 = R.보완상대갭(−1.0) · 보완 자리는 따로(지금 규칙 6 + 섹터 2 는 그대로) · 보완 안에서는 상대갭 깊은 순 · 돈(현금)은 같이 씀
+        if "BOJOIN" in _ONLY.split("+") or _ONLY == "BOJOIN":
+            def _보J(x):
+                try:
+                    if 섹터맞나(x):
+                        return False
+                except Exception:  # noqa: BLE001
+                    pass
+                _s = x.get("시총억") or 0
+                if not (재무통과(x) and 대금통과(x)):
+                    return False
+                _중 = (R.보완중형["시총억"][0] <= _s < R.보완중형["시총억"][1] and x.get("시장낙폭") is not None
+                      and x["시장낙폭"] <= R.보완중형["지수낙20"])
+                _대 = (_s >= R.보완대형["시총억"][0] and x.get("낙40") is not None and x["낙40"] <= R.보완대형["낙40"])
+                return bool(_중 or _대)
+
+            def _거름J(x):
+                try:
+                    return bool(_H(x)) or _보J(x)
+                except Exception:  # noqa: BLE001
+                    return False
+
+            def _합J(n):
+                return {"거름": _거름J, "무리갭": [(_보J, "보완", R.보완상대갭), (업종갈래맞나, "업종", R.업종전용상대갭)],
+                        "무리자리": [(_보J, "보완", n), (_섹C, "섹터", R.섹터전용자리)]}
+            _안들C = (("지금 그대로 (보완 안 삼)", {}),
+                     ("보완 하루 3개까지 같이", _합J(3)),
+                     ("보완 하루 6개까지 같이 (화면 수)", _합J(R.보완화면최대)),
+                     ("보완 전부 같이", _합J(999)))
+            print("  ── BOJOIN · 보완 후보를 같은 계좌에 (지금 규칙 6 + 섹터 2 는 그대로 · 보완 자리 따로 · 문턱 −1.0 · 현금은 같이) ──")
         # ⭐ 2026-10-21 NEWSCUT —**신호 직전 7일 기사 제목에 악재 말이 있던 후보를 뺀다** (구글 뉴스 RSS · 날짜 범위)
         #    사용자 10/21 「다른 경제쪽 받을 수 있는 곳 없어?」 → 구글 뉴스 날짜 검색으로 옛 기사가 받힘 → 「진행해보자.」
         #    네이버 종목뉴스는 1년치뿐 · 네이버 검색 API 신규 신청 막힘 ([[news-sources-blocked]])
