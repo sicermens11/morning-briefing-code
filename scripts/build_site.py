@@ -1431,7 +1431,8 @@ def build(out, days=DEFAULT_DAYS):
     try:
         if _q:
             _qd = str(_q.get("기록시각") or "")[:10]
-            _n주 = sum(1 for _x in (_q.get("후보") or []) if _x.get("오늘산다"))
+            # 10/21 채점 장(quant_n34._비교)과 같은 셈 — 「오늘산다 또는 규칙매수」 (독립 점검: 두 곳 셈이 달랐다 · 사용자 「넷다 진행하자」)
+            _n주 = sum(1 for _x in (_q.get("후보") or []) if (_x.get("오늘산다") or _x.get("규칙매수")))
             _n보 = len(_q.get("보완후보") or [])
             _확 = (_q.get("동시호가") or {}).get("예상시장갭") is not None
             _말 = (f"오늘 퀀트 주문 {_n주}개" if (_확 and _n주) else

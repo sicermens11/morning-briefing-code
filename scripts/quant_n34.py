@@ -235,11 +235,23 @@ def _비교(줄들):
     except Exception:  # noqa: BLE001
         br = []
     def 통(rs):
+        # (건수, 닿은 %, 20일 뒤 평균, 닿은 건수) — 10/21 닿은 건수를 더했다(20건 전엔 % 대신 건수로 보인다)
         rs = [r for r in rs if r[1] is not None]
         if not rs:
             return None
-        return (len(rs), sum(1 for r in rs if r[0]) / len(rs) * 100, sum(r[1] for r in rs) / len(rs))
-    b표 = [(bool((r.get("D20") or {}).get("최고") is not None and r["D20"]["최고"] >= 15), (r.get("D20") or {}).get("실전")) for r in br]
+        k = sum(1 for r in rs if r[0])
+        return (len(rs), k / len(rs) * 100, sum(r[1] for r in rs) / len(rs), k)
+    # ⭐ 10/21 같은 날들 · 같은 비용 — 독립 점검 「기간(브리핑 7/29~ · 퀀트 9/4~)과 비용이 다르다」 → 사용자 「넷다 진행하자」
+    #    퀀트 기록이 시작된 날부터만 · 브리핑 D20 「실전」(그날 시가 기준 · 비용 없음)에도 퀀트와 같은 0.26% 를 뺀다
+    _시작들 = []
+    for r in 줄들 or []:
+        _m = str(r.get("매수일") or "")
+        if len(_m) == 8 and _m.isdigit() and any((x.get("오늘산다") or x.get("규칙매수")) for x in r.get("후보") or []):
+            _시작들.append(f"{_m[:4]}-{_m[4:6]}-{_m[6:8]}")
+    시작날 = min(_시작들) if _시작들 else "9999-99-99"
+    br = [r for r in br if str(r.get("날짜") or "") >= 시작날]
+    b표 = [(bool((r.get("D20") or {}).get("최고") is not None and r["D20"]["최고"] >= 15),
+            (None if (r.get("D20") or {}).get("실전") is None else r["D20"]["실전"] - 0.26)) for r in br]
     b전 = sum(1 for r in br if not (isinstance(r.get("D20"), dict) and r["D20"].get("실전") is not None))
     b코드 = {(str(r.get("날짜") or ""), str(r.get("코드") or "")): r for r in br}
     q체, q전, 둘 = [], [], []
@@ -261,7 +273,22 @@ def _비교(줄들):
             bb = b코드.get((매, str(x.get("종목코드") or "")))
             if bb is not None:
                 둘.append((닿, d20))
-    return {"브리핑": 통(b표), "브리핑대기": b전, "퀀트체결": 통(q체), "퀀트전부": 통(q전), "퀀트대기": q대기, "둘다": 통(둘)}
+    return {"브리핑": 통(b표), "브리핑대기": b전, "퀀트체결": 통(q체), "퀀트전부": 통(q전), "퀀트대기": q대기, "둘다": 통(둘),
+            "시작날": 시작날 if 시작날 != "9999-99-99" else ""}
+
+
+비교최소 = 20   # 10/21 이만큼 모이기 전엔 % 대신 건수 — 「건수가 적을 땐 우연이 크다」 를 화면이 직접 지킨다
+
+
+def _비교칸(t, 셀):
+    r"""채점 한 줄의 세 칸(건수 · 닿음 · 20일 뒤) — 20건 전엔 「k건 닿음 · 20건까지 m건」"""
+    if not t:
+        return f'<td>0</td><td colspan="2" class="{셀}">채점 끝난 것 없음</td>'
+    n, 퍼, 평, k = t
+    if n < 비교최소:
+        return (f'<td>{n}</td><td colspan="2" class="{셀}">{k}건 닿음 · {비교최소}건까지 {비교최소 - n}건'
+                f'<small>평균은 {비교최소}건 모이면</small></td>')
+    return (f'<td>{n}</td><td>{퍼:.0f}%</td><td class="{"pos" if 평 >= 0 else "neg"}">{_퍼(평)}</td>')
 
 
 def 덱(q, 보유, 기록줄=None):
@@ -400,10 +427,7 @@ def 덱(q, 보유, 기록줄=None):
         print(f"  ⚠️ 브리핑 vs 퀀트 채점 실패: {type(_ex).__name__}: {_ex}")
         v = {}
     def 칸(이름, 설명, t):
-        if not t:
-            return f'<tr><td>{이름}<small>{설명}</small></td><td>—</td><td>—</td><td>—</td></tr>'
-        return (f'<tr><td>{이름}<small>{설명}</small></td><td>{t[0]}</td><td>{t[1]:.0f}%</td>'
-                f'<td class="{"pos" if t[2] >= 0 else "neg"}">{_퍼(t[2])}</td></tr>')
+        return f'<tr><td>{이름}<small>{설명}</small></td>{_비교칸(t, "few")}</tr>'
     장.append(_카드(_위("브리핑 추천 vs 퀀트 후보 · 같은 잣대로 채점", "어느 쪽이 더 맞았나", 작게=False),
         '<div class="menu"><div class="m"><table class="vs"><thead><tr><th>지난 기록</th><th>건수</th><th>20일 안 +15%</th><th>20일 뒤</th></tr></thead><tbody>'
         + 칸("브리핑 추천", "AI가 뉴스·수급으로", v.get("브리핑"))
@@ -411,7 +435,7 @@ def 덱(q, 보유, 기록줄=None):
         + 칸("퀀트 · 주문 전부", "체결 안 된 것까지", v.get("퀀트전부"))
         + 칸("둘 다 고른 종목", "같은 날 겹친 것", v.get("둘다"))
         + '</tbody></table>'
-        f'<p class="d">20일이 지난 것만 셉니다. 채점 전 · 브리핑 {v.get("브리핑대기", 0)}건 · 퀀트 {v.get("퀀트대기", 0)}건. 건수가 적을 땐 우연이 큽니다.</p></div>'
+        f'<p class="d">{v.get("시작날") or "퀀트 기록 시작"}부터 같은 날들만 · 둘 다 비용 0.26% 뺌 · 20일이 지난 것만 셉니다. 채점 전 · 브리핑 {v.get("브리핑대기", 0)}건 · 퀀트 {v.get("퀀트대기", 0)}건. 건수가 적을 땐 우연이 큽니다.</p></div>'
         '<div class="m hot"><b>같은 잣대</b><p>둘 다 그날 시가에 샀다고 보고, 20일 안에 +15%에 닿았는지와 20일 뒤 수익으로 견줍니다.</p></div></div>'))
     n = len(장)
     return "".join(h.replace("@@PG@@", f"{i}/{n}") for i, h in enumerate(장, 1))
@@ -607,10 +631,7 @@ def PC(q, 보유, 기록줄=None):
         v = {}
 
     def 비줄(이름, 설명, t):
-        if not t:
-            return f'<tr><td>{이름}<small>{설명}</small></td><td>—</td><td>—</td><td>—</td></tr>'
-        return (f'<tr><td>{이름}<small>{설명}</small></td><td>{t[0]}</td><td>{t[1]:.0f}%</td>'
-                f'<td class="{"up" if t[2] >= 0 else "dn"}">{_퍼(t[2])}</td></tr>')
+        return f'<tr><td>{이름}<small>{설명}</small></td>{_비교칸(t, "few")}</tr>'
     비칸 = ('<div class="pc sec"><span class="kk">브리핑 추천 vs 퀀트 후보 · 같은 잣대로 채점</span><h3>어느 쪽이 더 맞았나</h3>'
            '<table class="vs"><thead><tr><th>지난 기록</th><th>건수</th><th>20일 안 +15%</th><th>20일 뒤</th></tr></thead><tbody>'
            + 비줄("브리핑 추천", "AI가 뉴스·수급으로", v.get("브리핑"))
@@ -618,7 +639,7 @@ def PC(q, 보유, 기록줄=None):
            + 비줄("퀀트 · 주문 전부", "체결 안 된 것까지", v.get("퀀트전부"))
            + 비줄("둘 다 고른 종목", "같은 날 겹친 것", v.get("둘다"))
            + '</tbody></table>'
-           f'<p class="kk">20일이 지난 것만 셉니다. 채점 전 · 브리핑 {v.get("브리핑대기", 0)}건 · 퀀트 {v.get("퀀트대기", 0)}건. 건수가 적을 땐 우연이 큽니다. '
+           f'<p class="kk">{v.get("시작날") or "퀀트 기록 시작"}부터 같은 날들만 · 둘 다 비용 0.26% 뺌 · 20일이 지난 것만 셉니다. 채점 전 · 브리핑 {v.get("브리핑대기", 0)}건 · 퀀트 {v.get("퀀트대기", 0)}건. 건수가 적을 땐 우연이 큽니다. '
            '둘 다 그날 시가에 샀다고 보고 견줍니다.</p></div>')
     return (f'{위}<div class="g2"><div class="col">{주칸}{보칸}</div><div class="col">{깔칸}{소칸}</div></div>'
             f'{셋}<div class="row3">{시칸}{성칸}{비칸}</div>')
@@ -691,7 +712,7 @@ def PC_CSS(c1, c2):
             f"{p} .vs th{{font-size:12px;font-weight:600;color:var(--sub);text-align:right;padding:6px 4px;border-bottom:1px solid var(--line);white-space:nowrap}}"
             f"{p} .vs th:first-child,{p} .vs td:first-child{{text-align:left}}"
             f"{p} .vs td{{padding:8px 4px;text-align:right;border-bottom:1px solid #EDF0F5;font-weight:700;white-space:nowrap}}"
-            f"{p} .vs td small{{display:block;font-weight:500;color:var(--sub);font-size:11px}}"
+            f"{p} .vs td small{{display:block;font-weight:500;color:var(--sub);font-size:11px}}{p} .vs td.few{{color:var(--sub);font-weight:600;white-space:normal;line-height:1.4}}"
             "</style>")
 
 
@@ -756,7 +777,7 @@ def CSS(c1, c2):
             f"{p} .m .d{{padding:0}}"
             f"{p} .vs{{width:100%;border-collapse:collapse;font-size:.8em}}{p} .vs th{{font-size:.82em;font-weight:600;color:var(--sub);text-align:right;padding:.3em .2em;border-bottom:1px solid #DCE2EA;white-space:nowrap}}"
             f"{p} .vs th:first-child,{p} .vs td:first-child{{text-align:left}}{p} .vs td{{padding:.5em .2em;text-align:right;border-bottom:1px solid #EDF0F5;font-weight:700;white-space:nowrap}}"
-            f"{p} .vs td small{{display:block;font-weight:500;color:var(--sub);font-size:.8em}}{p} .vs .pos{{color:var(--red)}}{p} .vs .neg{{color:var(--blue)}}"
+            f"{p} .vs td small{{display:block;font-weight:500;color:var(--sub);font-size:.8em}}{p} .vs .pos{{color:var(--red)}}{p} .vs .neg{{color:var(--blue)}}{p} .vs td.few{{color:var(--sub);font-weight:600;white-space:normal;line-height:1.35}}"
             f"{p} .nw{{flex:none;white-space:nowrap;font-size:.9em;font-weight:800;border-radius:.2em;padding:0 .3em;background:#FFF3D6;color:#8A5A00}}"
             f"{p} .ns{{gap:.3em}}{p} .ns .h{{display:flex;align-items:baseline;gap:.45em;white-space:nowrap}}{p} .ns .h b{{font-size:.98em;font-weight:800}}"
             f"{p} .ns .h em{{margin-left:auto;font-style:normal;font-size:.7em;color:var(--sub)}}"
