@@ -10092,7 +10092,7 @@ def main():
                     for _k in (_x["인"] - 1, _x["인"]):
                         if 0 <= _k < len(날):
                             _찾T.setdefault((날[_k], _x["code"]), _x)
-                _원T, _건T, _나눔T = {}, {}, {}
+                _원T, _건T, _나눔T, _연T = {}, {}, {}, {}
                 _못찾T = 0
                 for _t in _기록T:
                     _d, _cd, _시총, _값, _r, _청, _주 = _t
@@ -10111,6 +10111,11 @@ def main():
                     _키 = (_걸[0] if len(_걸) == 1 else ("여럿 (" + " + ".join(_걸) + ")" if _걸 else "못 가림"))
                     _원T[_키] = _원T.get(_키, 0) + _번
                     _건T[_키] = _건T.get(_키, 0) + 1
+                    # 10/21 사용자 「연도별로 보여줘」 — 산 해 기준 · 갈래 둘 이상은 똑같이 나눠 더함
+                    _해 = str(_d)[:4]
+                    for _이 in (_걸 or ["못 가림"]):
+                        _연T.setdefault(_해, {})
+                        _연T[_해][_이] = _연T[_해].get(_이, 0) + _번 / max(1, len(_걸))
                     for _이 in (_걸 or ["못 가림"]):
                         _나눔T[_이] = _나눔T.get(_이, 0) + _번 / max(1, len(_걸))
                 _합T = sum(_원T.values())
@@ -10124,6 +10129,13 @@ def main():
                 print("     (갈래 둘 이상에 걸린 거래를 똑같이 나눠 더하면)")
                 for _k in sorted(_나눔T, key=lambda z: -_나눔T[z]):
                     print(f"     {_k:<36}{_나눔T[_k]:>15,.0f}원{_나눔T[_k] / _합T * 100 if _합T else 0:>7.1f}%")
+                _열T = [k for k, _ in _갈T] + (["못 가림"] if any("못 가림" in v for v in _연T.values()) else [])
+                print("\n     해마다 — 그해 산 거래가 번 돈(만 원) · 갈래 둘 이상은 똑같이 나눠 더함 · 판 거래만(아직 들고 있는 것 빼고)")
+                print(f"     {'해':<6}" + "".join(f"{k:>14}" for k in _열T) + f"{'합':>12}")
+                for _해 in sorted(_연T):
+                    _v = _연T[_해]
+                    print(f"     {_해:<6}" + "".join(f"{_v.get(k, 0) / 1e4:>13,.0f}만" for k in _열T) + f"{sum(_v.values()) / 1e4:>11,.0f}만")
+                print(f"     {'전체':<6}" + "".join(f"{sum(v.get(k, 0) for v in _연T.values()) / 1e4:>13,.0f}만" for k in _열T) + f"{_합T / 1e4:>11,.0f}만")
                 print("  [대조] CONTRIB 끝", flush=True)
                 return 0
             _한번C = 시뮬(_c(_H, **dict(_실전K, 나눔=((1.0, 20.0, 40),)), 종가평가=True))
