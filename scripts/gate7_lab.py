@@ -8521,6 +8521,67 @@ def main():
                          ("보완 중형만 · 모든 날", _합J2(_중J, 999)),
                          ("보완 대형만 · 모든 날", _합J2(_대J, 999)))
                 print("  ── BOJOIN2 · 보완을 빈 날만 · 중형만 · 대형만 (어디서 깎이나) ──")
+            # ⭐ 10/22 BOLOSS — 대형 보완이 같은 계좌에서 무엇으로 돈을 깎았나(종목·해) · 사용자에게 대형 보완 주문 여부를 물을 근거
+            #    대형만 같이 산 계좌의 거래 기록 → 대형 보완 거래(보완 판정)와 지금 규칙 거래를 갈라 번 돈·이긴 %·가장 나쁜 거래 · 해마다
+            if os.environ.get("BOLOSS") == "1":
+                def _대L(x):
+                    return _보J(x) and (x.get("시총억") or 0) >= R.보완대형["시총억"][0]
+
+                def _거L(x):
+                    try:
+                        return bool(_H(x)) or _대L(x)
+                    except Exception:  # noqa: BLE001
+                        return False
+                _설L = {"거름": _거L, "무리갭": [(_대L, "보완", R.보완상대갭), (업종갈래맞나, "업종", R.업종전용상대갭)],
+                       "무리자리": [(_대L, "보완", 999), (_섹C, "섹터", R.섹터전용자리)]}
+                _이름L = {}
+                try:
+                    _bL = json.load(io.open(os.path.join(O._DATA, "stock-base.json"), encoding="utf-8-sig"))
+                    for _cL, _vL in (_bL.get("종목") or _bL).items():
+                        if isinstance(_vL, dict):
+                            _이름L[_cL] = (_vL.get("종목명") or _vL.get("이름") or "")
+                except Exception:  # noqa: BLE001
+                    pass
+                _찾L = {}
+                for _x in 사건:
+                    for _k in (_x["인"] - 1, _x["인"]):
+                        if 0 <= _k < len(날):
+                            _찾L.setdefault((날[_k], _x["code"]), _x)
+                for _라L, _시작L in (("뒤 2021~", "2021"), ("2016~ 전체", None)):
+                    _기록L = []
+                    _rL = 시뮬(_c(_거L, **_옵C(**{k: v for k, v in _설L.items() if k != "거름"})), 시작년=_시작L, 기록=_기록L)
+                    _기본L = []
+                    _r0 = 시뮬(_c(_H, **_옵C()), 시작년=_시작L, 기록=_기본L)
+                    _대거래, _본거래 = [], []
+                    for _t in _기록L:
+                        _d, _cd, _시총, _값, _r, _청, _주 = _t
+                        _x = _찾L.get((str(_d), _cd))
+                        _번 = _주 * _값 * (_r or 0) / 100
+                        try:
+                            _대 = (_x is not None) and (not _H(_x)) and _대L(_x)
+                        except Exception:  # noqa: BLE001
+                            _대 = False
+                        (_대거래 if _대 else _본거래).append((_번, _r or 0, str(_d), _cd, _청))
+                    _본0 = sum(_주 * _값 * (_r or 0) / 100 for _d, _cd, _s, _값, _r, _청, _주 in _기본L)
+                    print(f"\n  ── BOLOSS [{_라L}] 대형 보완을 같이 산 계좌 vs 지금 ──")
+                    print(f"     끝 자산: 대형 같이 {(_rL or {}).get('끝', 0):,.0f}원 · 지금 {(_r0 or {}).get('끝', 0):,.0f}원 · 낙폭 {(_rL or {}).get('낙', 0):.1f}% vs {(_r0 or {}).get('낙', 0):.1f}%")
+                    for _이L, _목L in (("대형 보완 거래", _대거래), ("지금 규칙 거래(같은 계좌 안)", _본거래)):
+                        if _목L:
+                            print(f"     {_이L}: 몫 {len(_목L)}줄 · 이긴 % {sum(1 for z in _목L if z[1] > 0) / len(_목L) * 100:.0f} · 평균 {sum(z[1] for z in _목L) / len(_목L):+.1f}% · 번 돈 {sum(z[0] for z in _목L):,.0f}원")
+                    print(f"     지금 계좌의 지금 규칙 거래: 몫 {len(_기본L)}줄 · 번 돈 {_본0:,.0f}원 ← 대형을 같이 사면 지금 규칙 거래가 {len(_기본L) - len(_본거래)}줄 줄고 번 돈이 {_본0 - sum(z[0] for z in _본거래):,.0f}원 줄어듦(현금을 대형이 씀)")
+                    _해L = {}
+                    for _z in _대거래:
+                        _a = _해L.setdefault(_z[2][:4], [0, 0.0, 0])
+                        _a[0] += 1
+                        _a[1] += _z[0]
+                        _a[2] += 1 if _z[1] > 0 else 0
+                    print("     대형 보완 해마다(몫 줄 · 번 돈 만 원 · 이긴 줄): " + " · ".join(f"{y} {a[0]}줄 {a[1] / 1e4:,.0f}만 {a[2]}승" for y, a in sorted(_해L.items())))
+                    print("     가장 나쁜 대형 보완 거래 15: " + " · ".join(
+                        f"{_z[2]} {_이름L.get(_z[3], _z[3])} {_z[1]:+.1f}% ({_z[0] / 1e4:,.0f}만)" for _z in sorted(_대거래, key=lambda z: z[0])[:15]))
+                    print("     가장 좋은 대형 보완 거래 5: " + " · ".join(
+                        f"{_z[2]} {_이름L.get(_z[3], _z[3])} {_z[1]:+.1f}% ({_z[0] / 1e4:,.0f}만)" for _z in sorted(_대거래, key=lambda z: -z[0])[:5]))
+                print("  [대조] BOLOSS 끝", flush=True)
+                return 0
         # ⭐ 2026-10-21 NEWSCUT —**신호 직전 7일 기사 제목에 악재 말이 있던 후보를 뺀다** (구글 뉴스 RSS · 날짜 범위)
         #    사용자 10/21 「다른 경제쪽 받을 수 있는 곳 없어?」 → 구글 뉴스 날짜 검색으로 옛 기사가 받힘 → 「진행해보자.」
         #    네이버 종목뉴스는 1년치뿐 · 네이버 검색 API 신규 신청 막힘 ([[news-sources-blocked]])
