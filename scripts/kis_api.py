@@ -91,8 +91,9 @@ class KIS:
         h = {"content-type": "application/json; charset=utf-8", "authorization": f"Bearer {self.토큰}",
              "appkey": self.appkey, "appsecret": self.secret, "tr_id": tr, "custtype": "P"}
         # 10/22 실측: 모의투자는 초당 호출 제한이 낮다(EGW00201 「초당 거래건수 초과」) → 요청 사이 0.6초 · 걸리면 1.5초 쉬고 두 번 더
-        for 시도 in range(3):
-            쉼 = 0.6 - (time.time() - KIS._마지막)
+        #    실전은 문서상 초당 20번이지만 실측(10/22) 여섯 프로세스 12번/초에서 바로 EGW00201 → 0.25초 · 걸리면 2·4·6·8초 쉬고 다시(여섯 번)
+        for 시도 in range(6):
+            쉼 = (0.25 if self.환경 == "실전" else 0.6) - (time.time() - KIS._마지막)
             if 쉼 > 0:
                 time.sleep(쉼)
             KIS._마지막 = time.time()
@@ -103,15 +104,44 @@ class KIS:
                 break
             except urllib.error.HTTPError as e:
                 txt = e.read().decode("utf-8", errors="replace")[:300]
-                if "EGW00201" in txt and 시도 < 2:
-                    time.sleep(1.5)
+                if "EGW00201" in txt and 시도 < 5:
+                    time.sleep(2 * (시도 + 1))
                     continue
                 raise RuntimeError(f"{tr} HTTP {e.code}: {txt}") from None
         if str(j.get("rt_cd")) != "0":
             raise RuntimeError(f"{tr} 실패 rt_cd={j.get('rt_cd')} msg_cd={j.get('msg_cd')} {j.get('msg1')}")
         return j
 
+    def 토큰폐기(self):
+        """접근토큰을 서버에서 죽인다(/oauth2/revokeP) · 토큰 파일 삭제 — 실전 열쇠를 지우기 전에 부른다(10/22 사용자 「실전 열쇠로 받고 키를 지우면 어때?」)"""
+        body = json.dumps({"appkey": self.appkey, "appsecret": self.secret, "token": self.토큰}).encode()
+        req = urllib.request.Request(self.base + "/oauth2/revokeP", data=body, headers={"content-type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                j = json.loads(r.read().decode("utf-8"))
+            결과 = f"폐기 응답 {j.get('code')} {j.get('message')}"
+        except urllib.error.HTTPError as e:
+            결과 = f"폐기 HTTP {e.code}"
+        try:
+            os.remove(self._토큰파일)
+            결과 += " · 토큰 파일 삭제"
+        except OSError:
+            pass
+        self.토큰 = None
+        return 결과
+
     # ── 조회들 ──
+    def 공매도일별(self, 코드, 시작8, 끝8):
+        j = self._get("/uapi/domestic-stock/v1/quotations/daily-short-sale", "FHPST04830000",
+                      {"FID_COND_MRKT_DIV_CODE": "J", "FID_INPUT_ISCD": 코드, "FID_INPUT_DATE_1": 시작8, "FID_INPUT_DATE_2": 끝8})
+        return j.get("output2") or j.get("output") or []
+
+    def 신용잔고일별(self, 코드, 기준8):
+        """기준일부터 거슬러 30건(결제일 기준) — 더 받으려면 가장 옛 deal_date 전날을 다시 넣는다"""
+        j = self._get("/uapi/domestic-stock/v1/quotations/daily-credit-balance", "FHPST04760000",
+                      {"FID_COND_MRKT_DIV_CODE": "J", "FID_COND_SCR_DIV_CODE": "20476", "FID_INPUT_ISCD": 코드, "FID_INPUT_DATE_1": 기준8})
+        return j.get("output") or []
+
     def 잔고(self):
         j = self._get("/uapi/domestic-stock/v1/trading/inquire-balance", _TR["잔고"][self.환경], {
             "CANO": self.계좌, "ACNT_PRDT_CD": 상품코드, "AFHR_FLPR_YN": "N", "OFL_YN": "", "INQR_DVSN": "02", "UNPR_DVSN": "01",
