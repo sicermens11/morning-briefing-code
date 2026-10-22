@@ -283,6 +283,19 @@ def _갈래시험경고():
     _규 = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "rule_def.py")
     _갈 = sorted(_g.glob(_os.path.join(_BASE, "data", "_labs", "*_BRANCH*.txt")), key=_os.path.getmtime)
     _규때, _갈때 = _os.path.getmtime(_규), (_os.path.getmtime(_갈[-1]) if _갈 else 0)
+    # ⭐ 10/22 헛경보 줄이기 — 전반 점검: 화면 설정(보완화면최대 등)만 바꿔도 매일 빨갛게 떴다 · 사용자 「넷다 진행하자」(⑥)
+    #    갈래 시험 결과 파일의 「실전 규칙: …」 줄(그때 R.한줄())이 지금 R.한줄() 과 같으면 규칙 내용은 그대로 → 경고 안 함
+    if _갈때 < _규때 and _갈:
+        try:
+            import rule_def as _R
+            _지금 = _R.한줄()
+            for _l in io.open(_갈[-1], encoding="utf-8", errors="replace"):
+                if "실전 규칙:" in _l:
+                    if _l.split("실전 규칙:", 1)[1].strip() == _지금.strip():
+                        return ""
+                    break
+        except Exception:  # noqa: BLE001
+            pass
     if _갈때 < _규때:
         return (f"rule_def.py 가 바뀐 때({_dt.datetime.fromtimestamp(_규때):%m-%d %H:%M}) 뒤에 갈래 시험이 없다"
                 f" (마지막 {(_dt.datetime.fromtimestamp(_갈때).strftime('%m-%d %H:%M') if _갈 else '없음')})"
@@ -328,9 +341,12 @@ def main():
     _규때, _갈때 = _os.path.getmtime(_규), (_os.path.getmtime(_갈[-1]) if _갈 else 0)
     import datetime as _dt
     print("\n  ③ 규칙이 바뀐 뒤 갈래 하나씩 빼 보기")
-    if _갈때 < _규때:
-        print(f"     ⚠️ rule_def.py 가 바뀐 때({_dt.datetime.fromtimestamp(_규때):%m-%d %H:%M}) 뒤에 갈래 시험이 없다"
-              f" (마지막 {(_dt.datetime.fromtimestamp(_갈때).strftime('%m-%d %H:%M') if _갈 else '없음')}) — gate7 ONLY=BRANCH+BRANCHCHK 를 걸어라")
+    _경3 = _갈래시험경고()   # 10/22 — 위 함수 하나로(규칙 한 줄이 같으면 화면 설정만 바뀐 것 → 경고 안 함)
+    if _경3:
+        print(f"     ⚠️ {_경3}")
+    elif _갈때 < _규때:
+        print(f"     ✅ rule_def.py 는 바뀌었지만({_dt.datetime.fromtimestamp(_규때):%m-%d %H:%M}) 규칙 한 줄은 마지막 갈래 시험"
+              f"({_dt.datetime.fromtimestamp(_갈때):%m-%d %H:%M})과 같다 — 화면·주문 설정만 바뀜")
     else:
         print(f"     ✅ 마지막 갈래 시험 {_dt.datetime.fromtimestamp(_갈때):%m-%d %H:%M} ≥ 규칙 바뀐 때 {_dt.datetime.fromtimestamp(_규때):%m-%d %H:%M}")
     어 = 나1 + 나2

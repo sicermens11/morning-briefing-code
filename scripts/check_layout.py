@@ -458,6 +458,37 @@ document.getElementById("f").onload=function(){
 """
 
 
+# ⭐ 10/22 PC 화면(#qt .qpc · 1200px↑) — 전반 점검 「PC 화면은 어떤 검사도 재지 않는다」 → 사용자 「넷다 진행하자」(⑥)
+#    1200·1280·1440 폭에서 퀀트 단추를 눌러: PC 판이 보이나 · 칸(.sheet·.tl·.sec·.pt) 밖으로 나간 글 · 페이지 가로 넘침 · 표 칸(td) 안 글 넘침
+#    경고로만 올린다(조판은 게시를 막지 않는다) · 「px:」 를 쓰지 않는다(치명 낱말)
+QTPC_HOST = r"""
+<style>html,body{margin:0}iframe{border:0;display:block}</style>
+<iframe id="f" src="__SRC__" width="__W__" height="900"></iframe>
+<script>
+document.getElementById("f").onload=function(){
+ var d=this.contentDocument, win=this.contentWindow;
+ setTimeout(function(){
+  var btn=d.getElementById("btn-qt"); if(btn) btn.click();
+  setTimeout(function(){
+   var q=d.querySelector("#qt .qpc"), shown=q&&win.getComputedStyle(q).display!=="none", bad=[];
+   if(shown){
+     q.querySelectorAll(".sheet,.tl,.sec,.pt").forEach(function(s){
+       var sr=s.getBoundingClientRect();
+       s.querySelectorAll("*").forEach(function(e){ var r=e.getBoundingClientRect();
+         if(r.width>0&&r.right>sr.right+1) bad.push("칸 밖 "+Math.round(r.right-sr.right)+" "+(e.textContent||"").trim().slice(0,16)); });
+     });
+     q.querySelectorAll("td,th").forEach(function(e){ if(e.scrollWidth>e.clientWidth+1) bad.push("표 칸 넘침 "+(e.textContent||"").trim().slice(0,16)); });
+     if(d.documentElement.scrollWidth>win.innerWidth+1) bad.push("페이지 가로 넘침 "+d.documentElement.scrollWidth);
+   }
+   var u=[]; bad.forEach(function(b){ if(u.indexOf(b)<0) u.push(b); });
+   document.title="P::"+(shown?1:0)+"|"+u.length+"|"+u.slice(0,4).join(" / ");
+  },1100);
+ },1800);
+};
+</script>
+"""
+
+
 def _chrome():
     for p in CHROME:
         if os.path.exists(p):
@@ -948,6 +979,18 @@ def check(cards_path, site_path=None):
                 notes.append(f"퀀트 핸드폰 카드 {w}폭: 카드를 하나도 못 찾았다(옛 핸드폰 판으로 돌았나?)")
             elif int(n_bad or 0):
                 fails.append(f"🔴 퀀트 핸드폰 카드 {w}폭에서 잘렸다 — {n_bad}장 ({who})")
+        # 4-3. 퀀트 PC 화면 (10/22 · .qpc · 1200px↑) — 경고만
+        for w in (1200, 1280, 1440):
+            host = QTPC_HOST.replace("__SRC__", src).replace("__W__", str(w))
+            raw, err = _run(exe, host, w + 60, 960, "P::")
+            if err or not raw:
+                notes.append(f"퀀트 PC 화면 {w}폭 측정값을 못 읽었다" + (f" ({err})" if err else ""))
+                continue
+            shown, n_bad, who = (raw.split("|") + ["", "", ""])[:3]
+            if not int(shown or 0):
+                fails.append(f"🔴 퀀트 PC 화면 {w}폭: PC 판이 안 보인다(PC 표 화면 실패로 카드로 떨어졌나?)")
+            elif int(n_bad or 0):
+                fails.append(f"🔴 퀀트 PC 화면 {w}폭에서 넘쳤다 — {n_bad}곳 ({who})")
 
     # ⚠️⚠️ **모든 실패가 같은 무게는 아니다** (2026-08-28 분리).
     #    좌우가 안 잠기거나 스크립트가 죽으면 **페이지를 못 쓴다** — 올리면 안 된다.

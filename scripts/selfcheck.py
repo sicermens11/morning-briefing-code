@@ -409,13 +409,23 @@ def main():
         # rule-cases.json 이 코드보다 오래됐나
         _rc = os.path.join(_DATA, "rule-cases.json")
         _rp = os.path.join(_BASE, "scripts", "record_pick.py")
+        # ⭐ 10/22 헛경보 줄이기 — record_pick 은 기록·표시 때문에도 자주 바뀐다(규칙은 그대로) · 전반 점검 · 사용자 「넷다 진행하자」(⑥)
+        #    rule-cases.json 「규칙」(만들 때 R.한줄()) 이 지금 R.한줄() 과 같으면 사례는 지금 규칙 그대로 → 시각만으로 경고 안 함
+        _같은규칙 = False
+        try:
+            import rule_def as _Rsc
+            with io.open(_rc, encoding="utf-8-sig") as _frc:
+                _같은규칙 = (str(json.load(_frc).get("규칙") or "").strip() == _Rsc.한줄().strip())
+        except Exception:  # noqa: BLE001
+            _같은규칙 = False
         if os.path.exists(_rc) and os.path.exists(_rp):
-            if os.path.getmtime(_rc) < os.path.getmtime(_rp) - 3600:
+            if os.path.getmtime(_rc) < os.path.getmtime(_rp) - 3600 and not _같은규칙:
                 알림(True, "rule-cases.json 이 record_pick.py 보다 **오래됐다** "
                           "— 규칙을 고치고 사례를 안 다시 만들었다 "
                           "(docs/규칙바뀌면.md 참고)")
             elif not 조용:
-                print("    ✅ rule-cases.json 이 규칙 코드보다 최신이다")
+                print("    ✅ rule-cases.json 이 지금 규칙으로 만든 것이다"
+                      + ("(코드는 뒤에 바뀌었지만 규칙 한 줄이 같다)" if os.path.getmtime(_rc) < os.path.getmtime(_rp) - 3600 else ""))
 
         # ⭐⭐⭐ **값 대조** (2026-09-11 신설 · 전수조사 ⑤).
         #    위는 **파일 시각**만 본다. 그래서 2026-09-11 에 어긋남을 **9개**
