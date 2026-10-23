@@ -315,23 +315,41 @@ def main():
     적기(f"===== 시작 · {환경} · {종류} · {조각}일감 {len(일):,} · 이미 끝난 것 {sum(1 for z in 일 if 끝났나(os.path.join(_B, 'data', z[0], z[2] + '.json'))):,} =====")
     t0 = time.time()
     실패 = 0
+    못한 = []
+    # 10/23 전 종목: 연결 끊김으로 4시간에 18종목 실패 → 30건 멈춤이면 주말에 조각이 선다 · 멈춤은 연달아 30건(서버가 죽은 것)일 때만 · 실패한 것은 끝에 한 번 더
+    연달아 = 0
     for i, (폴더, fn, c, 이름) in enumerate(일, 1):
         p = os.path.join(_B, "data", 폴더, c + ".json")
         if not 끝났나(p):
             for 번 in range(3):   # 종목 단위로도 세 번 — 한 번 막혔다고 그 종목을 버리지 않는다(10/22 여섯 조각에서 EGW00201 로 종목이 줄줄이 빠졌다)
                 try:
                     fn(k, c, 이름, p)
+                    연달아 = 0
                     break
                 except Exception as e:  # noqa: BLE001
                     적기(f"  ✗ {이름} {c} {폴더} ({번 + 1}/3): {str(e)[:100]}")
                     time.sleep(10)
             else:
                 실패 += 1
-                if 실패 >= 30:
-                    적기("🛑 실패 30건 — 멈춘다")
+                연달아 += 1
+                못한.append((폴더, fn, c, 이름))
+                if 연달아 >= 30:
+                    적기("🛑 연달아 30건 실패 — 서버 문제로 보고 멈춘다(다시 띄우면 이어 받음)")
                     return 1
         if i % 25 == 0:
             적기(f"  {조각}{i:,}/{len(일):,} · {(time.time() - t0) / 60:.0f}분 · 실패 {실패}")
+    if 못한:
+        적기(f"  {조각}실패 {len(못한)}개 한 번 더")
+        time.sleep(60)
+        for 폴더, fn, c, 이름 in 못한:
+            p = os.path.join(_B, "data", 폴더, c + ".json")
+            if 끝났나(p):
+                continue
+            try:
+                fn(k, c, 이름, p)
+                실패 -= 1
+            except Exception as e:  # noqa: BLE001
+                적기(f"  ✗ {이름} {c} {폴더} (마지막): {str(e)[:100]}")
     적기(f"===== 끝 · {조각}일감 {len(일):,} · 실패 {실패} · {(time.time() - t0) / 60:.0f}분 =====")
     if 환경 == "실전" and not 최대:
         # 다른 조각이 아직 받는 중이면 토큰을 죽이면 안 된다 — 이 종류의 일감이 전부 「끝」일 때만

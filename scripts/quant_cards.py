@@ -1593,7 +1593,7 @@ _폰CSS = (
 # ⭐ 10/23 새 모양 — 사용자 「메인 첫 화면이랑 퀀트 후보 과거 화면도 지금 스타일에 맞게」 → 「과거 퀀트는 이렇게 확정하고」 (업종 추가)
 #    시안 https://claude.ai/artifact/HggFFtCV31ARjGQGBpd7VY ③④ · 베이지 표 → 오늘 화면 색(남색 머리띠·흰 줄 목록·파란 꼬리표) · **한 장**
 #    머리띠 = 날짜·지정가 N·「왜 그날」·「N개 중 M개 삼」 · 줄 = 종목·코드 / 갈래 꼬리표·업종·20일 / 주문가·그날 시가 / 결과
-#    띠 색 = **그날** 코스피 등락(홈·오늘 화면과 같은 다섯 단계 · _그날띠색) · PC(1200px↑)는 900px 한 장에 열로 펼친다
+#    띠 색 = **그날** 코스피 20일 평균선 대비 구간(구간색 · 홈·오늘 화면과 같은 함수 · 10/23 등락 → 구간) · PC(1200px↑)는 900px 한 장에 열로 펼친다
 _지난CSS = (
     "<style>"
     ".qpast{--ink:#151B26;--sub:#5E6878;--line:#D9DFE7;--up:#D0312D;--dn:#2459C4;--tagbg:#E4ECFA;"
@@ -1636,28 +1636,47 @@ _지난CSS = (
     "</style>")
 
 
-def _그날띠색(c):
-    r"""그날 코스피 등락률 → 머리띠 두 색 — build_site._날씨색 과 **같은 값**(홈·오늘 화면과 한 규칙)"""
-    if c is None:
+def 구간색(pct):
+    r"""⭐ 10/23 띠 색 = **코스피 20일 평균선 대비 구간** (사용자 「바꾸자」 — 전엔 어제 하루 등락이라 깊은 눌림 속에서도 하루 오르면 빨강이었다)
+    브리핑의 네 구간 그대로: 깊은 눌림(−5%↓) 짙은 파랑 · 약한 눌림(0~−5%) 파랑 · 약한 과열(0~+3%) 회색 · 과열(+3%↑) 빨강
+    홈 · 퀀트 오늘 · 퀀트 지난 날 · PC 홈이 **모두 이 함수 하나**를 쓴다(build_site 도 여기서 가져간다)"""
+    if pct is None:
         return ("#3C4250", "#5A6272")
-    if c <= -3:
+    if pct <= -5:
         return ("#0F2A55", "#1E4A8C")
-    if c <= -1:
+    if pct < 0:
         return ("#24467A", "#3A66A8")
-    if c < 1:
+    if pct < 3:
         return ("#3C4250", "#5A6272")
-    if c < 3:
-        return ("#7A2A26", "#A8443A")
-    return ("#5E1612", "#8E2A22")
+    return ("#7A2A26", "#A8443A")
 
 
-def _그날코스피(기준8):
-    r"""index-daily/<신호기준일>.json 의 코스피 등락률 — 없으면 None"""
-    try:
-        j = json.load(io.open(os.path.join(_DATA, "index-daily", f"{기준8}.json"), encoding="utf-8-sig"))
-        return float((j.get("지수") or {}).get("코스피", {}).get("등락률"))
-    except Exception:  # noqa: BLE001
+_코스피종가 = None
+
+
+def 코스피20일(기준8):
+    r"""그날(기준8) 코스피 종가가 20일 평균선(그날 포함 20거래일)보다 몇 % 위·아래인가 — index-daily 에서 · 없으면 None
+    브리핑 「시장국면」 값과 같은 셈(10/22: 5,533.77 · 20일선 6,414.61 · −13.73%)"""
+    global _코스피종가
+    if _코스피종가 is None:
+        import glob as _g
+        _코스피종가 = []
+        for f in sorted(_g.glob(os.path.join(_DATA, "index-daily", "*.json"))):
+            try:
+                v = (json.load(io.open(f, encoding="utf-8-sig")).get("지수") or {}).get("코스피", {}).get("종가")
+                if v is not None:
+                    _코스피종가.append((os.path.basename(f)[:8], float(v)))
+            except Exception:  # noqa: BLE001
+                continue
+    날 = [d for d, _ in _코스피종가]
+    if 기준8 not in 날:
         return None
+    i = 날.index(기준8)
+    if i < 19:
+        return None
+    창 = [v for _, v in _코스피종가[i - 19:i + 1]]
+    평 = sum(창) / 20
+    return (창[-1] / 평 - 1) * 100 if 평 else None
 
 
 def 지난줄(x, 종가, 업, 보완=False):
@@ -1725,7 +1744,7 @@ def _지난한날(d, r, 종가, 기준):
     산 = [x for x in 후보 if x.get("오늘산다")]
     보산 = [x for x in (r.get("보완후보") or []) if x.get("오늘산다")]
     업 = _업종표()
-    _c1, _c2 = _그날띠색(_그날코스피(str(r.get("신호기준일") or "")))
+    _c1, _c2 = 구간색(코스피20일(str(r.get("신호기준일") or "")))
     # 왜 그날 — 산 것들의 첫 갈래 중 가장 많은 것 + 그날 시장 지수 20일 낙폭
     _갈 = {}
     for x in 산:

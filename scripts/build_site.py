@@ -1406,7 +1406,15 @@ def _시장날씨(o):
             + (f'<span class="sg">{"+" if _c > 0 else chr(0x2212)}</span>' if _c else "")
             + f'{abs(_c):.2f}%</span><small>{_v:,.2f}</small></div>'
             + _구 + _칸글)
-    return html, _날씨색(_c)
+    # ⭐ 10/23 색 = 20일 평균선 대비 구간(사용자 「바꾸자」) — 전엔 _날씨색(_c) = 어제 하루 등락. 큰 숫자가 등락을 말하고 색은 「지금 눌렸나」 를 말한다
+    try:
+        import quant_cards as _qc
+        _pp = _qc.코스피20일(_날.strftime("%Y%m%d")) if _날 else None
+        if _pp is None:
+            _pp = float(_mr.get("kospi_vs_sma20_pct"))
+        return html, _qc.구간색(_pp)
+    except Exception:  # noqa: BLE001
+        return html, _날씨색(_c)
 
 
 WX_CSS = """<style>
@@ -1480,8 +1488,10 @@ WX_CSS = """<style>
 #home .hh small{display:block;font-size:12px;color:#5E6878;margin-top:2px}
 #home .hh em{font-style:normal;font-size:12.5px;font-weight:700;color:#2459C4;white-space:nowrap}
 #home .hh:focus-visible{outline:2px solid #151B26;outline-offset:-2px}
-#home .hcol.hot .hh{background:#151B26;color:#fff;border-bottom:0}
-#home .hcol.hot .hh small{color:rgba(255,255,255,.75)}#home .hcol.hot .hh em{color:#9DB7F0}
+/* 10/23 세 단 머리 모두 검정 (사용자 「PC에서 오늘 브리핑만 검은색으로 되어있는데 다른 곳도 검은색으로 통일하자」) */
+#home .hcol .hh{background:#151B26;color:#fff;border-bottom:0}
+#home .hcol .hh small{color:rgba(255,255,255,.75)}#home .hcol .hh em{color:#9DB7F0}
+#home .hcol .hh:focus-visible{outline:2px solid #9DB7F0}
 #home .hb{padding:14px 20px 12px;font-size:13.5px;line-height:1.6;color:#151B26}
 #home .hb p{margin:0 0 12px}
 #home .hk{font-size:11.5px;font-weight:700;color:#5E6878;letter-spacing:.03em;margin:0 0 4px}

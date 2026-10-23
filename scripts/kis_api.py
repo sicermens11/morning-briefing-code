@@ -108,6 +108,12 @@ class KIS:
                     time.sleep(2 * (시도 + 1))
                     continue
                 raise RuntimeError(f"{tr} HTTP {e.code}: {txt}") from None
+            except (urllib.error.URLError, ConnectionError, TimeoutError, OSError) as e:
+                # 10/23 전 종목 받기: 서버가 연결을 끊음(WinError 10054)·읽기 시간 초과가 4시간에 18종목 — 종목 단위 세 번으로는 모자라 조각이 30건에서 멈출 뻔 → 요청 단위로 5·10·15·20·25초 쉬고 다시
+                if 시도 < 5:
+                    time.sleep(5 * (시도 + 1))
+                    continue
+                raise RuntimeError(f"{tr} 연결 실패: {str(e)[:120]}") from None
         if str(j.get("rt_cd")) != "0":
             raise RuntimeError(f"{tr} 실패 rt_cd={j.get('rt_cd')} msg_cd={j.get('msg_cd')} {j.get('msg1')}")
         return j
