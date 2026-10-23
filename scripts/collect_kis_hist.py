@@ -37,8 +37,25 @@ def 적기(s):
         f.write(줄 + "\n")
 
 
-def 대상종목():
+def 전종목():
+    """2010~ 어느 날이든 시총 100억↑ 였던 종목(krx-daily 20번째 날마다 + 마지막) — 폐지 종목도 KIS 가 준다(10/23 여섯 개 실측)"""
+    fs = sorted(glob.glob(os.path.join(_B, "data", "krx-daily", "*.json")))
     코드 = {}
+    for f in fs[::20] + fs[-1:]:
+        try:
+            s = json.load(io.open(f, encoding="utf-8")).get("종목") or {}
+        except ValueError:
+            continue
+        for c, v in s.items():
+            if (v.get("시총") or 0) >= 1e10:
+                코드.setdefault(c, v.get("이름", ""))
+    return 코드
+
+
+def 대상종목():
+    """후보가 났던 종목 · KIS_ALL=1 이면 전 종목을 더한다
+    (10/23 후보 종목만으로 독립 규칙을 찾으면 「나중에 후보가 될 종목」을 미리 고른 셈 → 사용자 「전종목을 받고 테스트가 의미가 있으면 실전 열쇠는 계속 있어도 상관없어」)"""
+    코드 = 전종목() if os.environ.get("KIS_ALL") else {}
     p = os.path.join(_B, "data", "_labs", "news_events.jsonl")
     if os.path.exists(p):
         for z in io.open(p, encoding="utf-8"):
@@ -323,7 +340,8 @@ def main():
             적기(f"  다른 조각 아직 받는 중(남은 파일 {남은:,}) — 토큰은 마지막 조각이 폐기한다")
         else:
             적기("토큰 폐기: " + k.토큰폐기())
-            적기("⚠️ 실전 열쇠를 secrets.json 에서 지워 주세요 (KIS_APP_KEY · KIS_APP_SECRET · KIS_ACCOUNT) — 받기 끝")
+            # 10/23 사용자 「실전 열쇠를 일주일 두는 건 문제가 아니야 … 실전 열쇠는 계속 있어도 상관없어」 → 지우라고 하지 않는다(토큰만 죽인다)
+            적기(f"  받기 끝({종류}) — 토큰만 폐기 · 실전 열쇠는 그대로 둔다(사용자 10/23)")
     return 0
 
 

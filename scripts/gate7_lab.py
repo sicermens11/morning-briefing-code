@@ -8160,7 +8160,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "CREDCUT", "LOANCUT", "FLOWCUT", "TOPN", "ORDER", "SPLIT", "BOJOIN", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "CREDCUT", "LOANCUT", "FLOWCUT", "TOPN", "ORDER", "SPLIT", "BOJOIN", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("CREDCUT", "LOANCUT", "FLOWCUT", "KISQ", "DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8623,6 +8623,68 @@ def main():
                      ("전날 팔려는 쪽 체결 비중이 제 1년 중 위 10% 면 빼기", {"거름": _빼L(lambda x: _파는순위(x) >= 0.9)}),
                      ("전날 팔려는 쪽 체결 비중이 제 1년 중 아래 10% 면 빼기", {"거름": _빼L(lambda x: _파는순위(x) <= 0.1)}))
             print("  ── FLOWCUT · 투자자 세부·프로그램·체결량으로 후보 빼기 (한국투자증권 2010~ · 신호 전날까지) ──")
+        # ⭐ 2026-10-23 KISQ — **재료에 정보가 있기는 한가** (돈 시뮬 전에 · 다섯 칸으로 나눠 신호 한 번 성적)
+        #    사용자 10/23 「일단 그전에 재료를 테스트 해볼 의미가 있어?」 — 받을 가치(값이 차 있나·흔들리나)와 쓸 가치(앞날을 가르나)는 다르다
+        #    지금 규칙 후보(_H 통과)를 재료 값 순으로 다섯 칸 → 칸마다 한 번 수익 평균·승률 · 앞 ~2020 / 뒤 2021~ 따로
+        #    ⇒ 칸 사이 차이가 앞·뒤 같은 방향으로 크면 「독립 규칙을 찾아볼 값어치 있음」 · 평평하거나 앞뒤 뒤집히면 없음
+        #    ⚠️ 평균 수익은 돈이 아니다 — 거르는 첫 눈일 뿐 · 넣을지는 돈 시뮬로 · 같이 쓰는 절: CREDCUT/LOANCUT/FLOWCUT 이 켜져 있어야 그 재료가 나온다
+        if "KISQ" in _ONLY.split("+"):
+            _특Q = []
+            _켬Q = _ONLY.split("+")
+            if "CREDCUT" in _켬Q:
+                _특Q += [("신용잔고율(%)", lambda x: _값(x).get("율")), ("신용잔고율 제 1년 순위", lambda x: _값(x).get("율순위")),
+                        ("신용잔고 20일 변화", lambda x: _값(x).get("20일")), ("공매도 비중(20일) 제 1년 순위", lambda x: _값(x).get("공순위"))]
+            if "LOANCUT" in _켬Q:
+                _특Q += [("대차잔고 제 1년 순위", _대차순위), ("대차잔고 20일 변화", _대차20), ("목표가 ÷ 그때 종가(60거래일 평균)", _위여유)]
+            if "FLOWCUT" in _켬Q:
+                _특Q += [("5일 연기금 순매수 ÷ 거래량", lambda x: _5일(x, "연기금")), ("5일 투신 순매수 ÷ 거래량", lambda x: _5일(x, "투신")),
+                        ("5일 프로그램 순매수 제 1년 순위", _프로순위), ("전날 팔려는 쪽 비중 제 1년 순위", _파는순위)]
+
+            def _한번Q(x):
+                _r = 0.0
+                for 몫 in R.몫들:
+                    _rr, _ = 결과(x, 몫[1], 몫[2], 몫[3] if len(몫) > 3 else None, None, "악재")
+                    if _rr is None:
+                        return None
+                    _r += 몫[0] * _rr
+                return _r
+            _표Q = []
+            for _xQ in 사건:
+                try:
+                    if _H(_xQ):
+                        _vQ = _한번Q(_xQ)
+                        if _vQ is not None:
+                            _표Q.append((_xQ, _vQ))
+                except Exception:  # noqa: BLE001
+                    pass
+            print(f"  ── KISQ · 재료 값 다섯 칸 · 지금 규칙 후보 {len(_표Q):,}건 · 신호 한 번 수익(40% +15%/40일 · 60% +40%/90일 · 비용 전) ──")
+            for _이Q, _fQ in _특Q:
+                _줄Q = []
+                for _기Q, _안Q in (("앞 ~2020", lambda x: str(x.get("해") or "") <= "2020"), ("뒤 2021~", lambda x: str(x.get("해") or "") > "2020")):
+                    _쌍 = []
+                    for _xQ, _vQ in _표Q:
+                        if not _안Q(_xQ):
+                            continue
+                        try:
+                            _재 = _fQ(_xQ)
+                        except Exception:  # noqa: BLE001
+                            _재 = None
+                        if isinstance(_재, (int, float)) and _재 == _재:
+                            _쌍.append((_재, _vQ))
+                    _쌍.sort(key=lambda z: z[0])
+                    if len(_쌍) < 500:
+                        _줄Q.append(f"{_기Q}: 값 있는 것 {len(_쌍):,} — 너무 적음")
+                        continue
+                    _칸 = []
+                    for _q in range(5):
+                        _조 = _쌍[len(_쌍) * _q // 5:len(_쌍) * (_q + 1) // 5]
+                        _칸.append((sum(z[1] for z in _조) / len(_조), sum(1 for z in _조 if z[1] > 0) / len(_조) * 100, _조[0][0], _조[-1][0]))
+                    _줄Q.append(f"{_기Q} ({len(_쌍):,}건): " + " | ".join(f"{a:+.1f}% 승{b:.0f}% [{c:.3g}~{d:.3g}]" for a, b, c, d in _칸)
+                                + f"  · 위칸−아래칸 {_칸[4][0] - _칸[0][0]:+.1f}%p")
+                print(f"     {_이Q} (값 작은 칸 → 큰 칸)")
+                for _z in _줄Q:
+                    print(f"        {_z}")
+            _안들C = (("지금 그대로", {}),)
         # ⭐ 2026-10-21 TOPN — **하루 산 수를 2~3개로 줄이면** 끝 자산·낙폭이 얼마나 달라지나 + 줄일 때 무슨 순서로 고르나
         #    사용자 10/21 「보여주는 후보를 신호가 강하고 확실한 것만 보여주는 게 나을 것 같은데, 지금 갖고 있는 규칙에서
         #    신호가 확실한 걸로 2개나 3개로 줄이면 끝자산이나 수익율이나 낙폭이나 차이 많이 나나?」
