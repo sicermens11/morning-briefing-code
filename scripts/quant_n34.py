@@ -321,7 +321,7 @@ def 덱(q, 보유, 기록줄=None):
         머리 = (f'<div class="nh"><p class="k"><span>보완 후보 {len(보전체)}{f" 중 {_보순말(보전체)} {len(보)}" if len(보전체) > len(보) else ""} · 지금 규칙 주문과 따로</span><span>@@PG@@</span></p>'
                f'<p class="lead2"><b>대형</b> {R.보완대형["시총억"][0] / 10000:g}조↑·40일 {R.보완대형["낙40"]:g}% · '
                f'<b>중형</b> {R.보완중형["시총억"][0]:,}억~{R.보완중형["시총억"][1] / 10000:g}조·지수 20일 {R.보완중형["지수낙20"]:g}% · '
-               f'시장보다 <b>{abs(R.보완상대갭):g}%p</b> 싸게 시작하면 삼 · {"대형은 주문 안 함(10/22 · 같은 계좌에서 돈을 반으로 깎음)" if not getattr(R, "보완대형주문", True) else "대형은 더 빠진 적 있음(2023 −86%)"}</p></div>')
+               f'시장보다 <b>{abs(R.보완상대갭):g}%p</b> 싸게 시작하면 삼 · {"대형은 주문 안 함(10/22 · 11년 본전 · 보탬 없음)" if not getattr(R, "보완대형주문", True) else "대형은 더 빠진 적 있음(2023 −86%)"}</p></div>')
         장.append(_카드(머리, '<div class="menu tight">' + "".join(_종목상자(x, 업, "buy", 보완=True, 소식수=len(소식표.get(x.get("종목코드")) or [])) for x in 조각) + '</div>'))
     # ── 후보 종목 소식 — 규칙은 안 본다 · 참고만 (10/20 ① · 10/21 제목 바꿈) — 소식 있는 종목만 · 한 종목 2건까지 · 한 장에 종목 넷까지(넘치면 다음 장)
     있음 = [x for x in 목록 + 보 if 소식표.get(x.get("종목코드"))]
@@ -431,7 +431,8 @@ def 덱(q, 보유, 기록줄=None):
             '<div class="menu"><div class="m"><table class="vs yr"><thead><tr><th>해</th><th>수익</th><th>산 날</th><th>오른 달</th><th>가장 나쁜 달</th></tr></thead>'
             f'<tbody>{줄}</tbody></table></div>'
             + (f'<p class="d">아무 달에 시작해 1년 들고 있었다면 {g.get("번")}번 중 가장 나쁨 {_퍼(g.get("최악"))} · 가운데 {_퍼(g.get("가운데"))} · '
-               f'잃은 번 {g.get("잃은")} · 달 평균 {_퍼((y.get("달") or {}).get("평균"), 2)}(가운데 {_퍼((y.get("달") or {}).get("가운데"), 2)}) — 과거 시험이지 앞날 약속이 아닙니다.</p>' if g else "")
+               f'잃은 번 {g.get("잃은")}(서로 겹치는 창) · 달 평균 {_퍼((y.get("달") or {}).get("평균"), 2)}(가운데 {_퍼((y.get("달") or {}).get("가운데"), 2)}) · '
+               f'달 안에서 가장 깊이 {_퍼(y.get("낙폭"))} — 이 기간을 보고 맞춘 규칙이라 과거 시험이지 앞날 약속이 아닙니다.</p>' if g else "")
             + '</div>'))
     # ── 브리핑 추천 vs 퀀트 후보 (10/20 ③) ──
     try:
@@ -498,9 +499,10 @@ def _pc해마다():
             + 줄("가장 좋은 달", lambda z: f'<td class="up">{_퍼(z["좋은달"])}</td>')
             + '</table>'
             + (f'<p>아무 달에 시작해 <b>1년 들고 있었다면</b> {g.get("번")}번 중 가장 나쁨 <b>{_퍼(g.get("최악"))}</b> · 아래 10% {_퍼(g.get("아래10"))} · '
-               f'가운데 <b>{_퍼(g.get("가운데"))}</b> · 위 10% {_퍼(g.get("위10"))} · 잃은 번 {g.get("잃은")} · '
+               f'가운데 <b>{_퍼(g.get("가운데"))}</b> · 위 10% {_퍼(g.get("위10"))} · 잃은 번 {g.get("잃은")}(달마다 민 창이라 서로 겹침 · 독립으로는 10개쯤) · '
                f'달로 보면 {dd.get("개수")}달 중 {dd.get("오른")}달 오름 · 달 평균 {_퍼(dd.get("평균"), 2)}(가운데 {_퍼(dd.get("가운데"), 2)}) · '
-               f'가장 나쁜 달 {_퍼(dd.get("최악"))}. 사는 날이 1년에 며칠뿐이라 수익은 급락 뒤 몇 달에 몰립니다. 과거 시험이지 앞날 약속이 아닙니다.</p>' if g else "")
+               f'가장 나쁜 달 {_퍼(dd.get("최악"))} · 달 안에서 가장 깊이 <b>{_퍼(y.get("낙폭"))}</b>. 사는 날이 1년에 며칠뿐이라 수익은 급락 뒤 몇 달에 몰립니다. '
+               f'이 기간을 보고 맞춘 규칙이라 과거 시험이지 앞날 약속이 아닙니다.</p>' if g else "")
             + '</div>')
 
 
@@ -607,7 +609,7 @@ def PC(q, 보유, 기록줄=None):
               '이런 날은 열흘에 세 번쯤 있습니다.</td></tr>')
     if 보:
         표 += (f'<tr class="grp"><td colspan="15">보완 후보 {len(보전체)}{f" 중 {_보순말(보전체)} {len(보)}" if len(보전체) > len(보) else ""}'
-              f'<span>지금 규칙 주문과 따로 · 시장보다 {abs(R.보완상대갭):g}%p 싸게 열리면 삼 · {"대형은 주문 안 함(10/22 · 같은 계좌에서 돈을 반으로 깎음)" if not getattr(R, "보완대형주문", True) else "대형은 더 빠진 적 있음(2023 −86%)"}</span></td></tr>'
+              f'<span>지금 규칙 주문과 따로 · 시장보다 {abs(R.보완상대갭):g}%p 싸게 열리면 삼 · {"대형은 주문 안 함(10/22 · 11년 본전 · 보탬 없음)" if not getattr(R, "보완대형주문", True) else "대형은 더 빠진 적 있음(2023 −86%)"}</span></td></tr>'
               + "".join(_pc줄(x, i, 업, 보완=True, 소식수=len(소식표.get(x.get("종목코드")) or [])) for i, x in enumerate(보, 1)))
     표 += ('</table><p class="foot">상대갭 = 9시 시가가 시장보다 얼마나 더 싸게 열릴지(08:55 예상) · '
           f'−{abs(R.상대갭문턱):g}보다 깊어야 체결 · 이익 = 쌓은 이익(잉여금) 비율 · 빚 = 부채 비율 · '
@@ -859,7 +861,7 @@ def CSS(c1, c2):
             f"{p} .m .d{{padding:0}}"
             f"{p} .vs{{width:100%;border-collapse:collapse;font-size:.8em}}{p} .vs th{{font-size:.82em;font-weight:600;color:var(--sub);text-align:right;padding:.3em .2em;border-bottom:1px solid #DCE2EA;white-space:nowrap}}"
             f"{p} .vs th:first-child,{p} .vs td:first-child{{text-align:left}}{p} .vs td{{padding:.5em .2em;text-align:right;border-bottom:1px solid #EDF0F5;font-weight:700;white-space:nowrap}}"
-            f"{p} .vs td small{{display:block;font-weight:500;color:var(--sub);font-size:.8em}}{p} .vs .pos{{color:var(--red)}}{p} .vs .neg{{color:var(--blue)}}{p} .vs td.few{{color:var(--sub);font-weight:600;white-space:normal;line-height:1.35}}{p} .vs.yr{{font-size:.72em}}{p} .vs.yr th,{p} .vs.yr td{{padding:.24em .2em}}"
+            f"{p} .vs td small{{display:block;font-weight:500;color:var(--sub);font-size:.8em}}{p} .vs .pos{{color:var(--red)}}{p} .vs .neg{{color:var(--blue)}}{p} .vs td.few{{color:var(--sub);font-weight:600;white-space:normal;line-height:1.35}}{p} .vs.yr{{font-size:.72em}}{p} .vs.yr th,{p} .vs.yr td{{padding:.21em .2em}}"   # 10/23 단서 한 줄 더 → 320폭 2px 잘림 → 표 줄 간격으로 벌었다(글은 안 깎는다)
             f"{p} .nw{{flex:none;white-space:nowrap;font-size:.9em;font-weight:800;border-radius:.2em;padding:0 .3em;background:#FFF3D6;color:#8A5A00}}"
             f"{p} .ns{{gap:.3em}}{p} .ns .h{{display:flex;align-items:baseline;gap:.45em;white-space:nowrap}}{p} .ns .h b{{font-size:.98em;font-weight:800}}"
             f"{p} .ns .h em{{margin-left:auto;font-style:normal;font-size:.7em;color:var(--sub)}}"
