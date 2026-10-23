@@ -8345,6 +8345,9 @@ def main():
                     return float(v)
                 except (TypeError, ValueError):
                     return None
+            def _공금지K(d8):
+                return ("20200316" <= d8 <= "20210502") or ("20231106" <= d8 <= "20250330") or ("20210503" <= d8 <= "20231105")
+
             def _싣K():
                 # ⚠️ 함수 안에서 싣는다 — 10/23 첫 판은 바깥에서 `_c` 를 반복 변수로 써 시뮬의 `_c`(함수)를 덮어 TypeError 로 죽었다
                 for x in 사건:
@@ -8364,12 +8367,18 @@ def main():
                         iD, iQ, iV = 칸.index("stck_bsop_date"), 칸.index("ssts_cntg_qty"), 칸.index("acml_vol")
                         q = [(_수K(z[iQ]) or 0.0) for z in 행]
                         v = [(_수K(z[iV]) or 0.0) for z in 행]
+                        ds = [str(z[iD]) for z in 행]
                         비 = []   # 20일 공매도 비중(%) — 그날까지 20일 합
                         for k in range(len(행)):
+                            # ⭐ 10/23 독립 검사 · 사용자 「권고대로」: 공매도 금지기는 값 없음(None) — 소형주 공매도가 0 이라 「제 1년 순위」가 금지 여부를 재 버린다
+                            #    전면 금지 2020-03-16~2021-05-02 · 2023-11-06~2025-03-30 · 2021-05-03~2023-11-05 는 코스피200·코스닥150 만 허용 → 2,000억 미만은 금지로 본다
+                            if _공금지K(ds[k]):
+                                비.append(None)
+                                continue
                             a = max(0, k - 19)
                             sv = sum(v[a:k + 1])
                             비.append(sum(q[a:k + 1]) / sv * 100 if sv > 0 else None)
-                        _공K[c] = ([str(z[iD]) for z in 행], 비)
+                        _공K[c] = (ds, 비)
                     else:
                         _공K[c] = None
             _싣K()
@@ -8648,42 +8657,65 @@ def main():
                         return None
                     _r += 몫[0] * _rr
                 return _r
+            # ⭐ 10/23 독립 검사 → 사용자 「권고대로」: ① 같은 종목은 20거래일 안 첫 신호 하나만(겹쳐 세기 막음) ② 해마다 위칸−아래칸 부호를 세어
+            #    「같은 방향 해 ≥ 전체 해의 8/11」 + 앞·뒤 합계 부호 같음 → 「정보 있음」 · 기준은 결과 보기 전에 고정(이 줄)
             _표Q = []
-            for _xQ in 사건:
+            _막Q = {}   # code -> 마지막으로 센 인
+            for _xQ in sorted(사건, key=lambda z: (z["인"], z["code"])):
                 try:
-                    if _H(_xQ):
-                        _vQ = _한번Q(_xQ)
-                        if _vQ is not None:
-                            _표Q.append((_xQ, _vQ))
+                    if not _H(_xQ):
+                        continue
+                    if _xQ["인"] - _막Q.get(_xQ["code"], -999) < 20:
+                        continue
+                    _vQ = _한번Q(_xQ)
+                    if _vQ is not None:
+                        _막Q[_xQ["code"]] = _xQ["인"]
+                        _표Q.append((_xQ, _vQ))
                 except Exception:  # noqa: BLE001
                     pass
-            print(f"  ── KISQ · 재료 값 다섯 칸 · 지금 규칙 후보 {len(_표Q):,}건 · 신호 한 번 수익(40% +15%/40일 · 60% +40%/90일 · 비용 전) ──")
+            print(f"  ── KISQ · 재료 값 다섯 칸 · 지금 규칙 후보(종목마다 20거래일 안 첫 신호만) {len(_표Q):,}건 · 신호 한 번 수익(40% +15%/40일 · 60% +40%/90일 · 비용 전) ──")
+            print("     판정 기준(미리 고정): 해마다 「값 큰 칸 − 작은 칸」 부호가 같은 해 ≥ 전체 해의 8/11 이고 앞(~2020)·뒤(2021~) 합계 부호도 같으면 「정보 있음」")
+
+            def _칸들Q(쌍):
+                쌍 = sorted(쌍, key=lambda z: z[0])
+                _칸 = []
+                for _q in range(5):
+                    _조 = 쌍[len(쌍) * _q // 5:len(쌍) * (_q + 1) // 5]
+                    _칸.append((sum(z[1] for z in _조) / len(_조), sum(1 for z in _조 if z[1] > 0) / len(_조) * 100, _조[0][0], _조[-1][0]))
+                return _칸
             for _이Q, _fQ in _특Q:
-                _줄Q = []
-                for _기Q, _안Q in (("앞 ~2020", lambda x: str(x.get("해") or "") <= "2020"), ("뒤 2021~", lambda x: str(x.get("해") or "") > "2020")):
-                    _쌍 = []
-                    for _xQ, _vQ in _표Q:
-                        if not _안Q(_xQ):
-                            continue
-                        try:
-                            _재 = _fQ(_xQ)
-                        except Exception:  # noqa: BLE001
-                            _재 = None
-                        if isinstance(_재, (int, float)) and _재 == _재:
-                            _쌍.append((_재, _vQ))
-                    _쌍.sort(key=lambda z: z[0])
-                    if len(_쌍) < 500:
-                        _줄Q.append(f"{_기Q}: 값 있는 것 {len(_쌍):,} — 너무 적음")
-                        continue
-                    _칸 = []
-                    for _q in range(5):
-                        _조 = _쌍[len(_쌍) * _q // 5:len(_쌍) * (_q + 1) // 5]
-                        _칸.append((sum(z[1] for z in _조) / len(_조), sum(1 for z in _조 if z[1] > 0) / len(_조) * 100, _조[0][0], _조[-1][0]))
-                    _줄Q.append(f"{_기Q} ({len(_쌍):,}건): " + " | ".join(f"{a:+.1f}% 승{b:.0f}% [{c:.3g}~{d:.3g}]" for a, b, c, d in _칸)
-                                + f"  · 위칸−아래칸 {_칸[4][0] - _칸[0][0]:+.1f}%p")
+                _해별 = {}
+                for _xQ, _vQ in _표Q:
+                    try:
+                        _재 = _fQ(_xQ)
+                    except Exception:  # noqa: BLE001
+                        _재 = None
+                    if isinstance(_재, (int, float)) and _재 == _재:
+                        _해별.setdefault(str(_xQ.get("해")), []).append((_재, _vQ))
                 print(f"     {_이Q} (값 작은 칸 → 큰 칸)")
-                for _z in _줄Q:
-                    print(f"        {_z}")
+                _합 = {}
+                for _기Q, _안Q in (("앞 ~2020", lambda h: h <= "2020"), ("뒤 2021~", lambda h: h > "2020")):
+                    _쌍 = [z for h, v in _해별.items() if _안Q(h) for z in v]
+                    if len(_쌍) < 300:
+                        print(f"        {_기Q}: 값 있는 것 {len(_쌍):,} — 너무 적음")
+                        continue
+                    _칸 = _칸들Q(_쌍)
+                    _합[_기Q] = _칸[4][0] - _칸[0][0]
+                    print(f"        {_기Q} ({len(_쌍):,}건): " + " | ".join(f"{a:+.1f}% 승{b:.0f}% [{c:.3g}~{d:.3g}]" for a, b, c, d in _칸)
+                          + f"  · 큰 칸−작은 칸 {_합[_기Q]:+.1f}%p")
+                _부호 = []
+                for _h in sorted(_해별):
+                    if len(_해별[_h]) >= 100:
+                        _c = _칸들Q(_해별[_h])
+                        _부호.append((_h, _c[4][0] - _c[0][0]))
+                if _부호:
+                    _양 = sum(1 for _, d in _부호 if d > 0)
+                    _음 = len(_부호) - _양
+                    _많 = max(_양, _음)
+                    _같음 = len(_합) == 2 and (_합["앞 ~2020"] > 0) == (_합["뒤 2021~"] > 0)
+                    _판 = "정보 있음" if (_많 * 11 >= len(_부호) * 8 and _같음) else "정보 없음"
+                    print(f"        해마다 큰 칸−작은 칸: " + " ".join(f"{h[2:]}{d:+.0f}" for h, d in _부호)
+                          + f"  → 같은 방향 {_많}/{len(_부호)}해 · 앞뒤 부호 {'같음' if _같음 else '다름'} ⇒ **{_판}**")
             _안들C = (("지금 그대로", {}),)
         # ⭐ 2026-10-21 TOPN — **하루 산 수를 2~3개로 줄이면** 끝 자산·낙폭이 얼마나 달라지나 + 줄일 때 무슨 순서로 고르나
         #    사용자 10/21 「보여주는 후보를 신호가 강하고 확실한 것만 보여주는 게 나을 것 같은데, 지금 갖고 있는 규칙에서
