@@ -8160,7 +8160,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "CREDCUT", "TOPN", "ORDER", "SPLIT", "BOJOIN", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "CREDCUT", "LOANCUT", "FLOWCUT", "TOPN", "ORDER", "SPLIT", "BOJOIN", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8345,31 +8345,34 @@ def main():
                     return float(v)
                 except (TypeError, ValueError):
                     return None
-            for _x in 사건:
-                _c = _x["code"]
-                if _c in _신K:
-                    continue
-                _r = _읽K("kis-credit", _c)
-                if _r:
-                    _칸, _행 = _r
-                    _iD, _iR, _iS = _칸.index("deal_date"), _칸.index("whol_loan_rmnd_rate"), _칸.index("whol_loan_rmnd_stcn")
-                    _신K[_c] = ([str(z[_iD]) for z in _행], [_수K(z[_iR]) for z in _행], [_수K(z[_iS]) for z in _행])
-                else:
-                    _신K[_c] = None
-                _r = _읽K("kis-short", _c)
-                if _r:
-                    _칸, _행 = _r
-                    _iD, _iQ, _iV = _칸.index("stck_bsop_date"), _칸.index("ssts_cntg_qty"), _칸.index("acml_vol")
-                    _q = [(_수K(z[_iQ]) or 0.0) for z in _행]
-                    _v = [(_수K(z[_iV]) or 0.0) for z in _행]
-                    _비 = []   # 20일 공매도 비중(%) — 그날까지 20일 합
-                    for _k in range(len(_행)):
-                        _a = max(0, _k - 19)
-                        _sv = sum(_v[_a:_k + 1])
-                        _비.append(sum(_q[_a:_k + 1]) / _sv * 100 if _sv > 0 else None)
-                    _공K[_c] = ([str(z[_iD]) for z in _행], _비)
-                else:
-                    _공K[_c] = None
+            def _싣K():
+                # ⚠️ 함수 안에서 싣는다 — 10/23 첫 판은 바깥에서 `_c` 를 반복 변수로 써 시뮬의 `_c`(함수)를 덮어 TypeError 로 죽었다
+                for x in 사건:
+                    c = x["code"]
+                    if c in _신K:
+                        continue
+                    r = _읽K("kis-credit", c)
+                    if r:
+                        칸, 행 = r
+                        iD, iR, iS = 칸.index("deal_date"), 칸.index("whol_loan_rmnd_rate"), 칸.index("whol_loan_rmnd_stcn")
+                        _신K[c] = ([str(z[iD]) for z in 행], [_수K(z[iR]) for z in 행], [_수K(z[iS]) for z in 행])
+                    else:
+                        _신K[c] = None
+                    r = _읽K("kis-short", c)
+                    if r:
+                        칸, 행 = r
+                        iD, iQ, iV = 칸.index("stck_bsop_date"), 칸.index("ssts_cntg_qty"), 칸.index("acml_vol")
+                        q = [(_수K(z[iQ]) or 0.0) for z in 행]
+                        v = [(_수K(z[iV]) or 0.0) for z in 행]
+                        비 = []   # 20일 공매도 비중(%) — 그날까지 20일 합
+                        for k in range(len(행)):
+                            a = max(0, k - 19)
+                            sv = sum(v[a:k + 1])
+                            비.append(sum(q[a:k + 1]) / sv * 100 if sv > 0 else None)
+                        _공K[c] = ([str(z[iD]) for z in 행], 비)
+                    else:
+                        _공K[c] = None
+            _싣K()
 
             def _순위K(목록, k):
                 """목록[k] 가 그 앞 250개(자기 포함) 안에서 몇 번째 위치인가(0~1) — 값 120개 안 되면 None"""
@@ -8440,6 +8443,186 @@ def main():
                      ("(참고) 신용 잔고 20일 −30% 넘게 줄어든 것만 남기기", {"거름": _남K(lambda o: o.get("20일") <= -0.3)}),
                      ("공매도 비중(20일)이 제 1년 중 위 10% 면 빼기", {"거름": _빼K(lambda o: o.get("공순위") >= 0.9)}))
             print("  ── CREDCUT · 신용잔고·공매도로 후보 빼기 (한국투자증권 2010~ · 신호 2~3일 전까지) ──")
+        # ⭐ 2026-10-23 LOANCUT · FLOWCUT — 한국투자증권 재료 둘째 묶음으로 후보 빼기 (CREDCUT 과 같은 틀)
+        #    사용자 10/23 「재료 받고 시간 여유가 있으면 그 재료를 가지고 테스트도 걸면 좋을 것 같은데」
+        #    LOANCUT = 대차잔고(kis-loan 2014~ · 날[인−2]까지) + 증권사 목표가(kis-opinion 2010~ · 대형 663 · 날[인−1]까지)
+        #    FLOWCUT = 투자자 세부(kis-investor) · 프로그램(kis-program) · 사려는/팔려는 체결량(kis-tradevol) · 날[인−1]까지(그날 저녁 나온다)
+        #    줄·문턱은 결과 보기 전에 고정 · 「제 1년 중 위 10%」 는 그 종목 지난 250일 안에서 · 자료 없는 후보는 그대로 둔다
+        if any(z in _ONLY.split("+") for z in ("LOANCUT", "FLOWCUT")) or _ONLY in ("LOANCUT", "FLOWCUT"):
+            import bisect as _bsL
+
+            def _읽L(폴더, c):
+                try:
+                    _j = json.load(io.open(os.path.join(O._DATA, 폴더, c + ".json"), encoding="utf-8"))
+                except (OSError, ValueError):
+                    return None
+                return {k: i for i, k in enumerate(_j["칸"])}, _j["행"]
+
+            def _수L(v):
+                try:
+                    return float(v)
+                except (TypeError, ValueError):
+                    return None
+
+            def _순위L(목록, k):
+                _창 = [z for z in 목록[max(0, k - 249):k + 1] if z is not None]
+                if len(_창) < 120 or 목록[k] is None:
+                    return None
+                return sum(1 for z in _창 if z < 목록[k]) / (len(_창) - 1)
+            _통L = [x for x in 사건 if _H(x)]
+            _코L = sorted(set(x["code"] for x in _통L))
+            _자료L = {}   # (폴더, code) -> (날짜 목록, {이름: 값 목록})
+
+            def _붙L(폴더, 만들기):
+                for _c in _코L:
+                    _r = _읽L(폴더, _c)
+                    _자료L[(폴더, _c)] = 만들기(*_r) if _r else None
+
+            def _합창(v, k, n):
+                _a = [z for z in v[max(0, k - n + 1):k + 1] if z is not None]
+                return sum(_a) if _a else None
+
+            def _끝L(폴더, x, 뒤):
+                """그 폴더에서 날[인−뒤] 이전 마지막 줄 번호"""
+                _s = _자료L.get((폴더, x["code"]))
+                if not _s or x["인"] < 뒤:
+                    return None, None
+                _k = _bsL.bisect_right(_s[0], 날[x["인"] - 뒤]) - 1
+                return (_s, _k) if _k >= 0 else (None, None)
+            _값L = {}
+
+            def _빼L(조건):
+                def f(x):
+                    if not _H(x):
+                        return False
+                    try:
+                        return not 조건(x)
+                    except TypeError:
+                        return True
+                return f
+
+            def _남L(조건):
+                def f(x):
+                    if not _H(x):
+                        return False
+                    try:
+                        return bool(조건(x))
+                    except TypeError:
+                        return False
+                return f
+        if "LOANCUT" in _ONLY.split("+") or _ONLY == "LOANCUT":
+            def _대차만듦(칸, 행):
+                _d = [str(z[칸["bsop_date"]]) for z in 행]
+                _잔 = [_수L(z[칸["rmnd_stcn"]]) for z in 행]
+                return _d, {"잔": _잔}
+            _붙L("kis-loan", _대차만듦)
+
+            def _의견만듦(칸, 행):
+                # 증권사마다 직전 목표가보다 낮춘 날 = 「목표가 내림」 · 위 여유 = 목표가 ÷ 그 전날 종가
+                _d, _내림, _여유, _앞 = [], [], [], {}
+                for z in 행:
+                    _g = _수L(z[칸["hts_goal_prc"]])
+                    _p = _수L(z[칸["stck_prdy_clpr"]])
+                    _b = z[칸["mbcr_name"]]
+                    _d.append(str(z[칸["stck_bsop_date"]]))
+                    _내림.append(1.0 if (_g and _앞.get(_b) and _g < _앞[_b]) else 0.0)
+                    _여유.append(_g / _p if (_g and _p) else None)
+                    if _g:
+                        _앞[_b] = _g
+                return _d, {"내림": _내림, "여유": _여유}
+            _붙L("kis-opinion", _의견만듦)
+
+            def _대차순위(x):
+                _s, _k = _끝L("kis-loan", x, 2)
+                return _순위L(_s[1]["잔"], _k) if _s else None
+
+            def _대차20(x):
+                _s, _k = _끝L("kis-loan", x, 2)
+                if not _s or _k < 20 or not _s[1]["잔"][_k - 20]:
+                    return None
+                return _s[1]["잔"][_k] / _s[1]["잔"][_k - 20] - 1
+
+            def _의견창(x, 거래일):
+                """날[인−1] 까지 최근 N거래일 안의 의견 줄 번호들"""
+                _s = _자료L.get(("kis-opinion", x["code"]))
+                if not _s or x["인"] < 1 + 거래일:
+                    return None, []
+                _끝 = _bsL.bisect_right(_s[0], 날[x["인"] - 1])
+                _시 = _bsL.bisect_left(_s[0], 날[x["인"] - 1 - 거래일])
+                return _s, list(range(_시, _끝))
+
+            def _목표내림(x):
+                _s, _ix = _의견창(x, 20)
+                return any(_s[1]["내림"][i] for i in _ix) if _s else None
+
+            def _위여유(x):
+                _s, _ix = _의견창(x, 60)
+                _v = [_s[1]["여유"][i] for i in _ix if _s[1]["여유"][i]] if _s else []
+                return sum(_v) / len(_v) if _v else None
+            print(f"     (점검) 실전 거름 통과 후보 {len(_통L):,} · 대차 순위 있는 것 {sum(1 for x in _통L if _대차순위(x) is not None):,} · "
+                  f"최근 60거래일 증권사 의견 있는 것 {sum(1 for x in _통L if _위여유(x) is not None):,}")
+            _안들C = (("지금 그대로", {}),
+                     ("대차잔고가 제 1년 중 위 10% 면 빼기", {"거름": _빼L(lambda x: _대차순위(x) >= 0.9)}),
+                     ("대차잔고가 제 1년 중 아래 10% 면 빼기", {"거름": _빼L(lambda x: _대차순위(x) <= 0.1)}),
+                     ("대차잔고 20일 +50% 넘게 늘었으면 빼기", {"거름": _빼L(lambda x: _대차20(x) >= 0.5)}),
+                     ("대차잔고 20일 −30% 넘게 줄었으면 빼기", {"거름": _빼L(lambda x: _대차20(x) <= -0.3)}),
+                     ("(참고) 대차잔고 20일 −30% 넘게 줄어든 것만 남기기", {"거름": _남L(lambda x: _대차20(x) <= -0.3)}),
+                     ("최근 20거래일 증권사가 목표가를 내렸으면 빼기", {"거름": _빼L(lambda x: _목표내림(x))}),
+                     ("최근 60거래일 목표가 ÷ 그때 종가 평균 1.2 밑이면 빼기", {"거름": _빼L(lambda x: _위여유(x) < 1.2)}),
+                     ("(참고) 최근 60거래일 증권사 의견 있는 것만 남기기", {"거름": _남L(lambda x: _위여유(x) is not None)}))
+            print("  ── LOANCUT · 대차잔고·증권사 목표가로 후보 빼기 (한국투자증권 · 대차 2014~ · 의견 2010~) ──")
+        if "FLOWCUT" in _ONLY.split("+") or _ONLY == "FLOWCUT":
+            def _투자만듦(칸, 행):
+                _d = [str(z[칸["stck_bsop_date"]]) for z in 행]
+                return _d, {k: [_수L(z[칸[c]]) for z in 행] for k, c in
+                            (("량", "acml_vol"), ("연기금", "fund_ntby_qty"), ("투신", "ivtr_ntby_qty"), ("기타", "etc_ntby_qty"))}
+            _붙L("kis-investor", _투자만듦)
+
+            def _프로만듦(칸, 행):
+                _d = [str(z[칸["stck_bsop_date"]]) for z in 행]
+                _량 = [_수L(z[칸["acml_vol"]]) for z in 행]
+                _순 = [_수L(z[칸["whol_smtn_ntby_qty"]]) for z in 행]
+                _비 = []   # 5일 프로그램 순매수 ÷ 5일 거래량
+                for _k in range(len(행)):
+                    _a, _b = _합창(_순, _k, 5), _합창(_량, _k, 5)
+                    _비.append(_a / _b if (_a is not None and _b) else None)
+                return _d, {"비": _비}
+            _붙L("kis-program", _프로만듦)
+
+            def _체결만듦(칸, 행):
+                _d = [str(z[칸["stck_bsop_date"]]) for z in 행]
+                _파 = []
+                for z in 행:
+                    _s, _b = _수L(z[칸["total_seln_qty"]]), _수L(z[칸["total_shnu_qty"]])
+                    _파.append(_s / (_s + _b) if (_s is not None and _b is not None and _s + _b > 0) else None)
+                return _d, {"파는쪽": _파}
+            _붙L("kis-tradevol", _체결만듦)
+
+            def _5일(x, 이름):
+                _s, _k = _끝L("kis-investor", x, 1)
+                if not _s:
+                    return None
+                _a, _b = _합창(_s[1][이름], _k, 5), _합창(_s[1]["량"], _k, 5)
+                return _a / _b if (_a is not None and _b) else None
+
+            def _프로순위(x):
+                _s, _k = _끝L("kis-program", x, 1)
+                return _순위L(_s[1]["비"], _k) if _s else None
+
+            def _파는순위(x):
+                _s, _k = _끝L("kis-tradevol", x, 1)
+                return _순위L(_s[1]["파는쪽"], _k) if _s else None
+            print(f"     (점검) 실전 거름 통과 후보 {len(_통L):,} · 투자자 세부 있는 것 {sum(1 for x in _통L if _5일(x, '연기금') is not None):,} · "
+                  f"프로그램 순위 {sum(1 for x in _통L if _프로순위(x) is not None):,} · 체결량 순위 {sum(1 for x in _통L if _파는순위(x) is not None):,}")
+            _안들C = (("지금 그대로", {}),
+                     ("5일 연기금이 팔았으면(순매도) 빼기", {"거름": _빼L(lambda x: _5일(x, "연기금") < 0)}),
+                     ("5일 투신이 팔았으면(순매도) 빼기", {"거름": _빼L(lambda x: _5일(x, "투신") < 0)}),
+                     ("(참고) 5일 연기금이 산 것(순매수)만 남기기", {"거름": _남L(lambda x: _5일(x, "연기금") > 0)}),
+                     ("5일 프로그램 순매수가 제 1년 중 아래 10% 면 빼기", {"거름": _빼L(lambda x: _프로순위(x) <= 0.1)}),
+                     ("5일 프로그램 순매수가 제 1년 중 위 10% 면 빼기", {"거름": _빼L(lambda x: _프로순위(x) >= 0.9)}),
+                     ("전날 팔려는 쪽 체결 비중이 제 1년 중 위 10% 면 빼기", {"거름": _빼L(lambda x: _파는순위(x) >= 0.9)}),
+                     ("전날 팔려는 쪽 체결 비중이 제 1년 중 아래 10% 면 빼기", {"거름": _빼L(lambda x: _파는순위(x) <= 0.1)}))
+            print("  ── FLOWCUT · 투자자 세부·프로그램·체결량으로 후보 빼기 (한국투자증권 2010~ · 신호 전날까지) ──")
         # ⭐ 2026-10-21 TOPN — **하루 산 수를 2~3개로 줄이면** 끝 자산·낙폭이 얼마나 달라지나 + 줄일 때 무슨 순서로 고르나
         #    사용자 10/21 「보여주는 후보를 신호가 강하고 확실한 것만 보여주는 게 나을 것 같은데, 지금 갖고 있는 규칙에서
         #    신호가 확실한 걸로 2개나 3개로 줄이면 끝자산이나 수익율이나 낙폭이나 차이 많이 나나?」
