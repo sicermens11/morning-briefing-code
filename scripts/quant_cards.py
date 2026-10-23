@@ -1590,22 +1590,177 @@ _폰CSS = (
 #    값: forward-log 그날 줄(주문가 · 매수가=그날 실제 시가 · 체결) + krx-daily 최근 종가
 #    ⚠️ 「지금까지」 는 **최근 종가 ÷ 매수가** 다 — 40%/60% 나눠 팔기 전 값이다 (표 아래에 그대로 적는다)
 #    ⚠️ 체결 표시가 없는 줄(채점 전)은 「채점 전」 으로 둔다 · 지어내지 않는다
+# ⭐ 10/23 새 모양 — 사용자 「메인 첫 화면이랑 퀀트 후보 과거 화면도 지금 스타일에 맞게」 → 「과거 퀀트는 이렇게 확정하고」 (업종 추가)
+#    시안 https://claude.ai/artifact/HggFFtCV31ARjGQGBpd7VY ③④ · 베이지 표 → 오늘 화면 색(남색 머리띠·흰 줄 목록·파란 꼬리표) · **한 장**
+#    머리띠 = 날짜·지정가 N·「왜 그날」·「N개 중 M개 삼」 · 줄 = 종목·코드 / 갈래 꼬리표·업종·20일 / 주문가·그날 시가 / 결과
+#    띠 색 = **그날** 코스피 등락(홈·오늘 화면과 같은 다섯 단계 · _그날띠색) · PC(1200px↑)는 900px 한 장에 열로 펼친다
 _지난CSS = (
     "<style>"
-    ".qpast{max-width:760px;margin:12px auto 28px;padding:20px 18px;background:#f2efe8;border-radius:16px;box-sizing:border-box;width:calc(100% - 24px)}"
-    ".qpast .k{font-size:12.5px;font-weight:700;color:#8a7038;letter-spacing:.04em}"
-    ".qpast h3{font-size:24px;margin:4px 0 0;letter-spacing:-.03em;color:#1c1813}"
-    ".qpast .sum{font-size:14px;color:#4b4740;margin-top:6px;line-height:1.6}"
-    ".qpast table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px;font-feature-settings:'tnum'}"
-    ".qpast th{font-weight:500;font-size:11.5px;color:#7c766b;text-align:left;padding:6px 4px;border-bottom:1.5px solid #1c1813;white-space:nowrap}"
-    ".qpast td{padding:9px 4px;border-bottom:1px solid #d5cec0;vertical-align:top;color:#1c1813}"
-    ".qpast td.r,.qpast th.r{text-align:right}"
-    ".qpast td small{display:block;font-size:11px;color:#7c766b}"
-    ".qpast .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:5px;padding:1px 6px;white-space:nowrap}"
-    ".qpast .y{background:#1c1813;color:#fff}.qpast .n{background:#e8e3d8;color:#6b665c}.qpast .w{background:#fff;color:#8a7038;border:1px solid #d5cec0}"
-    ".qpast .foot{font-size:12px;color:#7c766b;margin-top:12px;line-height:1.6}"
-    "#qt.past .qrail,#qt.past .qmob,#qt.past .qm45,#qt.past .qhint,#qt.past [role=alert]{display:none!important}"
+    ".qpast{--ink:#151B26;--sub:#5E6878;--line:#D9DFE7;--up:#D0312D;--dn:#2459C4;--tagbg:#E4ECFA;"
+    "width:100%;min-width:0;max-width:900px;margin:0 auto 28px;padding:12px 12px 16px;box-sizing:border-box;color:var(--ink);font-feature-settings:'tnum';letter-spacing:-.01em;word-break:keep-all}"   # min-width:0 — #qt 가 flex 라 자식의 최소 폭이 글 길이로 잡혀 320 에서 391px 로 넘쳤다(10/23 실측)
+    ".qpast .qp-band{background:linear-gradient(90deg,var(--c1),var(--c2));color:#fff;padding:16px 18px;border-radius:10px}"
+    ".qpast .qp-band .qp-t{font-size:19px;font-weight:900;letter-spacing:-.03em;display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}"
+    ".qpast .qp-band .qp-t small{font-size:12px;font-weight:500;opacity:.85}"
+    ".qpast .qp-kv{display:flex;gap:8px;margin-top:12px}.qpast .qp-kv div{flex:1;background:rgba(255,255,255,.14);border-radius:8px;padding:8px 10px;min-width:0}"
+    ".qpast .qp-kv i{display:block;font-style:normal;font-size:11px;opacity:.85;margin-bottom:2px}.qpast .qp-kv b{font-size:15px;font-weight:800}"
+    ".qpast .qp-list{background:#fff;margin-top:12px;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(21,27,38,.06)}"
+    ".qpast .qp-hdr{display:none}"
+    ".qpast .qp-li{display:grid;grid-template-columns:1fr auto auto;gap:8px 12px;align-items:center;padding:11px 14px;border-top:1px solid var(--line)}"
+    ".qpast .qp-li:first-child,.qpast .qp-sec+.qp-li{border-top:0}"
+    ".qpast .qp-li>*{min-width:0}"   # 격자 칸의 최소 폭이 글 길이로 잡혀 결과 표가 밀려 나갔다(320 · 10/23 검사기) — 칸이 줄고 꼬리표 줄이 접힌다
+    ".qpast .qp-nm{font-size:15px;font-weight:800}.qpast .qp-nm small{font-weight:500;color:var(--sub);font-size:11px;margin-left:5px}"
+    ".qpast .qp-sb{font-size:11.5px;color:var(--sub);margin-top:2px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}.qpast .qp-sb .qp-ind{color:var(--ink);font-weight:600}"
+    ".qpast .qp-tag{display:inline-block;font-size:11px;font-weight:700;background:var(--tagbg);color:var(--dn);border-radius:4px;padding:1px 6px;white-space:nowrap}.qpast .qp-tag.qp-red{background:#FBE6E5;color:var(--up)}"
+    ".qpast .qp-px{text-align:right;font-size:15px;font-weight:800;white-space:nowrap}.qpast .qp-px i{display:block;font-style:normal;font-size:10.5px;color:var(--sub);font-weight:500}"
+    ".qpast .qp-c{display:none}"
+    ".qpast .qp-pill{font-weight:800;border-radius:5px;padding:3px 8px;font-size:11.5px;white-space:nowrap;text-align:center;min-width:52px}"
+    ".qpast .qp-pill.qp-no{background:#EEF1F5;color:var(--sub)}.qpast .qp-pill.qp-yes{background:var(--ink);color:#fff}.qpast .qp-pill.qp-w{background:#fff;color:var(--sub);border:1px solid var(--line)}"
+    ".qpast .qp-pill.qp-yes small{display:block;font-size:10.5px;font-weight:700;margin-top:1px}.qpast .qp-pill.qp-yes small.up{color:#FFB4B1}.qpast .qp-pill.qp-yes small.dn{color:#9DB7F0}"
+    ".qpast .qp-sec{font-size:11.5px;font-weight:700;color:var(--sub);padding:10px 14px 4px;background:#F6F7F9;border-top:1px solid var(--line);letter-spacing:.03em}"
+    ".qpast .qp-none{padding:16px 14px;font-size:14px;color:var(--sub);line-height:1.6}"
+    ".qpast .qp-foot{font-size:11.5px;color:var(--sub);padding:12px 14px 14px;line-height:1.6}"
+    ".qpast .up{color:var(--up)}.qpast .dn{color:var(--dn)}"
+    # 좁은 폰 — 검사기가 320 에서 6줄·375 에서 1줄 「줄 밖」(10/23) → 430 밑은 숫자를 한 단계 작게 · 380 밑은 주문가를 둘째 줄로 내린다(글은 안 깎는다)
+    "@media(max-width:430px){.qpast .qp-px{font-size:14px}.qpast .qp-li{gap:6px 8px;padding:11px 12px}}"
+    "@media(max-width:379px){.qpast .qp-li{grid-template-columns:1fr auto}.qpast .qp-px{grid-column:1;text-align:left;font-size:14px}"
+    ".qpast .qp-px i{display:inline;margin-right:6px}.qpast .qp-pill{grid-column:2;grid-row:1/3;align-self:center}.qpast .qp-sec+.qp-li .qp-pill,.qpast .qp-li .qp-pill{grid-row:1/3}}"
+    "@media(min-width:1200px){"
+    ".qpast{padding:16px 24px 24px}"
+    ".qpast .qp-hdr{display:grid;grid-template-columns:1.9fr 1fr 1fr 1fr auto;gap:12px;padding:8px 18px;font-size:11px;color:var(--sub);border-bottom:1.5px solid var(--ink);background:#fff;border-radius:10px 10px 0 0;margin-top:12px}"
+    ".qpast .qp-hdr span{text-align:right}.qpast .qp-hdr span:first-child{text-align:left}"
+    ".qpast .qp-list{margin-top:0;border-radius:0 0 10px 10px}"
+    ".qpast .qp-li{grid-template-columns:1.9fr 1fr 1fr 1fr auto;padding:12px 18px}.qpast .qp-nm{font-size:16px}"
+    ".qpast .qp-px{display:none}.qpast .qp-c{display:block;font-size:15px;font-weight:700;text-align:right;white-space:nowrap}"
+    "}"
+    "#qt.past .qrail,#qt.past .qmob,#qt.past .qm45,#qt.past .qhint,#qt.past [role=alert],#qt.past .qpc{display:none!important}"
     "</style>")
+
+
+def _그날띠색(c):
+    r"""그날 코스피 등락률 → 머리띠 두 색 — build_site._날씨색 과 **같은 값**(홈·오늘 화면과 한 규칙)"""
+    if c is None:
+        return ("#3C4250", "#5A6272")
+    if c <= -3:
+        return ("#0F2A55", "#1E4A8C")
+    if c <= -1:
+        return ("#24467A", "#3A66A8")
+    if c < 1:
+        return ("#3C4250", "#5A6272")
+    if c < 3:
+        return ("#7A2A26", "#A8443A")
+    return ("#5E1612", "#8E2A22")
+
+
+def _그날코스피(기준8):
+    r"""index-daily/<신호기준일>.json 의 코스피 등락률 — 없으면 None"""
+    try:
+        j = json.load(io.open(os.path.join(_DATA, "index-daily", f"{기준8}.json"), encoding="utf-8-sig"))
+        return float((j.get("지수") or {}).get("코스피", {}).get("등락률"))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def 지난줄(x, 종가, 업, 보완=False):
+    r"""지난 날·PC 홈이 같이 쓰는 **한 줄** — 종목·코드 / 갈래 꼬리표·업종·20일 / 주문가·그날 시가 / 결과(못 삼 · 삼+지금까지 · 채점 전 · 09:00 전)
+    돌려주는 값: (html, 산것인가 True/False/None)"""
+    코드 = str(x.get("종목코드") or "")
+    _주 = x.get("주문가") or x.get("문턱가")
+    _매 = x.get("매수가")
+    _체 = x.get("체결")
+    if 보완:
+        _딱 = [str(x.get("보완규칙") or "보완")]
+    else:
+        _딱 = [z for z in (_딱지(x) or "").split(" · ") if z]   # _딱지 는 「시장 급락 · 크게 빠짐」 한 줄 글이다(목록이 아님 — 10/23 첫 판에서 첫 글자만 나왔다)
+    _태 = ""
+    if _딱:
+        _태 = f'<span class="qp-tag{" qp-red" if _딱[0] == "크게 빠짐" else ""}">{_esc(_딱[0])}</span>'
+    _업이름 = ""
+    _u = 업.get(코드) if isinstance(업, dict) else None
+    if isinstance(_u, dict):
+        _업이름 = str(_u.get("업종명") or "")
+    _낙 = x.get("20일낙폭")
+    try:
+        _낙글 = f"20일 {'+' if float(_낙) > 0 else '−'}{abs(float(_낙)):.1f}%"
+    except (TypeError, ValueError):
+        _낙글 = ""
+    _sb = _태 + (f'<span class="qp-ind">{_esc(_업이름)}</span>' if _업이름 else "") + (f"<span>· {_낙글}</span>" if _낙글 else "")
+    _c = 종가.get(코드)
+    _지, _지색 = None, ""
+    if _체 is True and _매 and _c:
+        try:
+            _지 = (float(_c) / float(_매) - 1) * 100
+            _지색 = "up" if _지 > 0 else ("dn" if _지 < 0 else "")
+        except (TypeError, ValueError):
+            _지 = None
+    if _체 is True:
+        _알 = ('<span class="qp-pill qp-yes">삼' + (f'<small class="{_지색}">{"+" if _지 > 0 else ("−" if _지 < 0 else "")}{abs(_지):.1f}%</small>' if _지 is not None else "") + "</span>")
+    elif _체 is False:
+        _알 = '<span class="qp-pill qp-no">못 삼</span>'
+    elif _매:
+        _알 = '<span class="qp-pill qp-w">채점 전</span>'
+    else:
+        _알 = '<span class="qp-pill qp-w">09:00 전</span>'
+    _주글 = f"{int(_주):,}" if _주 else "·"
+    _매글 = f"{int(_매):,}" if _매 else "·"
+    _낙c = ""
+    try:
+        _v = float(_낙)
+        _낙c = f'<span class="qp-c {"dn" if _v < 0 else "up"}">{"+" if _v > 0 else "−"}{abs(_v):.1f}%</span>'
+    except (TypeError, ValueError):
+        _낙c = '<span class="qp-c">·</span>'
+    html = (f'<div class="qp-li"><div><div class="qp-nm">{_esc(x.get("이름", ""))}<small>{_esc(코드)}</small></div><div class="qp-sb">{_sb}</div></div>'
+            f'<div class="qp-px"><i>{"산 값" if _체 is True else ("주문가 · 그날 시가" if _매 else "주문가")}</i>{_주글 if _체 is not True else _매글}{"" if (_체 is True or not _매) else " · " + _매글}</div>'
+            f'<span class="qp-c">{_주글}</span><span class="qp-c">{_매글}</span>{_낙c}'
+            f'{_알}</div>')
+    return html, _체
+
+
+def _지난한날(d, r, 종가, 기준):
+    r"""지난 하루치 — 한 장(머리띠 + 줄 목록). d='YYYY-MM-DD', r=forward-log 그날 줄"""
+    import datetime as _dt
+    _d = _dt.date.fromisoformat(d)
+    _요 = "월화수목금토일"[_d.weekday()]
+    _시 = str(((r.get("동시호가") or {}).get("잰시각")) or "")[11:16]
+    후보 = r.get("후보") or []
+    산 = [x for x in 후보 if x.get("오늘산다")]
+    보산 = [x for x in (r.get("보완후보") or []) if x.get("오늘산다")]
+    업 = _업종표()
+    _c1, _c2 = _그날띠색(_그날코스피(str(r.get("신호기준일") or "")))
+    # 왜 그날 — 산 것들의 첫 갈래 중 가장 많은 것 + 그날 시장 지수 20일 낙폭
+    _갈 = {}
+    for x in 산:
+        for t in [z for z in (_딱지(x) or "").split(" · ") if z][:1]:
+            _갈[t] = _갈.get(t, 0) + 1
+    _왜 = max(_갈, key=_갈.get) if _갈 else ("후보 없음" if not 후보 else "문턱 못 넘음")
+    _시낙 = None
+    for x in (산 or 후보):
+        if x.get("시장지수낙20") is not None:
+            _시낙 = x.get("시장지수낙20")
+            _시장 = "코스피" if str(x.get("시장키") or "KOSPI").upper().startswith("KOSPI") else "코스닥"
+            break
+    _왜값 = _esc(_왜) + (f" · {_시장} 20일 {'+' if float(_시낙) > 0 else '−'}{abs(float(_시낙)):.0f}%" if _시낙 is not None else "")
+    _n = len(산) + len(보산)
+    _m = sum(1 for x in 산 + 보산 if x.get("체결") is True)
+    _전 = sum(1 for x in 산 + 보산 if x.get("체결") is None)
+    _결 = (f"{_n}개 중 {_m}개 삼" + (f" · 채점 전 {_전}" if _전 else "")) if _n else "주문 없음"
+    _제 = f"{_d.month}/{_d.day}({_요}) " + ((f"지정가 {len(산)}개" + (f" · 보완 {len(보산)}" if 보산 else "")) if _n else "살 것 없음")
+    줄 = []
+    if 산:
+        줄 += [지난줄(x, 종가, 업)[0] for x in 산]
+    if 보산:
+        줄.append(f'<div class="qp-sec">보완 후보 (지금 규칙과 따로 · {len(보산)}개 주문)</div>')
+        줄 += [지난줄(x, 종가, 업, 보완=True)[0] for x in 보산]
+    if not 줄:
+        줄.append(f'<div class="qp-none">후보 {len(후보)}개 중 문턱가까지 내려온 종목이 없어 주문을 내지 않았습니다.</div>')
+    _기 = f"{int(기준[4:6])}/{int(기준[6:8])}" if len(기준) == 8 else "최근"
+    return (f'<div class="qpast" data-d="{d}" style="--c1:{_c1};--c2:{_c2}" hidden>'
+            f'<div class="qp-band"><div class="qp-t"><span>{_esc(_제)}</span><small>{f"{_시} 확정" if _시 else "08:55 확정"}</small></div>'
+            f'<div class="qp-kv"><div><i>왜 그날</i><b>{_왜값}</b></div><div><i>그날 결과</i><b>{_esc(_결)}</b></div></div></div>'
+            f'<div class="qp-hdr"><span>종목 · 왜 · 업종</span><span>주문가</span><span>그날 시가</span><span>20일</span><span>결과</span></div>'
+            f'<div class="qp-list">' + "".join(줄)
+            + f'<div class="qp-foot">「못 삼」 = 9시 시가가 주문가보다 높아 체결되지 않은 것 · 「삼」 아래 숫자 = {_기} 종가 ÷ 산 값 (40%·60% 나눠 팔기 전 값) · '
+              '10/13 전에는 지정가가 아니라 예상가로 사던 때라 결과 표시가 없을 수 있습니다 · 매수 추천이 아닙니다</div>'
+            f'</div></div>')
 
 
 def _최근종가():
@@ -1620,55 +1775,6 @@ def _최근종가():
     except Exception:  # noqa: BLE001
         return {}, ""
     return ({c: v.get("종가") for c, v in (j.get("종목") or {}).items()}, str(j.get("기준일") or ""))
-
-
-def _지난한날(d, r, 종가, 기준):
-    r"""지난 하루치 표 HTML. d='YYYY-MM-DD', r=forward-log 그날 줄"""
-    import datetime as _dt
-    _d = _dt.date.fromisoformat(d)
-    _요 = "월화수목금토일"[_d.weekday()]
-    _시 = str(((r.get("동시호가") or {}).get("잰시각")) or "")[11:16]
-    후보 = r.get("후보") or []
-    산 = [x for x in 후보 if x.get("오늘산다")]
-    _기 = f"{int(기준[4:6])}/{int(기준[6:8])}" if len(기준) == 8 else "최근"
-    if not 산:
-        본 = (f'<h3>그날 살 것: 없음</h3>'
-              f'<div class="sum">후보 {len(후보)}개 중 문턱가까지 내려온 종목이 없어 주문을 내지 않았습니다.</div>')
-    else:
-        줄, 체, 수 = [], 0, []
-        for x in 산:
-            _주 = x.get("주문가") or x.get("문턱가")
-            _매 = x.get("매수가")
-            _체 = x.get("체결")
-            if _체 is True:
-                체 += 1
-                _태 = '<span class="tag y">체결</span>'
-            elif _체 is False:
-                _태 = '<span class="tag n">못 삼</span>'
-            else:
-                _태 = '<span class="tag w">채점 전</span>'
-            _지 = "·"
-            _c = 종가.get(str(x.get("종목코드") or ""))
-            if _체 is True and _매 and _c:
-                _p = (float(_c) / float(_매) - 1) * 100
-                수.append(_p)
-                _색 = "#C8352B" if _p > 0 else ("#2050C8" if _p < 0 else "#4b4740")
-                _지 = f'<b style="color:{_색}">{"+" if _p > 0 else ("−" if _p < 0 else "")}{abs(_p):.1f}%</b>'
-            줄.append(f'<tr><td>{_esc(x.get("이름", ""))}<small>{_esc(x.get("종목코드", ""))}</small></td>'
-                      f'<td class="r">{f"{int(_주):,}" if _주 else "·"}</td>'
-                      f'<td class="r">{f"{int(_매):,}" if _매 else "·"}</td>'
-                      f'<td>{_태}</td><td class="r">{_지}</td></tr>')
-        _평 = (f" · 체결된 것 평균 {'+' if sum(수) / len(수) > 0 else '−'}{abs(sum(수) / len(수)):.1f}%" if 수 else "")
-        본 = (f'<h3>그날 살 것: {len(산)}개</h3>'
-              f'<div class="sum">지정가 {len(산)}개 중 체결 {체}개{_평} ({_기} 종가 기준)</div>'
-              f'<table><tr><th>종목</th><th class="r">주문가</th><th class="r">그날 시가</th><th>체결</th><th class="r">지금까지</th></tr>'
-              + "".join(줄) + '</table>')
-    return (f'<div class="qpast" data-d="{d}" hidden>'
-            f'<div class="k">QUANT · {_d.month}/{_d.day}({_요}){f" {_시} 확정" if _시 else ""}</div>'
-            + 본
-            + '<div class="foot">「못 삼」 = 9시 시가가 주문가보다 높아 체결되지 않은 것 · 「지금까지」 = 최근 종가 ÷ 그날 시가 (나눠 팔기 전 값) · '
-              '10/13 전에는 지정가가 아니라 예상가로 사던 때라 체결 표시가 없을 수 있습니다 · 매수 추천이 아닙니다</div>'
-            f'</div>')
 
 
 def _지난들(줄들, 오늘):

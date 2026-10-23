@@ -489,6 +489,51 @@ document.getElementById("f").onload=function(){
 """
 
 
+# ⭐ 10/23 새 화면 둘 — PC 홈(#home .hpc · 1200px↑)과 퀀트 지난 날(.qpast · 폰·PC) — 경고만
+#    PC 홈: 보이나 · 단(.hcol) 밖으로 나간 글 · 페이지 가로 넘침 / 지난 날: 퀀트 단추 → ‹ 를 눌러 그날 장이 화면보다 넓지 않나 · 줄(.qp-li) 밖 글
+NEW2_HOST = r"""
+<style>html,body{margin:0}iframe{border:0;display:block}</style>
+<iframe id="f" src="__SRC__" width="__W__" height="900"></iframe>
+<script>
+document.getElementById("f").onload=function(){
+ var d=this.contentDocument, win=this.contentWindow;
+ setTimeout(function(){
+  var bad=[], shown=0, mode="__MODE__";
+  if(mode==="home"){
+    var h=d.querySelector("#home .hpc"); shown=h&&win.getComputedStyle(h).display!=="none"?1:0;
+    if(shown){
+      h.querySelectorAll(".hcol").forEach(function(s){ var sr=s.getBoundingClientRect();
+        s.querySelectorAll("*").forEach(function(e){ var r=e.getBoundingClientRect();
+          if(r.width>0&&r.right>sr.right+1) bad.push("단 밖 "+Math.round(r.right-sr.right)+" "+(e.textContent||"").trim().slice(0,16)); }); });
+      if(d.documentElement.scrollWidth>win.innerWidth+1) bad.push("페이지 가로 넘침 "+d.documentElement.scrollWidth);
+    }
+    finish();
+  } else {
+    var btn=d.getElementById("btn-qt"); if(btn) btn.click();
+    setTimeout(function(){
+      var p=d.querySelector("#qt .qprev"); if(p) p.click();
+      setTimeout(function(){
+        var q=d.querySelector(".qpast:not([hidden])"); shown=q?1:0;
+        if(q){
+          var qr=q.getBoundingClientRect();
+          if(qr.right>win.innerWidth+1) bad.push("장이 화면보다 넓다 "+Math.round(qr.right-win.innerWidth));
+          q.querySelectorAll(".qp-li").forEach(function(s){ var sr=s.getBoundingClientRect();
+            s.querySelectorAll("*").forEach(function(e){ var r=e.getBoundingClientRect();
+              if(r.width>0&&r.right>sr.right+1) bad.push("줄 밖 "+Math.round(r.right-sr.right)+" "+(e.textContent||"").trim().slice(0,12)); }); });
+          if(d.documentElement.scrollWidth>win.innerWidth+1) bad.push("페이지 가로 넘침 "+d.documentElement.scrollWidth);
+        }
+        finish();
+      },700);
+    },900);
+  }
+  function finish(){ var u=[]; bad.forEach(function(b){ if(u.indexOf(b)<0) u.push(b); });
+    document.title="N::"+shown+"|"+u.length+"|"+u.slice(0,4).join(" / "); }
+ },1800);
+};
+</script>
+"""
+
+
 def _chrome():
     for p in CHROME:
         if os.path.exists(p):
@@ -991,6 +1036,19 @@ def check(cards_path, site_path=None):
                 fails.append(f"🔴 퀀트 PC 화면 {w}폭: PC 판이 안 보인다(PC 표 화면 실패로 카드로 떨어졌나?)")
             elif int(n_bad or 0):
                 fails.append(f"🔴 퀀트 PC 화면 {w}폭에서 넘쳤다 — {n_bad}곳 ({who})")
+        # 4-4. PC 홈(10/23 · #home .hpc · 1200px↑) · 퀀트 지난 날(.qpast · 폰 넷 + PC 셋) — 경고만
+        for mode, 폭들, 이름 in (("home", (1200, 1280, 1440), "PC 홈"), ("past", (320, 375, 393, 430, 1200, 1280, 1440), "퀀트 지난 날")):
+            for w in 폭들:
+                host = NEW2_HOST.replace("__SRC__", src).replace("__W__", str(w)).replace("__MODE__", mode)
+                raw, err = _run(exe, host, w + 60, 960, "N::")
+                if err or not raw:
+                    notes.append(f"{이름} {w}폭 측정값을 못 읽었다" + (f" ({err})" if err else ""))
+                    continue
+                shown, n_bad, who = (raw.split("|") + ["", "", ""])[:3]
+                if not int(shown or 0):
+                    notes.append(f"{이름} {w}폭: 화면이 안 보인다(지난 날이 없거나 PC 홈이 안 켜짐)")
+                elif int(n_bad or 0):
+                    fails.append(f"🔴 {이름} {w}폭에서 넘쳤다 — {n_bad}곳 ({who})")
 
     # ⚠️⚠️ **모든 실패가 같은 무게는 아니다** (2026-08-28 분리).
     #    좌우가 안 잠기거나 스크립트가 죽으면 **페이지를 못 쓴다** — 올리면 안 된다.

@@ -22,6 +22,7 @@ import calendar
 import io
 import json
 import os
+import re
 import sys
 from datetime import datetime, timedelta
 
@@ -477,6 +478,9 @@ SITE_JS = """<script>
  var _bp=$('#btn-past'); if(_bp) _bp.addEventListener('click',function(){show('cal')});   // 10/14 첫 화면에서 뺐다 · 지난 날은 ‹ 날짜 › 로
  var _pf=$('#btn-pf'); if(_pf) _pf.addEventListener('click',function(){show('pf')});
  var _qt=$('#btn-qt'); if(_qt) _qt.addEventListener('click',function(){qDay('');show('qt')});
+ // 10/23 PC 홈 — 세 단 머리는 폰 홈 단추와 같은 곳으로 · ‹ 는 전날 브리핑
+ document.querySelectorAll('#home .hpc .hh').forEach(function(b){b.addEventListener('click',function(){var t=$('#btn-'+this.dataset.go); if(t) t.click();})});
+ document.querySelectorAll('#home .hpc .hprev,#home .hpc .hnow').forEach(function(b){b.addEventListener('click',function(){ if(this.dataset.d){ openDay(this.dataset.d); window.scrollTo(0,0);} })});
  document.querySelectorAll('.qlink').forEach(function(b){b.addEventListener('click',function(){qDay('');show('qt');window.scrollTo(0,0)})});
  // 10/14 퀀트 ‹ 날짜 › — 오늘이면 카드, 지난 날이면 그날 표(.qpast)
  function qDay(d){
@@ -1159,6 +1163,193 @@ def _부호(c, 자리=2):
     return ("+" if c > 0 else ("−" if c < 0 else "")) + f"{abs(c):.{자리}f}%"
 
 
+def _앞문장(s, n):
+    r"""「…습니다.」 단위로 앞 n 문장"""
+    s = re.sub(r"\s+", " ", str(s or "")).strip()
+    if not s:
+        return ""
+    조각 = re.split(r"(?<=다\.)\s+", s)
+    return " ".join(조각[:n]).strip()
+
+
+def _코스닥():
+    import glob as _g
+    _f = sorted(_g.glob(os.path.join(_DATA, "index-daily", "*.json")))
+    try:
+        return (json.load(io.open(_f[-1], encoding="utf-8-sig")).get("지수") or {}).get("코스닥")
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _섹터비율():
+    r"""포트폴리오 섹터 비율 [(섹터, %, 종목수)] — portfolio_view 와 같은 셈(평가금액 가중 · 없으면 균등) · 금액은 안 돌려준다"""
+    pf = _portfolio()
+    hold = [h for h in ((pf or {}).get("holdings") or []) if h.get("code")]
+    if not hold:
+        return []
+    total = sum(_f(h.get("평가금액"), 0) or 0 for h in hold)
+    균등 = total <= 0
+    by = {}
+    for h in hold:
+        by.setdefault(h.get("섹터") or "미분류", []).append(1.0 if 균등 else (_f(h.get("평가금액"), 0) or 0))
+    denom = (len(hold) if 균등 else total) or 1
+    return sorted(((s, sum(v) / denom * 100, len(v)) for s, v in by.items()), key=lambda z: -z[1])
+
+
+def _홈PC(o, latest, 머리시각, kept):
+    r"""⭐ 10/23 PC 홈(1200px↑) — 사용자 「①-2 중 어느 쪽으로 가자」 (시안 https://claude.ai/artifact/HggFFtCV31ARjGQGBpd7VY 10판 안 C+)
+    위 띠 = 코스피·코스닥·시장 구간·작은 칸(나스닥100·S&P500·나스닥 선물·어제 외국인·기관) · 띠 색은 홈과 같은 --c1/--c2
+    아래 세 단 = 오늘 브리핑(한국 두 문장 · 미국 두 문장 · 후보 이름 · 일정 셋) / 퀀트(과거 화면과 같은 줄 + 채점 한 줄) / 포트폴리오(섹터 비율)
+    ⚠️ 새로 쓰는 글이 없다 — 전부 그날 브리핑 글(card-copy)·forward-log·portfolio 의 정해진 자리에서 가져온다 · 빈 항목은 안 그린다 · 금액 없음"""
+    import glob as _g
+    cp = _copy(latest) or {}
+    _k = _코스피() or {}
+    _kq = _코스닥() or {}
+
+    def _등(d):
+        try:
+            return float(d.get("등락률"))
+        except (TypeError, ValueError, AttributeError):
+            return None
+
+    def _값(d):
+        try:
+            return float(d.get("종가"))
+        except (TypeError, ValueError, AttributeError):
+            return None
+    _c, _v = _등(_k), _값(_k)
+    _cq, _vq = _등(_kq), _값(_kq)
+    _날 = None
+    try:
+        _fs = sorted(_g.glob(os.path.join(_DATA, "index-daily", "*.json")))
+        _날 = datetime.strptime(os.path.basename(_fs[-1])[:8], "%Y%m%d") if _fs else None
+    except Exception:  # noqa: BLE001
+        pass
+    _라 = (f"코스피 · {_날.month}/{_날.day}({WEEKDAY[_날.weekday()]}) 마감" if _날 else "지난 거래일 코스피")
+    _mr = (o or {}).get("market_regime") or {}
+    _band = str(_mr.get("band") or "").split("(")[0].strip()
+    _칩 = ""
+    if _band:
+        try:
+            _p = float(_mr.get("kospi_vs_sma20_pct"))
+            _칩 = f'<div class="hchip"><b>{_esc(_band)}</b>20일 평균선보다 {abs(_p):.2f}% {"아래" if _p < 0 else "위"}</div>'
+        except (TypeError, ValueError):
+            _칩 = f'<div class="hchip"><b>{_esc(_band)}</b></div>'
+    # 작은 칸 — 받은 숫자만 · 못 읽은 칸은 안 그린다
+    _칸 = []
+    try:
+        _us = sorted(_g.glob(os.path.join(_DATA, "snapshots", "*", "fetch_us.json")))
+        _j = json.load(io.open(_us[-1], encoding="utf-8-sig")) if _us else {}
+    except Exception:  # noqa: BLE001
+        _j = {}
+    _지 = _j.get("지수") or {}
+    _선 = _j.get("선물원자재") or {}
+    for _이름, _때, _src in (("나스닥100", "어젯밤", _지.get("나스닥100")), ("S&P500", "어젯밤", _지.get("S&P500")),
+                           ("나스닥 선물", (str(_j.get("fetched_at") or "")[11:16] or "아침"), _선.get("나스닥100 선물"))):
+        _r = _등(_src or {})
+        if _r is not None:
+            _칸.append(f'<div><i>{_이름} · {_때}</i><b>{_부호(_r)}</b></div>')
+    _수 = [z for z in (cp.get("수급") or []) if isinstance(z, dict) and z.get("주체") in ("외국인", "기관")]
+    if _수:
+        _칸.append('<div><i>어제 외국인 · 기관 (코스피)</i><b>' + " · ".join(_esc(str(z.get("값") or "")) for z in _수[:2]) + "</b></div>")
+    # ── 단 ① 오늘 브리핑 ──
+    _한 = _앞문장(cp.get("핵심"), 2)
+    _미 = _앞문장(cp.get("미장요약"), 2)
+    _결 = str(cp.get("결론") or "").split(".")[0].strip()      # 「오늘 살 것: 없음」
+    picks = (o or {}).get("picks") or []
+    _칩들 = "".join(f'<span>{_esc(p.get("name") or "")}<i>{_esc(p.get("grade") or "")}'
+                   + (f' {int(_f(p.get("found_price"), 0)):,}' if _f(p.get("found_price"), 0) else "") + "</i></span>" for p in picks[:6])
+    _일 = [z for z in (cp.get("캘린더") or []) if isinstance(z, dict) and z.get("what")][:3]
+    _일글 = "".join(f'<span class="hw">{_esc(str(z.get("when") or ""))}</span><span>{_esc(str(z.get("what") or ""))}</span>' for z in _일)
+    _b1 = ""
+    if _한:
+        _b1 += f'<div class="hk">한국 증시</div><p>{_esc(_한)}</p>'
+    if _미:
+        _b1 += f'<div class="hk">미국 증시</div><p>{_esc(_미)}</p>'
+    if picks or _결:
+        _b1 += f'<div class="hk">후보' + (f' — <b>{_esc(_결)}</b>' if _결 else "") + "</div>" + (f'<div class="hchips">{_칩들}</div>' if _칩들 else "")
+    if _일글:
+        _b1 += f'<div class="hk">일정</div><div class="hcal">{_일글}</div>'
+    # ── 단 ② 퀀트 ──
+    _b2, _t2, _s2 = "", "퀀트 후보", "재무·주가·지수를 숫자로만 보는 기계 규칙"
+    _q = _quant()
+    if _q:
+        try:
+            import quant_cards as _qc
+            import quant_n34 as _qn
+            종가, 기준 = _qc._최근종가()
+            업 = _qc._업종표()
+            후보 = _q.get("후보") or []
+            _확 = (_q.get("동시호가") or {}).get("예상시장갭") is not None
+            산 = [x for x in 후보 if x.get("오늘산다")] if _확 else [x for x in 후보 if x.get("규칙매수")][:6]
+            _n보 = sum(1 for x in (_q.get("보완후보") or []) if x.get("오늘산다"))
+            if _확 and 산:
+                _t2 = f"퀀트 후보 · 지정가 {len(산)}"
+                _s2 = f"08:55 확정 · 시장보다 {abs(R.상대갭문턱):g}%p 싸게 열리면 삼" + (f" · 보완 {_n보} 따로" if _n보 else "")
+            elif _확:
+                _t2, _s2 = "퀀트 후보 · 살 것 없음", f"08:55 확정 · 시장보다 {abs(R.상대갭문턱):g}%p 싸게 연 종목 없음"
+            else:
+                _t2, _s2 = f"퀀트 후보 · 볼 종목 {len(후보)}", "08:55에 확정 · 그 전엔 후보만"
+            줄 = [_qc.지난줄(x, 종가, 업)[0] for x in 산]
+            if not 줄 and _확:
+                _보유들 = _보유(_줄들())
+                _b2 = '<div class="hnone">오늘은 살 것이 없습니다</div>'
+                if _보유들:
+                    _b2 += '<div class="hk">들고 있는 것</div>' + "".join(
+                        f'<div class="hhold"><b>{_esc(x.get("이름") or x.get("종목코드") or "")}</b><span>{_esc(str(x.get("산날") or ""))} 삼' + (f' · {x["지난날"]}일 지남' if x.get("지난날") is not None else "") + "</span></div>" for x in _보유들[:6])
+            else:
+                _b2 = "".join(줄)
+            try:
+                _비 = _qn._비교(_줄들())
+                _전 = _비.get("퀀트전부")
+                if _전:
+                    _b2 += (f'<div class="hsub">채점(20일 지난 것): +15% 닿음 {_전[3]} / {_전[0]}' + (f" ({_전[1]:.0f}%)" if _전[0] >= _qn.비교최소 else "")
+                            + f' · 채점 전 {_비.get("퀀트대기", 0)}' + (" · 대형 보완은 주문 안 함" if not getattr(R, "보완대형주문", True) else "") + "</div>")
+            except Exception:  # noqa: BLE001
+                pass
+        except Exception as _e:  # noqa: BLE001
+            _b2 = f'<div class="hnone">퀀트 칸을 못 그렸습니다 ({_esc(str(_e)[:60])})</div>'
+    # ── 단 ③ 포트폴리오 ──
+    _b3 = ""
+    _비율 = _섹터비율()
+    if _비율:
+        _b3 = "".join(f'<div class="hbar{" over" if i == 0 else ""}"><span>{_esc(s)}</span><div class="tr"><i style="width:{min(100, p):.1f}%"></i></div><span class="v">{p:.0f}%</span></div>'
+                      for i, (s, p, n) in enumerate(_비율[:6]))
+        _s, _p, _n = _비율[0]
+        _b3 += f'<div class="hlean">가장 큰 섹터: <b>{_esc(_s)} {_p:.0f}%</b> · {_n}종목</div><div class="hsub">비율만 보입니다 · 금액 없음</div>'
+    # ── 날짜 넘김 ──
+    _ds = [k.get("date") for k in (kept or []) if k.get("date")]
+    _prev = _ds[-2] if len(_ds) >= 2 else ""
+    _dn = f"{latest[5:7].lstrip('0')}.{latest[8:10].lstrip('0')}({WEEKDAY[datetime.strptime(latest, '%Y-%m-%d').weekday()]})"
+
+    def _단(go, 제목, 부제, 본, hot=False):
+        return (f'<div class="hcol{" hot" if hot else ""}"><button class="hh" type="button" data-go="{go}"><span><b>{_esc(제목)}</b><small>{_esc(부제)}</small></span><em>전체 보기 →</em></button>'
+                f'<div class="hb">{본}</div></div>')
+    단들 = _단("today", "오늘 브리핑", "뉴스·공시·수급으로 읽는 시장", _b1, True)
+    if _q:
+        단들 += _단("qt", _t2, _s2, _b2)
+    if _b3:
+        단들 += _단("pf", "깜댕의 포트폴리오", "섹터별 비중으로 쏠림을 봅니다", _b3)
+    띠 = (f'<div class="htop"><div class="hl"><span class="hbn">{BRAND}</span><span class="hst">{_esc(머리시각)}</span>'
+         f'<div class="hidx">'
+         + (f'<div><div class="hlab">{_esc(_라)}</div><div class="hbig">{_부호(_c)} <small>{_v:,.2f}</small></div></div>' if (_c is not None and _v is not None) else "")
+         + (f'<div><div class="hlab">코스닥</div><div class="hmid">{_부호(_cq)} <small>{_vq:,.2f}</small></div></div>' if (_cq is not None and _vq is not None) else "")
+         + "</div>" + _칩 + "</div>"
+         + (f'<div class="hkv">{"".join(_칸)}</div>' if _칸 else "") + "</div>")
+    return (f'<div class="hpc">{띠}<div class="hcols">{단들}</div>'
+            f'<div class="hbot"><span>매수 추천이 아닙니다. 판단과 책임은 본인에게 있습니다.</span>'
+            f'<span class="hd"><button class="tbtn hprev" type="button" data-d="{_prev}"{"" if _prev else " disabled"} aria-label="전날">‹</button>'
+            f'<button class="tbtn hnow" type="button" data-d="{latest}">{_dn}</button><button class="tbtn" type="button" disabled aria-label="다음 날">›</button></span></div></div>')
+
+
+def _줄들():
+    r"""forward-log 전체 줄 — 퀀트 채점·보유 계산용(quant_view 와 같은 파일)"""
+    try:
+        return [json.loads(z) for z in io.open(os.path.join(_DATA, "forward-log.jsonl"), encoding="utf-8") if z.strip()]
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def _시장날씨(o):
     r"""첫 화면 위쪽 덩어리 HTML 과 바탕 두 색을 돌려준다. 코스피를 못 읽으면 (None, 회색)"""
     import glob as _g
@@ -1260,6 +1451,75 @@ WX_CSS = """<style>
 #home.wx2 .legal .pconly{display:none}
 @media(min-width:560px){#home.wx2{min-height:auto;margin-top:24px;border-radius:22px;overflow:hidden}}
 @media(prefers-reduced-motion:reduce){#home.wx2 .m{transition:none}}
+/* ── 2026-10-23 PC 홈(1200px↑) · 안 C+ (사용자 「①-2 중 어느 쪽으로 가자」) — 폰 홈은 그대로, 1200 밑에선 이 블록이 안 보인다 ── */
+#home .hpc{display:none}
+@media(min-width:1200px){
+#home.wx2{max-width:none;margin:0;border-radius:0;background:#E8ECF1;min-height:100dvh}
+#home.wx2 .sky,#home.wx2 .menu,#home.wx2 .legal{display:none}
+#home .hpc{display:flex;flex-direction:column;min-height:100dvh;color:#151B26;font-feature-settings:'tnum';letter-spacing:-.01em}
+#home .htop{background:linear-gradient(90deg,var(--c1),var(--c2));color:#fff;padding:22px 48px 20px;display:flex;align-items:flex-end;gap:36px}
+#home .htop .hl{flex:1;min-width:0}
+#home .hbn{font-family:'Yeon Sung','Pretendard Variable',system-ui,sans-serif;font-weight:400;font-size:26px;color:#fff}
+#home .hst{font-size:13px;opacity:.8;margin-left:14px}
+#home .hidx{display:flex;gap:40px;margin-top:14px;align-items:flex-end}
+#home .hlab{font-size:13px;opacity:.85}
+#home .hbig{font-size:72px;font-weight:800;letter-spacing:-.05em;line-height:1;display:flex;align-items:baseline;gap:12px;margin-top:2px;white-space:nowrap}
+#home .hbig small{font-size:20px;font-weight:600;opacity:.9}
+#home .hmid{font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1;margin-top:2px;display:flex;align-items:baseline;gap:8px;white-space:nowrap}
+#home .hmid small{font-size:14px;font-weight:600;opacity:.9}
+#home .hchip{display:inline-flex;gap:12px;align-items:center;margin-top:12px;font-size:14px}
+#home .hchip b{background:rgba(255,255,255,.18);border-radius:6px;padding:3px 10px;font-size:12.5px}
+#home .hkv{width:560px;display:flex;flex-wrap:wrap;gap:8px}
+#home .hkv div{flex:1 1 40%;background:rgba(255,255,255,.14);border-radius:8px;padding:8px 10px;min-width:0}
+#home .hkv i{display:block;font-style:normal;font-size:11px;opacity:.85;margin-bottom:2px}
+#home .hkv b{font-size:20px;font-weight:800;white-space:nowrap}
+#home .hcols{flex:1;display:grid;grid-template-columns:1.05fr 1fr .9fr;gap:16px;padding:18px 48px 10px;align-items:stretch}
+#home .hcol{background:#fff;border-radius:14px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 1px 2px rgba(21,27,38,.06)}
+#home .hh{width:100%;border:0;background:#fff;padding:16px 20px 12px;border-bottom:1px solid #D9DFE7;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;font:inherit;color:inherit;text-align:left}
+#home .hh b{display:block;font-size:18px;font-weight:800;letter-spacing:-.02em}
+#home .hh small{display:block;font-size:12px;color:#5E6878;margin-top:2px}
+#home .hh em{font-style:normal;font-size:12.5px;font-weight:700;color:#2459C4;white-space:nowrap}
+#home .hh:focus-visible{outline:2px solid #151B26;outline-offset:-2px}
+#home .hcol.hot .hh{background:#151B26;color:#fff;border-bottom:0}
+#home .hcol.hot .hh small{color:rgba(255,255,255,.75)}#home .hcol.hot .hh em{color:#9DB7F0}
+#home .hb{padding:14px 20px 12px;font-size:13.5px;line-height:1.6;color:#151B26}
+#home .hb p{margin:0 0 12px}
+#home .hk{font-size:11.5px;font-weight:700;color:#5E6878;letter-spacing:.03em;margin:0 0 4px}
+#home .hk b{color:#151B26;font-weight:800}
+#home .hchips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+#home .hchips span{font-size:12px;font-weight:700;border:1px solid #D9DFE7;border-radius:6px;padding:3px 8px}
+#home .hchips span i{font-style:normal;color:#5E6878;font-weight:500;margin-left:4px}
+#home .hcal{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:13px}
+#home .hcal .hw{color:#5E6878;white-space:nowrap}
+#home .hnone{font-size:15px;font-weight:700;color:#5E6878;margin:4px 0 12px}
+#home .hhold{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid #D9DFE7;font-size:13.5px}
+#home .hhold span{color:#5E6878}
+#home .hsub{font-size:11.5px;color:#5E6878;margin-top:8px;padding-top:8px;border-top:1px solid #D9DFE7}
+#home .hbar{display:grid;grid-template-columns:72px 1fr 40px;gap:10px;align-items:center;padding:4px 0;font-size:13px}
+#home .hbar .tr{height:10px;background:#EEF1F5;border-radius:5px;overflow:hidden}
+#home .hbar .tr i{display:block;height:100%;background:#2A4C8F;border-radius:5px}
+#home .hbar.over .tr i{background:#D0312D}
+#home .hbar .v{text-align:right;font-weight:800}
+#home .hlean{font-size:12.5px;margin-top:10px;padding:8px 10px;background:#F6F7F9;border-radius:8px}
+#home .hlean b{color:#D0312D}
+#home .hbot{display:flex;justify-content:space-between;align-items:center;padding:6px 48px 16px;font-size:12.5px;color:#5E6878}
+#home .hbot .hd{display:flex;gap:0}
+#home .hbot .tbtn{border:1px solid #D9DFE7;background:#fff;color:#151B26;font:inherit;font-size:13px;padding:6px 11px;cursor:pointer}
+#home .hbot .tbtn.hnow{font-weight:900;border-left:0;border-right:0}
+#home .hbot .tbtn:first-child{border-radius:8px 0 0 8px}#home .hbot .tbtn:last-child{border-radius:0 8px 8px 0}
+#home .hbot .tbtn:disabled{opacity:.4;cursor:default}
+/* 과거 화면 줄(quant_cards.지난줄)을 홈 퀀트 단에서 그대로 쓴다 — 접두사 qp- */
+#home .hb .qp-li{display:grid;grid-template-columns:1fr auto auto;gap:8px 10px;align-items:center;padding:7px 0;border-top:1px solid #D9DFE7;font-size:13.5px}
+#home .hb .qp-li:first-child{border-top:0}
+#home .hb .qp-nm{font-weight:800}#home .hb .qp-nm small{font-weight:500;color:#5E6878;font-size:11px;margin-left:5px}
+#home .hb .qp-sb{font-size:11px;color:#5E6878;margin-top:1px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}#home .hb .qp-sb .qp-ind{color:#151B26;font-weight:600}
+#home .hb .qp-tag{display:inline-block;font-size:11px;font-weight:700;background:#E4ECFA;color:#2459C4;border-radius:4px;padding:1px 6px;white-space:nowrap}#home .hb .qp-tag.qp-red{background:#FBE6E5;color:#D0312D}
+#home .hb .qp-px{text-align:right;font-weight:800;white-space:nowrap}#home .hb .qp-px i{display:block;font-style:normal;font-size:10px;color:#5E6878;font-weight:500}
+#home .hb .qp-c{display:none}
+#home .hb .qp-pill{font-weight:800;border-radius:5px;padding:3px 7px;font-size:11px;white-space:nowrap;text-align:center;min-width:46px}
+#home .hb .qp-pill.qp-no{background:#EEF1F5;color:#5E6878}#home .hb .qp-pill.qp-yes{background:#151B26;color:#fff}#home .hb .qp-pill.qp-w{background:#fff;color:#5E6878;border:1px solid #D9DFE7}
+#home .hb .qp-pill.qp-yes small{display:block;font-size:10.5px;font-weight:700;margin-top:1px}#home .hb .qp-pill.qp-yes small.up{color:#FFB4B1}#home .hb .qp-pill.qp-yes small.dn{color:#9DB7F0}
+}
 </style>"""
 
 
@@ -1421,7 +1681,8 @@ def build(out, days=DEFAULT_DAYS):
         # ⚠️ 수록 기간·생성 시각은 폰에서 안 보인다. 그래도 없애지 않는다 — 캐시가 센 데서 옛 화면인지 가려내는 단서 (2026-08-27)
         f'<span class="pconly"> · 수록 {len(kept)}일 ({oldest_kept} ~ {latest}) · 화면 생성 {built}</span>'
         f'</div>'
-        f'</section>')
+        + _홈PC(kept[-1], latest, _머리시각, kept)   # 10/23 PC 홈(1200px↑) — 폰은 위 그대로
+        + f'</section>')
 
     # ⚠️ 포트폴리오 화면은 달력과 나란한 형제다 — `cal` 문자열 앞에 붙인다.
     pf_html = portfolio_view(kept[-1], _copy(latest))
