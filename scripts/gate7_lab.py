@@ -8160,7 +8160,7 @@ def main():
     #    사용자 10/1 「혹시 테스트 결과에서 추가로 테스트가 필요하면 허락없이 진행해.」
     #    ⇒ 실전 규칙은 그대로 두고 손잡이 하나씩만 바꿔 **종가 기준** 끝 자산·낙폭을 잰다 (앞 ~2020 / 뒤 2021~)
     #    ⚠️ 규칙을 바꾸자는 판이 아니다 — 숫자만 남기고 사용자가 정한다 ([[dont-add-conditions]] · 조건을 더하면 졌다)
-    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "TOPN", "ORDER", "SPLIT", "BOJOIN", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
+    if _ONLY in ("DDCTRL", "SLOWCUT", "BADCUT", "HALTCUT", "NEWSCUT", "CREDCUT", "TOPN", "ORDER", "SPLIT", "BOJOIN", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK") or any(z in _ONLY.split("+") for z in ("DDCTRL", "SLOWCUT", "BADCUT", "TAILCUT", "TAILCHK", "GAPCHK", "BRANCH", "ADDCHK", "BRANCHCHK", "CAUSECHK", "LIVECMP", "ALLSIG", "SECBIAS", "MINCAND", "SECWIDE", "ROBUST", "MKTFIX", "BIGWORST", "MKTGRID", "DAYCAP", "BOLLGRID", "BOLLWALK")):
         print("\n" + "=" * 122)
         print("  ── DDCTRL ⭐⭐ **종가 기준 계좌 낙폭 — 무엇이 줄이나** · 지금 실전 규칙 · 손잡이 하나씩 ──")
         print("=" * 122)
@@ -8324,6 +8324,122 @@ def main():
                      ("정지(나쁜 것만) 60거래일 안 빼기", {"거름": _정지빼기("정지나쁨", 60)}),
                      ("정지(나쁜 것만) 120거래일 안 빼기", {"거름": _정지빼기("정지나쁨", 120)}))
             print("  ── HALTCUT · 거래정지·실질심사 공시가 최근에 있던 후보 빼기 (공시 2010~ · 신호 날까지) ──")
+        # ⭐ 2026-10-23 CREDCUT — **신용잔고·공매도(한국투자증권 2010~)로 후보를 빼면** 돈이 어떻게 되나
+        #    사용자 10/22 「한국투자증권 계좌만들면 얻을 수 있는 재료가 있었는데, 지금 수집해서 테스트해보면 좋을 것 같은데」 → 「실전 열쇠로 받고 키를 지우면 어때?」
+        #    자료: data/kis-credit·kis-short (collect_kis_hist.py · 968종목 = −3.5 후보가 났던 종목 전부)
+        #    미래 안 봄: 신용은 결제일 기준이라 날[인−3] 까지 · 공매도는 날[인−2] 까지 · 「위 10%」 는 **그 종목의 지난 250일 안에서**(풀 전체 통계 안 씀)
+        #    줄 목록·문턱(5%·8%·+50%·−30%)은 결과 보기 전에 고정 · 자료 없는 후보는 그대로 둔다(빼지 않는다)
+        if "CREDCUT" in _ONLY.split("+") or _ONLY == "CREDCUT":
+            import bisect as _bsK
+            _신K, _공K = {}, {}
+
+            def _읽K(폴더, c):
+                try:
+                    _j = json.load(io.open(os.path.join(O._DATA, 폴더, c + ".json"), encoding="utf-8"))
+                except (OSError, ValueError):
+                    return None
+                return _j["칸"], _j["행"]
+
+            def _수K(v):
+                try:
+                    return float(v)
+                except (TypeError, ValueError):
+                    return None
+            for _x in 사건:
+                _c = _x["code"]
+                if _c in _신K:
+                    continue
+                _r = _읽K("kis-credit", _c)
+                if _r:
+                    _칸, _행 = _r
+                    _iD, _iR, _iS = _칸.index("deal_date"), _칸.index("whol_loan_rmnd_rate"), _칸.index("whol_loan_rmnd_stcn")
+                    _신K[_c] = ([str(z[_iD]) for z in _행], [_수K(z[_iR]) for z in _행], [_수K(z[_iS]) for z in _행])
+                else:
+                    _신K[_c] = None
+                _r = _읽K("kis-short", _c)
+                if _r:
+                    _칸, _행 = _r
+                    _iD, _iQ, _iV = _칸.index("stck_bsop_date"), _칸.index("ssts_cntg_qty"), _칸.index("acml_vol")
+                    _q = [(_수K(z[_iQ]) or 0.0) for z in _행]
+                    _v = [(_수K(z[_iV]) or 0.0) for z in _행]
+                    _비 = []   # 20일 공매도 비중(%) — 그날까지 20일 합
+                    for _k in range(len(_행)):
+                        _a = max(0, _k - 19)
+                        _sv = sum(_v[_a:_k + 1])
+                        _비.append(sum(_q[_a:_k + 1]) / _sv * 100 if _sv > 0 else None)
+                    _공K[_c] = ([str(z[_iD]) for z in _행], _비)
+                else:
+                    _공K[_c] = None
+
+            def _순위K(목록, k):
+                """목록[k] 가 그 앞 250개(자기 포함) 안에서 몇 번째 위치인가(0~1) — 값 120개 안 되면 None"""
+                _창 = [z for z in 목록[max(0, k - 249):k + 1] if z is not None]
+                if len(_창) < 120 or 목록[k] is None:
+                    return None
+                return sum(1 for z in _창 if z < 목록[k]) / (len(_창) - 1 if len(_창) > 1 else 1)
+
+            _값K = {}
+
+            def _값(x):
+                _key = (x["code"], x["인"])
+                if _key in _값K:
+                    return _값K[_key]
+                _o = {}
+                _s = _신K.get(x["code"])
+                if _s and x["인"] >= 3:
+                    _ds, _rt, _st = _s
+                    _k = _bsK.bisect_right(_ds, 날[x["인"] - 3]) - 1
+                    if _k >= 0:
+                        _o["율"] = _rt[_k]
+                        _o["율순위"] = _순위K(_rt, _k)
+                        if _k >= 20 and _st[_k] is not None and _st[_k - 20]:
+                            _o["20일"] = _st[_k] / _st[_k - 20] - 1
+                _p = _공K.get(x["code"])
+                if _p and x["인"] >= 2:
+                    _ds, _비 = _p
+                    _k = _bsK.bisect_right(_ds, 날[x["인"] - 2]) - 1
+                    if _k >= 0:
+                        _o["공순위"] = _순위K(_비, _k)
+                _값K[_key] = _o
+                return _o
+
+            def _빼K(조건):
+                def f(x):
+                    if not _H(x):
+                        return False
+                    try:
+                        return not 조건(_값(x))
+                    except TypeError:   # 값 없음(None 비교) → 빼지 않는다
+                        return True
+                return f
+
+            def _남K(조건):
+                def f(x):
+                    if not _H(x):
+                        return False
+                    try:
+                        return bool(조건(_값(x)))
+                    except TypeError:
+                        return False
+                return f
+            _통K = [x for x in 사건 if _H(x)]
+            _있K = [x for x in _통K if _값(x)]
+            print(f"     (점검) 실전 거름 통과 후보 {len(_통K):,} · 신용·공매도 값 있는 것 {len(_있K):,} ({len(_있K) / max(len(_통K), 1) * 100:.0f}%) · "
+                  f"신용 잔고율 있는 것 {sum(1 for x in _통K if _값(x).get('율') is not None):,} · 순위 있는 것 {sum(1 for x in _통K if _값(x).get('율순위') is not None):,} · 공매도 순위 {sum(1 for x in _통K if _값(x).get('공순위') is not None):,}")
+            _율s = sorted(_값(x)["율"] for x in _통K if _값(x).get("율") is not None)
+            if _율s:
+                print(f"     (점검) 신용 잔고율 % — 중앙 {_율s[len(_율s) // 2]:.2f} · 90% 자리 {_율s[int(len(_율s) * .9)]:.2f} · 최대 {_율s[-1]:.2f}")
+            _안들C = (("지금 그대로", {}),
+                     ("신용 잔고율이 제 1년 중 위 10% 면 빼기", {"거름": _빼K(lambda o: o.get("율순위") >= 0.9)}),
+                     ("신용 잔고율이 제 1년 중 아래 10% 면 빼기", {"거름": _빼K(lambda o: o.get("율순위") <= 0.1)}),
+                     ("신용 잔고율 양 끝 10% 빼기", {"거름": _빼K(lambda o: o.get("율순위") >= 0.9 or o.get("율순위") <= 0.1)}),
+                     ("신용 잔고율 5% 넘으면 빼기", {"거름": _빼K(lambda o: o.get("율") >= 5)}),
+                     ("신용 잔고율 8% 넘으면 빼기", {"거름": _빼K(lambda o: o.get("율") >= 8)}),
+                     ("신용 잔고 20일 +50% 넘게 늘었으면 빼기", {"거름": _빼K(lambda o: o.get("20일") >= 0.5)}),
+                     ("신용 잔고 20일 −30% 넘게 줄었으면 빼기", {"거름": _빼K(lambda o: o.get("20일") <= -0.3)}),
+                     ("(참고) 신용 잔고 20일 −30% 넘게 줄어든 것만 남기기", {"거름": _남K(lambda o: o.get("20일") <= -0.3)}),
+                     ("공매도 비중(20일)이 제 1년 중 위 10% 면 빼기", {"거름": _빼K(lambda o: o.get("공순위") >= 0.9)}))
+            print("  ── CREDCUT · 신용잔고·공매도로 후보 빼기 (한국투자증권 2010~ · 신호 2~3일 전까지) ──")
         # ⭐ 2026-10-21 TOPN — **하루 산 수를 2~3개로 줄이면** 끝 자산·낙폭이 얼마나 달라지나 + 줄일 때 무슨 순서로 고르나
         #    사용자 10/21 「보여주는 후보를 신호가 강하고 확실한 것만 보여주는 게 나을 것 같은데, 지금 갖고 있는 규칙에서
         #    신호가 확실한 걸로 2개나 3개로 줄이면 끝자산이나 수익율이나 낙폭이나 차이 많이 나나?」
