@@ -1196,7 +1196,7 @@ def _섹터비율():
     return sorted(((s, sum(v) / denom * 100, len(v)) for s, v in by.items()), key=lambda z: -z[1])
 
 
-def _홈PC(o, latest, 머리시각, kept):
+def _홈PC(o, latest, 머리시각, kept, 갱신=None):
     r"""⭐ 10/23 PC 홈(1200px↑) — 사용자 「①-2 중 어느 쪽으로 가자」 (시안 https://claude.ai/artifact/HggFFtCV31ARjGQGBpd7VY 10판 안 C+)
     위 띠 = 코스피·코스닥·시장 구간·작은 칸(나스닥100·S&P500·나스닥 선물·어제 외국인·기관) · 띠 색은 홈과 같은 --c1/--c2
     아래 세 단 = 오늘 브리핑(한국 두 문장 · 미국 두 문장 · 후보 이름 · 일정 셋) / 퀀트(과거 화면과 같은 줄 + 채점 한 줄) / 포트폴리오(섹터 비율)
@@ -1272,6 +1272,7 @@ def _홈PC(o, latest, 머리시각, kept):
         _b1 += f'<div class="hk">일정</div><div class="hcal">{_일글}</div>'
     # ── 단 ② 퀀트 ──
     _b2, _t2, _s2 = "", "퀀트 후보", "재무·주가·지수를 숫자로만 보는 기계 규칙"
+    _상태2 = ""   # 10/23 「08:55 확정 · …」 은 부제가 아니라 본문 첫 줄로 — 부제는 폰 메뉴와 같은 설명(사용자 「퀀트 후보 설명(재무, 주가~~~) 추가하자」)
     _q = _quant()
     if _q:
         try:
@@ -1285,11 +1286,11 @@ def _홈PC(o, latest, 머리시각, kept):
             _n보 = sum(1 for x in (_q.get("보완후보") or []) if x.get("오늘산다"))
             if _확 and 산:
                 _t2 = f"퀀트 후보 · 지정가 {len(산)}"
-                _s2 = f"08:55 확정 · 시장보다 {abs(R.상대갭문턱):g}%p 싸게 열리면 삼" + (f" · 보완 {_n보} 따로" if _n보 else "")
+                _상태2 = f"08:55 확정 · 시장보다 {abs(R.상대갭문턱):g}%p 싸게 열리면 삼" + (f" · 보완 {_n보} 따로" if _n보 else "")
             elif _확:
-                _t2, _s2 = "퀀트 후보 · 살 것 없음", f"08:55 확정 · 시장보다 {abs(R.상대갭문턱):g}%p 싸게 연 종목 없음"
+                _t2, _상태2 = "퀀트 후보 · 살 것 없음", f"08:55 확정 · 시장보다 {abs(R.상대갭문턱):g}%p 싸게 연 종목 없음"
             else:
-                _t2, _s2 = f"퀀트 후보 · 볼 종목 {len(후보)}", "08:55에 확정 · 그 전엔 후보만"
+                _t2, _상태2 = f"퀀트 후보 · 볼 종목 {len(후보)}", "08:55에 확정 · 그 전엔 후보만"
             줄 = [_qc.지난줄(x, 종가, 업)[0] for x in 산]
             if not 줄 and _확:
                 _보유들 = _보유(_줄들())
@@ -1298,7 +1299,7 @@ def _홈PC(o, latest, 머리시각, kept):
                     _b2 += '<div class="hk">들고 있는 것</div>' + "".join(
                         f'<div class="hhold"><b>{_esc(x.get("이름") or x.get("종목코드") or "")}</b><span>{_esc(str(x.get("산날") or ""))} 삼' + (f' · {x["지난날"]}일 지남' if x.get("지난날") is not None else "") + "</span></div>" for x in _보유들[:6])
             else:
-                _b2 = "".join(줄)
+                _b2 = (f'<div class="hstate">{_esc(_상태2)}</div>' if _상태2 else "") + "".join(줄)
             try:
                 _비 = _qn._비교(_줄들())
                 _전 = _비.get("퀀트전부")
@@ -1323,7 +1324,10 @@ def _홈PC(o, latest, 머리시각, kept):
     _dn = f"{latest[5:7].lstrip('0')}.{latest[8:10].lstrip('0')}({WEEKDAY[datetime.strptime(latest, '%Y-%m-%d').weekday()]})"
 
     def _단(go, 제목, 부제, 본, hot=False):
-        return (f'<div class="hcol{" hot" if hot else ""}"><button class="hh" type="button" data-go="{go}"><span><b>{_esc(제목)}</b><small>{_esc(부제)}</small></span><em>전체 보기 →</em></button>'
+        # 10/23 갱신 날짜·시각 — 폰 메뉴 오른쪽과 같은 값(사용자 「PC 홈화면에도 갱신날짜/시간 … 추가하자」)
+        _up = str((갱신 or {}).get(go) or "").replace(" 갱신", "").strip()
+        return (f'<div class="hcol{" hot" if hot else ""}"><button class="hh" type="button" data-go="{go}"><span><b>{_esc(제목)}</b><small>{_esc(부제)}</small></span>'
+                f'<em>{f"<i>{_esc(_up)}</i>" if _up else ""}전체 보기 →</em></button>'
                 f'<div class="hb">{본}</div></div>')
     단들 = _단("today", "오늘 브리핑", "뉴스·공시·수급으로 읽는 시장", _b1, True)
     if _q:
@@ -1492,6 +1496,9 @@ WX_CSS = """<style>
 #home .hcol .hh{background:#151B26;color:#fff;border-bottom:0}
 #home .hcol .hh small{color:rgba(255,255,255,.75)}#home .hcol .hh em{color:#9DB7F0}
 #home .hcol .hh:focus-visible{outline:2px solid #9DB7F0}
+#home .hh em{text-align:right;line-height:1.35}
+#home .hh em i{display:block;font-style:normal;font-size:12px;font-weight:600;color:rgba(255,255,255,.72);margin-bottom:2px;font-feature-settings:'tnum'}
+#home .hstate{font-size:12px;color:#5E6878;padding-bottom:8px;margin-bottom:2px;border-bottom:1px solid #D9DFE7}
 #home .hb{padding:14px 20px 12px;font-size:13.5px;line-height:1.6;color:#151B26}
 #home .hb p{margin:0 0 12px}
 #home .hk{font-size:11.5px;font-weight:700;color:#5E6878;letter-spacing:.03em;margin:0 0 4px}
@@ -1691,7 +1698,8 @@ def build(out, days=DEFAULT_DAYS):
         # ⚠️ 수록 기간·생성 시각은 폰에서 안 보인다. 그래도 없애지 않는다 — 캐시가 센 데서 옛 화면인지 가려내는 단서 (2026-08-27)
         f'<span class="pconly"> · 수록 {len(kept)}일 ({oldest_kept} ~ {latest}) · 화면 생성 {built}</span>'
         f'</div>'
-        + _홈PC(kept[-1], latest, _머리시각, kept)   # 10/23 PC 홈(1200px↑) — 폰은 위 그대로
+        + _홈PC(kept[-1], latest, _머리시각, kept,
+                {"today": _브리핑갱신, "qt": _퀀트갱신, "pf": _포트폴리오갱신})   # 10/23 PC 홈(1200px↑) — 폰은 위 그대로 · 단마다 갱신 시각(폰 메뉴와 같은 값)
         + f'</section>')
 
     # ⚠️ 포트폴리오 화면은 달력과 나란한 형제다 — `cal` 문자열 앞에 붙인다.

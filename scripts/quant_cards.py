@@ -1626,10 +1626,10 @@ _지난CSS = (
     ".qpast .qp-px i{display:inline;margin-right:6px}.qpast .qp-pill{grid-column:2;grid-row:1/3;align-self:center}.qpast .qp-sec+.qp-li .qp-pill,.qpast .qp-li .qp-pill{grid-row:1/3}}"
     "@media(min-width:1200px){"
     ".qpast{padding:16px 24px 24px}"
-    ".qpast .qp-hdr{display:grid;grid-template-columns:1.9fr 1fr 1fr 1fr auto;gap:12px;padding:8px 18px;font-size:11px;color:var(--sub);border-bottom:1.5px solid var(--ink);background:#fff;border-radius:10px 10px 0 0;margin-top:12px}"
+    ".qpast .qp-hdr{display:grid;grid-template-columns:1.9fr 1fr 1fr 1fr 68px;gap:12px;padding:8px 18px;font-size:11px;color:var(--sub);border-bottom:1.5px solid var(--ink);background:#fff;border-radius:10px 10px 0 0;margin-top:12px}"   # 10/23 끝 칸을 auto 로 두면 머리(「결과」 글)와 줄(52px 표)이 따로 재서 열이 어긋났다(사용자 캡처) → 둘 다 68px
     ".qpast .qp-hdr span{text-align:right}.qpast .qp-hdr span:first-child{text-align:left}"
     ".qpast .qp-list{margin-top:0;border-radius:0 0 10px 10px}"
-    ".qpast .qp-li{grid-template-columns:1.9fr 1fr 1fr 1fr auto;padding:12px 18px}.qpast .qp-nm{font-size:16px}"
+    ".qpast .qp-li{grid-template-columns:1.9fr 1fr 1fr 1fr 68px;gap:12px;padding:12px 18px}.qpast .qp-li .qp-pill{justify-self:end;width:68px;box-sizing:border-box}.qpast .qp-nm{font-size:16px}"
     ".qpast .qp-px{display:none}.qpast .qp-c{display:block;font-size:15px;font-weight:700;text-align:right;white-space:nowrap}"
     "}"
     "#qt.past .qrail,#qt.past .qmob,#qt.past .qm45,#qt.past .qhint,#qt.past [role=alert],#qt.past .qpc{display:none!important}"
