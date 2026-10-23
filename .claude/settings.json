@@ -10,6 +10,18 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/mrblue/Claude/morning breifing_code/scripts/lab_ledger.py\" --hook",
+            "timeout": 30,
+            "statusMessage": "시험 결과 기록 확인 중"
+          }
+        ]
+      }
     ]
   }
 }
