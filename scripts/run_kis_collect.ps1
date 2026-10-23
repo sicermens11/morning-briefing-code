@@ -5,8 +5,9 @@ $root = Split-Path -Parent $PSScriptRoot
 $py = "C:\Users\mrblue\AppData\Local\Programs\Python\Python313\python.exe"
 if (-not (Test-Path $py)) { $py = (Get-Command python).Source }
 $n = 3   # 6개는 초당 한도(EGW00201)에 바로 걸렸다(10/22 17:57)
+$종류 = if ($args.Count -gt 0) { $args[0] } else { "신용공매도" }   # 10/23 「대차+의견」
 for ($i = 0; $i -lt $n; $i++) {
-    Start-Process -FilePath $py -ArgumentList @("`"$root\scripts\collect_kis_hist.py`"", "--조각", "$i/$n") `
+    Start-Process -FilePath $py -ArgumentList @("`"$root\scripts\collect_kis_hist.py`"", "--조각", "$i/$n", "--종류", $종류) `
         -WorkingDirectory $root -WindowStyle Hidden `
         -RedirectStandardOutput "$root\data\_kis_collect_$i.out" -RedirectStandardError "$root\data\_kis_collect_$i.err"
     Start-Sleep -Seconds 2

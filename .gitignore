@@ -87,3 +87,9 @@ data/_kis_token_*.json
 data/kis-antc/
 data/kis-credit/
 data/kis-short/
+data/kis-loan/
+data/kis-opinion/
+data/kis-investor/
+data/kis-program/
+data/kis-tradevol/
+data/kis-mktflow/

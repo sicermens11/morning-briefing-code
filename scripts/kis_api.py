@@ -142,6 +142,19 @@ class KIS:
                       {"FID_COND_MRKT_DIV_CODE": "J", "FID_COND_SCR_DIV_CODE": "20476", "FID_INPUT_ISCD": 코드, "FID_INPUT_DATE_1": 기준8})
         return j.get("output") or []
 
+    def 대차일별(self, 코드, 시작8, 끝8):
+        """종목별 대차 잔고 — 시장코드 **3 = 종목**(1·2 는 코스피·코스닥 전체 합계였다 · 10/23 실측) · 한 번 최대 100건 · 최근 것부터 · 2014~"""
+        j = self._get("/uapi/domestic-stock/v1/quotations/daily-loan-trans", "HHPST074500C0",
+                      {"MRKT_DIV_CLS_CODE": "3", "MKSC_SHRN_ISCD": 코드, "START_DATE": 시작8, "END_DATE": 끝8, "CTS": ""})
+        return j.get("output1") or []
+
+    def 투자의견(self, 코드, 시작8, 끝8):
+        """증권사 투자의견·목표가 — 한 번 최대 100건 · 최근 것부터 · 2010~(대형주만 촘촘)"""
+        j = self._get("/uapi/domestic-stock/v1/quotations/invest-opinion", "FHKST663300C0",
+                      {"FID_COND_MRKT_DIV_CODE": "J", "FID_COND_SCR_DIV_CODE": "16633", "FID_INPUT_ISCD": 코드,
+                       "FID_INPUT_DATE_1": 시작8, "FID_INPUT_DATE_2": 끝8})
+        return j.get("output") or []
+
     def 잔고(self):
         j = self._get("/uapi/domestic-stock/v1/trading/inquire-balance", _TR["잔고"][self.환경], {
             "CANO": self.계좌, "ACNT_PRDT_CD": 상품코드, "AFHR_FLPR_YN": "N", "OFL_YN": "", "INQR_DVSN": "02", "UNPR_DVSN": "01",
